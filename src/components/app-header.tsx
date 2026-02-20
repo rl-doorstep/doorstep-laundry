@@ -29,15 +29,23 @@ export function AppHeader() {
   const { data: session } = useSession();
   const role = (session?.user as { role?: string } | undefined)?.role ?? "customer";
   const isStaffOrAdmin = role === "staff" || role === "admin";
-  const navLinks = isStaffOrAdmin
-    ? [{ href: "/wash", label: "Wash" }]
-    : allNavLinks;
+  const navLinks =
+    role === "admin"
+      ? [
+          { href: "/wash", label: "Wash" },
+          { href: "/admin", label: "Admin" },
+        ]
+      : isStaffOrAdmin
+        ? [{ href: "/wash", label: "Wash" }]
+        : allNavLinks;
 
   const [menuOpen, setMenuOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
 
   const isActive = (href: string) =>
-    pathname === href || (href === "/dashboard" && pathname === "/wash");
+    pathname === href ||
+    (href === "/dashboard" && pathname === "/wash") ||
+    (href === "/admin" && pathname.startsWith("/admin"));
 
   useEffect(() => {
     if (!accountOpen) return;
