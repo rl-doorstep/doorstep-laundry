@@ -51,7 +51,7 @@ export default async function OrderDetailPage({
             href="/dashboard"
             className="text-sm font-medium text-fern-600 hover:text-fern-900 transition-colors"
           >
-            Back to dashboard
+            Back
           </Link>
         </div>
         <div className="rounded-2xl border border-fern-200/80 bg-white p-6 shadow-sm">
