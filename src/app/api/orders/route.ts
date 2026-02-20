@@ -82,6 +82,7 @@ export async function POST(request: Request) {
       pickupTimeSlot,
       deliveryTimeSlot,
       notes,
+      numberOfLoads,
       totalCents,
     } = body as {
       pickupAddressId?: string;
@@ -91,18 +92,20 @@ export async function POST(request: Request) {
       pickupTimeSlot?: string;
       deliveryTimeSlot?: string;
       notes?: string;
+      numberOfLoads?: number;
       totalCents?: number;
     };
+    const loads = numberOfLoads != null && numberOfLoads >= 1 ? numberOfLoads : 1;
+    const PRICE_PER_LOAD_CENTS = 2500;
+    const computedTotalCents = totalCents != null && totalCents >= 0 ? totalCents : loads * PRICE_PER_LOAD_CENTS;
     if (
       !pickupAddressId ||
       !deliveryAddressId ||
       !pickupDate ||
-      !deliveryDate ||
-      typeof totalCents !== "number" ||
-      totalCents < 0
+      !deliveryDate
     ) {
       return NextResponse.json(
-        { error: "pickupAddressId, deliveryAddressId, pickupDate, deliveryDate, totalCents required" },
+        { error: "pickupAddressId, deliveryAddressId, pickupDate, deliveryDate required" },
         { status: 400 }
       );
     }
@@ -131,7 +134,8 @@ export async function POST(request: Request) {
         pickupTimeSlot: pickupTimeSlot ?? null,
         deliveryTimeSlot: deliveryTimeSlot ?? null,
         notes: notes ?? null,
-        totalCents,
+        numberOfLoads: loads,
+        totalCents: computedTotalCents,
         status: "draft",
       },
       include: {

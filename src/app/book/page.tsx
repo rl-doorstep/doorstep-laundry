@@ -5,8 +5,6 @@ import { prisma } from "@/lib/db";
 import { AppHeader } from "@/components/app-header";
 import { BookForm } from "./book-form";
 
-const DEFAULT_TOTAL_CENTS = 2500; // $25.00
-
 export default async function BookPage() {
   const session = await getServerSession(authOptions);
   if (!session?.user) redirect("/login");
@@ -27,17 +25,14 @@ export default async function BookPage() {
           Book a pickup
         </h1>
         {addresses.length === 0 ? (
-          <div className="rounded-2xl border border-fern-200/80 bg-white p-8 shadow-sm">
-            <p className="text-fern-600 mb-6">
-              Add an address in your account first, or add one below.
+          <div>
+            <p className="text-fern-600 mb-4">
+              Add an address when you continue, or use an existing one from your account.
             </p>
-            <BookForm addresses={[]} defaultTotalCents={DEFAULT_TOTAL_CENTS} />
+            <BookForm addresses={[]} />
           </div>
         ) : (
-          <BookForm
-            addresses={addresses}
-            defaultTotalCents={DEFAULT_TOTAL_CENTS}
-          />
+          <BookForm addresses={addresses} />
         )}
       </main>
     </div>

@@ -70,6 +70,7 @@ model Order {
   pickupTimeSlot    String?     @map("pickup_time_slot")
   deliveryTimeSlot  String?     @map("delivery_time_slot")
   notes              String?
+  numberOfLoads      Int         @default(1) @map("number_of_loads")
   totalCents         Int         @map("total_cents")
   stripePaymentId    String?     @map("stripe_payment_id")
   createdAt          DateTime    @default(now()) @map("created_at")

@@ -109,6 +109,10 @@ export default async function OrderDetailPage({
               </div>
             )}
             <div>
+              <dt className="text-fern-500">Loads</dt>
+              <dd className="text-fern-900 mt-0.5 font-medium">{(order as { numberOfLoads?: number }).numberOfLoads ?? 1}</dd>
+            </div>
+            <div>
               <dt className="text-fern-500">Total</dt>
               <dd className="text-fern-900 mt-0.5 font-medium">${(order.totalCents / 100).toFixed(2)}</dd>
             </div>
