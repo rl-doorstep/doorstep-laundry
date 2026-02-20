@@ -3,6 +3,8 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
 const washPaths = ["/wash"];
+const driverPaths = ["/driver"];
+const driverApiPattern = /^\/api\/driver\/.+$/;
 const adminPaths = ["/admin"];
 const adminApiPattern = /^\/api\/admin\/.+$/;
 const staffApiPattern = /^\/api\/orders\/[^/]+\/status$/;
@@ -52,7 +54,11 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  if (isWashRoute || isStaffApi) {
+  const isDriverRoute =
+    driverPaths.some((p) => pathname === p || pathname.startsWith(p + "/")) ||
+    driverApiPattern.test(pathname);
+
+  if (isWashRoute || isStaffApi || isDriverRoute) {
     if (!token) {
       const login = new URL("/login", request.url);
       login.searchParams.set("callbackUrl", pathname);
@@ -88,5 +94,7 @@ export const config = {
     "/welcome",
     "/api/orders/:path*/status",
     "/api/admin/:path*",
+    "/driver/:path*",
+    "/api/driver/:path*",
   ],
 };

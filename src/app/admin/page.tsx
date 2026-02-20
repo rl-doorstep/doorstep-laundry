@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { AppHeader } from "@/components/app-header";
 import { AdminUserList } from "./admin-user-list";
 import { AdminLoadLocations } from "./admin-load-locations";
+import { AdminDriverLocations } from "./admin-driver-locations";
 
 export default async function AdminPage() {
   const session = await getServerSession(authOptions);
@@ -33,6 +34,16 @@ export default async function AdminPage() {
             Locations staff can assign to loads on the Wash page (e.g. Washer 2, Shelf 1, Folding station). Add or edit when you add equipment.
           </p>
           <AdminLoadLocations />
+        </section>
+
+        <section>
+          <h2 className="text-lg font-semibold text-fern-900 mb-2">
+            Driver locations
+          </h2>
+          <p className="text-sm text-fern-600 mb-6">
+            Where drivers are (when they share location from the Driver page). Click &quot;View on map&quot; to open in Google Maps.
+          </p>
+          <AdminDriverLocations />
         </section>
       </main>
     </div>

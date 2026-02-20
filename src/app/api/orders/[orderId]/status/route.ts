@@ -111,5 +111,36 @@ export async function POST(
     );
   }
 
+  if (newStatus === "delivered") {
+    const driverId = (session.user as { id: string }).id;
+    const runs = await prisma.driverRun.findMany({
+      where: { driverId },
+      orderBy: { startedAt: "desc" },
+      take: 5,
+    });
+    const MINUTES_PER_STOP = 10;
+    for (const run of runs) {
+      const orderIds = run.orderIds as string[];
+      const idx = orderIds.indexOf(orderId);
+      if (idx === -1) continue;
+      const deliveredOrders = await prisma.order.findMany({
+        where: { id: { in: orderIds }, status: "delivered" },
+        select: { id: true },
+      });
+      const deliveredSet = new Set(deliveredOrders.map((o) => o.id));
+      for (let i = idx + 1; i < orderIds.length; i++) {
+        const oid = orderIds[i];
+        if (deliveredSet.has(oid)) continue;
+        const stopsAway = orderIds.slice(idx + 1, i).filter((id) => !deliveredSet.has(id)).length;
+        const etaMinutes = (stopsAway + 1) * MINUTES_PER_STOP;
+        await sendOrderNotification(oid, "delivery_update", {
+          stopsAway,
+          etaMinutes,
+        }).catch((e) => console.error("Notify delivery_update:", e));
+      }
+      break;
+    }
+  }
+
   return NextResponse.json({ ok: true, status: newStatus });
 }

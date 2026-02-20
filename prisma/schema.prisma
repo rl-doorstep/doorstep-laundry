@@ -45,9 +45,11 @@ model User {
   createdAt     DateTime  @default(now()) @map("created_at")
   updatedAt     DateTime  @updatedAt @map("updated_at")
 
-  addresses     Address[]
-  orders        Order[]   @relation("CustomerOrders")
+  addresses       Address[]
+  orders          Order[]   @relation("CustomerOrders")
   staffAssignments StaffAssignment[]
+  driverLocations DriverLocation[]
+  driverRuns      DriverRun[]
 }
 
 model Address {
@@ -151,4 +153,26 @@ model StaffAssignment {
   @@unique([orderId, staffId, role])
   @@index([orderId])
   @@index([staffId])
+}
+
+model DriverLocation {
+  id        String   @id @default(cuid())
+  userId    String   @unique @map("user_id")
+  lat       Float    @map("lat")
+  lng       Float    @map("lng")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model DriverRun {
+  id        String   @id @default(cuid())
+  driverId  String   @map("driver_id")
+  orderIds  Json     @map("order_ids") // array of order id strings
+  startedAt DateTime @default(now()) @map("started_at")
+
+  driver User @relation(fields: [driverId], references: [id], onDelete: Cascade)
+
+  @@index([driverId])
+  @@index([driverId, startedAt])
 }

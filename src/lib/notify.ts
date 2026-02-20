@@ -9,8 +9,14 @@ export type NotifyEvent =
   | "picked_up"
   | "in_progress"
   | "out_for_delivery"
+  | "delivery_update"
   | "delivered"
   | "payment_received";
+
+export type DeliveryUpdatePayload = {
+  stopsAway?: number;
+  etaMinutes?: number;
+};
 
 const eventMessages: Record<
   NotifyEvent,
@@ -46,6 +52,11 @@ const eventMessages: Record<
     subject: "Out for delivery – Doorstep Laundry",
     body: "Your laundry is out for delivery.",
   },
+  delivery_update: {
+    sms: "Driver is {{stopsAway}} stops away. Approx arrival in {{etaMinutes}} min.",
+    subject: "Delivery update – Doorstep Laundry",
+    body: "Driver is {{stopsAway}} stops away. Approx arrival in {{etaMinutes}} min.",
+  },
   delivered: {
     sms: "Your laundry has been delivered. Thank you!",
     subject: "Delivered – Doorstep Laundry",
@@ -58,9 +69,31 @@ const eventMessages: Record<
   },
 };
 
+function interpolate(
+  template: string,
+  payload: DeliveryUpdatePayload | undefined
+): string {
+  if (!payload) return template;
+  let out = template;
+  if (typeof payload.stopsAway === "number") {
+    out = out.replace(
+      "{{stopsAway}}",
+      payload.stopsAway === 0 ? "your next stop" : String(payload.stopsAway)
+    );
+    if (payload.stopsAway === 0) {
+      out = out.replace(" stops away", ""); // "Driver is your next stop. Approx..."
+    }
+  }
+  if (typeof payload.etaMinutes === "number") {
+    out = out.replace("{{etaMinutes}}", String(payload.etaMinutes));
+  }
+  return out;
+}
+
 export async function sendOrderNotification(
   orderId: string,
-  event: NotifyEvent
+  event: NotifyEvent,
+  payload?: DeliveryUpdatePayload
 ): Promise<{ sms?: boolean; email?: boolean }> {
   const order = await prisma.order.findUnique({
     where: { id: orderId },
@@ -73,6 +106,10 @@ export async function sendOrderNotification(
   const msg = eventMessages[event];
   if (!msg) return {};
 
+  const smsText = event === "delivery_update" ? interpolate(msg.sms, payload) : msg.sms;
+  const emailBody = event === "delivery_update" ? interpolate(msg.body, payload) : msg.body;
+  const subject = event === "delivery_update" ? "Delivery update – Doorstep Laundry" : msg.subject;
+
   const result = { sms: false, email: false };
   const fromEmail = process.env.RESEND_FROM_EMAIL ?? "notifications@example.com";
 
@@ -83,7 +120,7 @@ export async function sendOrderNotification(
         process.env.TWILIO_AUTH_TOKEN
       );
       await client.messages.create({
-        body: `[${order.orderNumber}] ${msg.sms}`,
+        body: `[${order.orderNumber}] ${smsText}`,
         from: process.env.TWILIO_PHONE_NUMBER,
         to: order.customer.phone,
       });
@@ -99,8 +136,8 @@ export async function sendOrderNotification(
       await resend.emails.send({
         from: fromEmail,
         to: order.customer.email,
-        subject: msg.subject,
-        text: `Order ${order.orderNumber}: ${msg.body}`,
+        subject,
+        text: `Order ${order.orderNumber}: ${emailBody}`,
       });
       result.email = true;
     } catch (e) {
