@@ -114,7 +114,12 @@ export async function POST(request: Request) {
       data: { status: "out_for_delivery" },
     });
     await prisma.orderStatusHistory.create({
-      data: { orderId, status: "out_for_delivery", note: "Out for delivery (run started)" },
+      data: {
+        orderId,
+        status: "out_for_delivery",
+        note: "Out for delivery (run started)",
+        changedById: driverId,
+      },
     });
     await prisma.orderLoad.updateMany({
       where: { orderId },

@@ -13,6 +13,7 @@ const statusLabel: Record<string, string> = {
   scheduled: "Scheduled",
   picked_up: "Picked up",
   in_progress: "In progress",
+  ready_for_delivery: "Ready for delivery",
   out_for_delivery: "Out for delivery",
   delivered: "Delivered",
   cancelled: "Cancelled",
@@ -33,7 +34,10 @@ export default async function OrderDetailPage({
     include: {
       pickupAddress: true,
       deliveryAddress: true,
-      statusHistory: { orderBy: { createdAt: "desc" } },
+      statusHistory: {
+        orderBy: { createdAt: "desc" },
+        include: { changedBy: { select: { name: true, email: true } } },
+      },
     },
   });
   if (!order) notFound();
@@ -142,7 +146,7 @@ export default async function OrderDetailPage({
             </h2>
             <ul className="space-y-3">
               {order.statusHistory.map((h) => (
-                <li key={h.id} className="flex gap-3 text-sm">
+                <li key={h.id} className="flex flex-wrap gap-x-2 gap-y-0 text-sm items-baseline">
                   <span className="text-fern-500 shrink-0">
                     {new Date(h.createdAt).toLocaleString()}
                   </span>
@@ -152,6 +156,11 @@ export default async function OrderDetailPage({
                   {h.note && (
                     <span className="text-fern-600">
                       – {h.note}
+                    </span>
+                  )}
+                  {h.changedBy && (
+                    <span className="text-fern-500">
+                      by {h.changedBy.name ?? h.changedBy.email}
                     </span>
                   )}
                 </li>

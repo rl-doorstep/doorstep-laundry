@@ -54,7 +54,13 @@ function locationsSummary(order: OrderRow): string {
 }
 
 type OrderDetail = OrderRow & {
-  statusHistory?: { id: string; status: string; note: string | null; createdAt: string }[];
+  statusHistory?: {
+    id: string;
+    status: string;
+    note: string | null;
+    createdAt: string;
+    changedBy?: { name: string | null; email: string } | null;
+  }[];
   totalCents?: number;
 };
 
@@ -347,6 +353,11 @@ export function OrdersTable({
                                         {STATUS_LABEL[h.status] ?? h.status}
                                       </span>
                                       {h.note && <span>– {h.note}</span>}
+                                      {h.changedBy && (
+                                        <span className="text-fern-500">
+                                          by {h.changedBy.name ?? h.changedBy.email}
+                                        </span>
+                                      )}
                                     </li>
                                   ))}
                                 </ul>

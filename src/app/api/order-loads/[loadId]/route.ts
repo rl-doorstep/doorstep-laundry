@@ -99,6 +99,7 @@ export async function PATCH(
         note: newOrderStatus === "ready_for_delivery"
           ? "All loads folded (ready for delivery)"
           : "Wash started (load status updated)",
+        changedById: (session.user as { id: string }).id,
       },
     });
   }

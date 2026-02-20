@@ -188,7 +188,12 @@ export async function POST(request: Request) {
       },
     });
     await prisma.orderStatusHistory.create({
-      data: { orderId: order.id, status: "draft", note: "Order created" },
+      data: {
+        orderId: order.id,
+        status: "draft",
+        note: "Order created",
+        changedById: (session.user as { id: string }).id,
+      },
     });
     await sendOrderNotification(order.id, "order_created").catch((e) =>
       console.error("Notify order_created:", e)

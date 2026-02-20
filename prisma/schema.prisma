@@ -45,11 +45,12 @@ model User {
   createdAt     DateTime  @default(now()) @map("created_at")
   updatedAt     DateTime  @updatedAt @map("updated_at")
 
-  addresses       Address[]
-  orders          Order[]   @relation("CustomerOrders")
-  staffAssignments StaffAssignment[]
-  driverLocations DriverLocation[]
-  driverRuns      DriverRun[]
+  addresses           Address[]
+  orders              Order[]   @relation("CustomerOrders")
+  staffAssignments    StaffAssignment[]
+  driverLocations     DriverLocation[]
+  driverRuns          DriverRun[]
+  orderStatusChanges  OrderStatusHistory[]
 }
 
 model Address {
@@ -114,13 +115,15 @@ model OrderLoad {
 }
 
 model OrderStatusHistory {
-  id        String      @id @default(cuid())
-  orderId   String      @map("order_id")
-  status    OrderStatus
-  note      String?
-  createdAt DateTime    @default(now()) @map("created_at")
+  id          String      @id @default(cuid())
+  orderId     String      @map("order_id")
+  status      OrderStatus
+  note        String?
+  changedById String?     @map("changed_by_id")
+  createdAt   DateTime    @default(now()) @map("created_at")
 
-  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  order   Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  changedBy User? @relation(fields: [changedById], references: [id], onDelete: SetNull)
 
   @@index([orderId])
 }

@@ -68,6 +68,7 @@ export async function POST(
       orderId,
       status: newStatus,
       note: typeof note === "string" ? note : undefined,
+      changedById: (session.user as { id: string }).id,
     },
   });
 

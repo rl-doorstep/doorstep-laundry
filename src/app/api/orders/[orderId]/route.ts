@@ -21,7 +21,10 @@ export async function GET(
       customer: role !== "customer" ? { select: { id: true, name: true, email: true, phone: true } } : false,
       pickupAddress: true,
       deliveryAddress: true,
-      statusHistory: { orderBy: { createdAt: "desc" } },
+      statusHistory: {
+        orderBy: { createdAt: "desc" },
+        include: { changedBy: { select: { name: true, email: true } } },
+      },
     },
   });
   if (!order) {
