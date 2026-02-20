@@ -44,18 +44,37 @@ export default async function HomePage() {
             hassle, no trips to the laundromat.
           </p>
           <div className="mt-10 flex flex-wrap justify-center gap-4">
-            <Link
-              href="/signup"
-              className="rounded-xl bg-fern-500 text-white px-6 py-3 text-base font-medium hover:bg-fern-600 transition-colors shadow-md"
-            >
-              Get started
-            </Link>
-            <Link
-              href="/book"
-              className="rounded-xl border-2 border-fern-300 bg-white text-fern-700 px-6 py-3 text-base font-medium hover:bg-fern-50 hover:border-fern-400 transition-colors"
-            >
-              Book a pickup
-            </Link>
+            {session ? (
+              <>
+                <Link
+                  href="/dashboard"
+                  className="rounded-xl bg-fern-500 text-white px-6 py-3 text-base font-medium hover:bg-fern-600 transition-colors shadow-md"
+                >
+                  Dashboard
+                </Link>
+                <Link
+                  href="/book"
+                  className="rounded-xl border-2 border-fern-300 bg-white text-fern-700 px-6 py-3 text-base font-medium hover:bg-fern-50 hover:border-fern-400 transition-colors"
+                >
+                  Book a pickup
+                </Link>
+              </>
+            ) : (
+              <>
+                <Link
+                  href="/signup"
+                  className="rounded-xl bg-fern-500 text-white px-6 py-3 text-base font-medium hover:bg-fern-600 transition-colors shadow-md"
+                >
+                  Get started
+                </Link>
+                <Link
+                  href="/book"
+                  className="rounded-xl border-2 border-fern-300 bg-white text-fern-700 px-6 py-3 text-base font-medium hover:bg-fern-50 hover:border-fern-400 transition-colors"
+                >
+                  Book a pickup
+                </Link>
+              </>
+            )}
           </div>
         </section>
 
@@ -107,17 +126,19 @@ export default async function HomePage() {
 
         <section className="mx-auto max-w-5xl px-4 py-20 text-center bg-fern-50">
           <h2 className="text-2xl font-semibold text-fern-900">
-            Ready to try it?
+            {session ? "Ready to book?" : "Ready to try it?"}
           </h2>
           <p className="mt-4 text-fern-600">
-            Create an account to book your first pickup.
+            {session
+              ? "Schedule your next pickup from your dashboard."
+              : "Create an account to book your first pickup."}
           </p>
           <div className="mt-8">
             <Link
-              href="/signup"
+              href={session ? "/dashboard" : "/signup"}
               className="inline-flex rounded-xl bg-fern-500 text-white px-6 py-3 text-base font-medium hover:bg-fern-600 transition-colors shadow-md"
             >
-              Sign up
+              {session ? "Go to dashboard" : "Sign up"}
             </Link>
           </div>
         </section>

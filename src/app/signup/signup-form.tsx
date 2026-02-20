@@ -1,7 +1,6 @@
 "use client";
 
-import { signIn } from "next-auth/react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import Link from "next/link";
 
@@ -9,32 +8,31 @@ const inputClass =
   "mt-1 block w-full rounded-lg border border-fern-200 bg-white px-3 py-2.5 text-fern-900 placeholder-fern-400 focus:border-fern-500 focus:outline-none focus:ring-2 focus:ring-fern-500/20 transition-colors";
 const labelClass = "block text-sm font-medium text-fern-700";
 
-export function LoginForm() {
+export function SignupForm() {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const callbackUrl = searchParams.get("callbackUrl") ?? "/dashboard";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [name, setName] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  async function handleCredentials(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
     setLoading(true);
     try {
-      const res = await signIn("credentials", {
-        email,
-        password,
-        redirect: false,
+      const res = await fetch("/api/auth/signup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password, name: name || undefined }),
       });
-      if (res?.error) {
-        setError("Invalid email or password");
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(data.error ?? "Sign up failed");
         setLoading(false);
         return;
       }
-      const redirect = res?.url ?? callbackUrl;
-      router.push(redirect);
+      router.push("/login?registered=1");
       router.refresh();
     } catch {
       setError("Something went wrong");
@@ -47,16 +45,30 @@ export function LoginForm() {
       <div className="w-full max-w-sm space-y-8 rounded-2xl border border-fern-200/80 bg-white p-8 shadow-lg shadow-fern-900/5">
         <div>
           <h1 className="text-2xl font-semibold text-fern-900">
-            Sign in
+            Create account
           </h1>
           <p className="mt-1 text-sm text-fern-500">
             Doorstep Laundry Service
           </p>
         </div>
-        <form onSubmit={handleCredentials} className="space-y-5">
+        <form onSubmit={handleSubmit} className="space-y-5">
           {error && (
             <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{error}</p>
           )}
+          <div>
+            <label htmlFor="name" className={labelClass}>
+              Name (optional)
+            </label>
+            <input
+              id="name"
+              name="name"
+              type="text"
+              autoComplete="name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className={inputClass}
+            />
+          </div>
           <div>
             <label htmlFor="email" className={labelClass}>
               Email
@@ -80,8 +92,9 @@ export function LoginForm() {
               id="password"
               name="password"
               type="password"
-              autoComplete="current-password"
+              autoComplete="new-password"
               required
+              minLength={8}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className={inputClass}
@@ -92,32 +105,13 @@ export function LoginForm() {
             disabled={loading}
             className="w-full rounded-lg bg-fern-500 text-white py-2.5 px-4 font-medium hover:bg-fern-600 disabled:opacity-50 transition-colors"
           >
-            {loading ? "Signing in…" : "Sign in"}
+            {loading ? "Creating account…" : "Sign up"}
           </button>
         </form>
-        {process.env.NEXT_PUBLIC_GOOGLE_ENABLED === "true" && (
-          <div className="relative my-4">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-fern-200" />
-            </div>
-            <div className="relative flex justify-center text-sm">
-              <span className="bg-white px-2 text-fern-500">Or</span>
-            </div>
-          </div>
-        )}
-        {process.env.NEXT_PUBLIC_GOOGLE_ENABLED === "true" && (
-          <button
-            type="button"
-            onClick={() => signIn("google", { callbackUrl })}
-            className="w-full rounded-lg border border-fern-200 bg-white py-2 px-4 font-medium text-fern-700 hover:bg-fern-50 transition-colors"
-          >
-            Sign in with Google
-          </button>
-        )}
         <p className="text-center text-sm text-fern-600">
-          Don&apos;t have an account?{" "}
-          <Link href="/signup" className="font-medium text-fern-600 hover:text-fern-700">
-            Sign up
+          Already have an account?{" "}
+          <Link href="/login" className="font-medium text-fern-600 hover:text-fern-700">
+            Sign in
           </Link>
         </p>
       </div>
