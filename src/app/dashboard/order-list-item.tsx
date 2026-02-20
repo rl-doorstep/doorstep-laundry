@@ -10,6 +10,7 @@ const statusLabel: Record<string, string> = {
   scheduled: "Scheduled",
   picked_up: "Picked up",
   in_progress: "In progress",
+  ready_for_delivery: "Ready for delivery",
   out_for_delivery: "Out for delivery",
   delivered: "Delivered",
   cancelled: "Cancelled",

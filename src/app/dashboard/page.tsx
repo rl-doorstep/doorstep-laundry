@@ -4,7 +4,8 @@ import Link from "next/link";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { AppHeader } from "@/components/app-header";
-import { OrderListItem, type OrderListItemOrder } from "./order-list-item";
+import { DashboardOrderList } from "./dashboard-order-list";
+import type { OrderListItemOrder } from "./order-list-item";
 
 export default async function DashboardPage() {
   const session = await getServerSession(authOptions);
@@ -19,6 +20,8 @@ export default async function DashboardPage() {
     take: 50,
   });
 
+  const orderList = orders as OrderListItemOrder[];
+
   return (
     <div className="min-h-screen bg-fern-50">
       <AppHeader />
@@ -26,7 +29,7 @@ export default async function DashboardPage() {
         <h1 className="text-xl font-semibold text-fern-900 mb-6">
           My orders
         </h1>
-        {orders.length === 0 ? (
+        {orderList.length === 0 ? (
           <div className="rounded-2xl border border-fern-200/80 bg-white p-10 text-center shadow-sm">
             <p className="text-fern-600">
               You don&apos;t have any orders yet.
@@ -39,11 +42,7 @@ export default async function DashboardPage() {
             </Link>
           </div>
         ) : (
-          <ul className="space-y-3">
-            {orders.map((order: OrderListItemOrder) => (
-              <OrderListItem key={order.id} order={order} />
-            ))}
-          </ul>
+          <DashboardOrderList orders={orderList} />
         )}
       </main>
     </div>
