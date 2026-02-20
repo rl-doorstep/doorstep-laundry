@@ -216,12 +216,6 @@ export function WashDashboard({
                 Order
               </th>
               <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-fern-500">
-                Customer
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-fern-500">
-                Pickup address
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-fern-500">
                 Order status
               </th>
               <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-fern-500">
@@ -235,9 +229,6 @@ export function WashDashboard({
               </th>
               <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-fern-500">
                 Time / Dates
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-fern-500">
-                Update order
               </th>
             </tr>
           </thead>
@@ -255,7 +246,7 @@ export function WashDashboard({
               if (rows.length === 0) {
                 return (
                   <tr>
-                    <td colSpan={9} className="px-4 py-10 text-center text-fern-500">
+                    <td colSpan={6} className="px-4 py-10 text-center text-fern-500">
                       No orders for this filter.
                     </td>
                   </tr>
@@ -268,18 +259,6 @@ export function WashDashboard({
                 >
                   <td className="px-4 py-3 font-mono text-sm text-fern-900">
                     {order.orderNumber}
-                  </td>
-                  <td className="px-4 py-3 text-sm">
-                    <div className="font-medium text-fern-900">
-                      {order.customer.name ?? order.customer.email}
-                    </div>
-                    <div className="text-fern-500 text-xs">
-                      {order.customer.phone ?? order.customer.email}
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 text-sm text-fern-600">
-                    {order.pickupAddress.street}, {order.pickupAddress.city},{" "}
-                    {order.pickupAddress.state} {order.pickupAddress.zip}
                   </td>
                   <td className="px-4 py-3">
                     <span className="rounded-full px-2.5 py-1 text-xs font-medium bg-fern-100 text-fern-700">
@@ -366,27 +345,6 @@ export function WashDashboard({
                       {new Date(order.pickupDate as string).toLocaleDateString()} /{" "}
                       {new Date(order.deliveryDate as string).toLocaleDateString()}
                     </div>
-                  </td>
-                  <td className="px-4 py-3">
-                    {NEXT_STATUS[order.status]?.length ? (
-                      <select
-                        className={`${inputClass} w-full max-w-[160px]`}
-                        onChange={(e) => {
-                          const v = e.target.value;
-                          if (v) updateStatus(order.id, v);
-                          e.target.value = "";
-                        }}
-                      >
-                        <option value="">Change status…</option>
-                        {NEXT_STATUS[order.status].map((s) => (
-                          <option key={s} value={s}>
-                            → {STATUS_LABEL[s]}
-                          </option>
-                        ))}
-                      </select>
-                    ) : (
-                      <span className="text-fern-400 text-sm">—</span>
-                    )}
                   </td>
                 </tr>
               ));
