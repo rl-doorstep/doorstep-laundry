@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { getTimeSlotById } from "@/lib/slots";
 
 const POLL_INTERVAL_MS = 15_000;
@@ -22,6 +22,7 @@ type OrderLoadRow = {
   loadNumber: number;
   loadCode: string | null;
   status: string;
+  location: string | null;
 };
 
 type OrderRow = {
@@ -46,11 +47,19 @@ function loadsSummary(order: OrderRow): string {
   return `${ready}/${loads.length} ready`;
 }
 
+function locationsSummary(order: OrderRow): string {
+  const loads = order.orderLoads ?? [];
+  if (loads.length === 0) return "—";
+  const parts = loads.map((l) => (l.location?.trim() || "—"));
+  return parts.join(", ");
+}
+
 export function OrdersTable({
   initialOrders,
 }: {
   initialOrders: OrderRow[];
 }) {
+  const router = useRouter();
   const [orders, setOrders] = useState(initialOrders);
   const [filter, setFilter] = useState<"due_today" | "all">("all");
   const [loading, setLoading] = useState(false);
@@ -148,10 +157,10 @@ export function OrdersTable({
                 Loads
               </th>
               <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-fern-500">
-                Pickup / Delivery
+                Location
               </th>
               <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-fern-500">
-                Actions
+                Pickup / Delivery
               </th>
             </tr>
           </thead>
@@ -169,7 +178,16 @@ export function OrdersTable({
               orders.map((order) => (
                 <tr
                   key={order.id}
-                  className="hover:bg-fern-50/50 transition-colors"
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => router.push(`/orders/${order.id}`)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      router.push(`/orders/${order.id}`);
+                    }
+                  }}
+                  className="hover:bg-fern-50/50 transition-colors cursor-pointer"
                 >
                   <td className="px-4 py-3">
                     <span className="font-mono text-sm font-medium text-fern-900">
@@ -195,6 +213,9 @@ export function OrdersTable({
                     {loadsSummary(order)}
                   </td>
                   <td className="px-4 py-3 text-sm text-fern-600">
+                    {locationsSummary(order)}
+                  </td>
+                  <td className="px-4 py-3 text-sm text-fern-600">
                     <div>
                       {order.pickupTimeSlot
                         ? getTimeSlotById(order.pickupTimeSlot)?.label ??
@@ -211,21 +232,6 @@ export function OrdersTable({
                       /{" "}
                       {new Date(order.deliveryDate as string).toLocaleDateString()}
                     </div>
-                  </td>
-                  <td className="px-4 py-3">
-                    <Link
-                      href={`/wash?order=${order.orderNumber}`}
-                      className="text-sm font-medium text-fern-600 hover:text-fern-900"
-                    >
-                      Wash
-                    </Link>
-                    <span className="text-fern-300 mx-1">|</span>
-                    <Link
-                      href={`/orders/${order.id}`}
-                      className="text-sm font-medium text-fern-600 hover:text-fern-900"
-                    >
-                      Detail
-                    </Link>
                   </td>
                 </tr>
               ))
