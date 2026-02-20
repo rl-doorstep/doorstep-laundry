@@ -33,10 +33,14 @@ export function AppHeader() {
     role === "admin"
       ? [
           { href: "/wash", label: "Wash" },
+          { href: "/orders", label: "Orders" },
           { href: "/admin", label: "Admin" },
         ]
       : isStaffOrAdmin
-        ? [{ href: "/wash", label: "Wash" }]
+        ? [
+            { href: "/wash", label: "Wash" },
+            { href: "/orders", label: "Orders" },
+          ]
         : allNavLinks;
 
   const [menuOpen, setMenuOpen] = useState(false);
@@ -45,7 +49,8 @@ export function AppHeader() {
   const isActive = (href: string) =>
     pathname === href ||
     (href === "/dashboard" && pathname === "/wash") ||
-    (href === "/admin" && pathname.startsWith("/admin"));
+    (href === "/admin" && pathname.startsWith("/admin")) ||
+    (href === "/orders" && pathname === "/orders");
 
   useEffect(() => {
     if (!accountOpen) return;

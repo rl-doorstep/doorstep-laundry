@@ -18,6 +18,7 @@ export async function middleware(request: NextRequest) {
   });
 
   const isWashRoute = washPaths.some((p) => pathname === p || pathname.startsWith(p + "/"));
+  const isOrdersList = pathname === "/orders";
   const isAdminRoute =
     adminPaths.some((p) => pathname === p || pathname.startsWith(p + "/")) ||
     adminApiPattern.test(pathname);
@@ -25,6 +26,19 @@ export async function middleware(request: NextRequest) {
   const isCustomerRoute =
     customerPaths.some((p) => pathname === p || pathname.startsWith(p + "/")) ||
     orderPathPattern.test(pathname);
+
+  if (isOrdersList) {
+    if (!token) {
+      const login = new URL("/login", request.url);
+      login.searchParams.set("callbackUrl", pathname);
+      return NextResponse.redirect(login);
+    }
+    const role = token.role as string | undefined;
+    if (role !== "staff" && role !== "admin") {
+      return NextResponse.redirect(new URL("/dashboard", request.url));
+    }
+    return NextResponse.next();
+  }
 
   if (isAdminRoute) {
     if (!token) {
