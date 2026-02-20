@@ -5,6 +5,10 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import Link from "next/link";
 
+const inputClass =
+  "mt-1 block w-full rounded-lg border border-fern-200 bg-white px-3 py-2.5 text-fern-900 placeholder-fern-400 focus:border-fern-500 focus:outline-none focus:ring-2 focus:ring-fern-500/20 transition-colors";
+const labelClass = "block text-sm font-medium text-fern-700";
+
 export function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -39,22 +43,22 @@ export function LoginForm() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-zinc-50 dark:bg-zinc-900 px-4">
-      <div className="w-full max-w-sm space-y-8 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 p-8 shadow-sm">
+    <div className="min-h-screen flex items-center justify-center bg-fern-50 px-4">
+      <div className="w-full max-w-sm space-y-8 rounded-2xl border border-fern-200/80 bg-white p-8 shadow-lg shadow-fern-900/5">
         <div>
-          <h1 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100">
+          <h1 className="text-2xl font-semibold text-fern-900">
             Sign in
           </h1>
-          <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+          <p className="mt-1 text-sm text-fern-500">
             Doorstep Laundry Service
           </p>
         </div>
-        <form onSubmit={handleCredentials} className="space-y-4">
+        <form onSubmit={handleCredentials} className="space-y-5">
           {error && (
-            <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+            <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{error}</p>
           )}
           <div>
-            <label htmlFor="email" className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">
+            <label htmlFor="email" className={labelClass}>
               Email
             </label>
             <input
@@ -65,11 +69,11 @@ export function LoginForm() {
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="mt-1 block w-full rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-700 px-3 py-2 text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className={inputClass}
             />
           </div>
           <div>
-            <label htmlFor="password" className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">
+            <label htmlFor="password" className={labelClass}>
               Password
             </label>
             <input
@@ -80,13 +84,13 @@ export function LoginForm() {
               required
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="mt-1 block w-full rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-700 px-3 py-2 text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className={inputClass}
             />
           </div>
           <button
             type="submit"
             disabled={loading}
-            className="w-full rounded-lg bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 py-2 px-4 font-medium hover:bg-zinc-800 dark:hover:bg-zinc-200 disabled:opacity-50"
+            className="w-full rounded-lg bg-fern-500 text-white py-2.5 px-4 font-medium hover:bg-fern-600 disabled:opacity-50 transition-colors"
           >
             {loading ? "Signing in…" : "Sign in"}
           </button>
@@ -94,10 +98,10 @@ export function LoginForm() {
         {process.env.NEXT_PUBLIC_GOOGLE_ENABLED === "true" && (
           <div className="relative my-4">
             <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-zinc-200 dark:border-zinc-600" />
+              <div className="w-full border-t border-fern-200" />
             </div>
             <div className="relative flex justify-center text-sm">
-              <span className="bg-white dark:bg-zinc-800 px-2 text-zinc-500">Or</span>
+              <span className="bg-white px-2 text-fern-500">Or</span>
             </div>
           </div>
         )}
@@ -105,14 +109,14 @@ export function LoginForm() {
           <button
             type="button"
             onClick={() => signIn("google", { callbackUrl })}
-            className="w-full rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-700 py-2 px-4 font-medium text-zinc-900 dark:text-zinc-100 hover:bg-zinc-50 dark:hover:bg-zinc-600"
+            className="w-full rounded-lg border border-fern-200 bg-white py-2 px-4 font-medium text-fern-700 hover:bg-fern-50 transition-colors"
           >
             Sign in with Google
           </button>
         )}
-        <p className="text-center text-sm text-zinc-600 dark:text-zinc-400">
+        <p className="text-center text-sm text-fern-600">
           Don&apos;t have an account?{" "}
-          <Link href="/signup" className="font-medium text-blue-600 hover:text-blue-500">
+          <Link href="/signup" className="font-medium text-fern-600 hover:text-fern-700">
             Sign up
           </Link>
         </p>

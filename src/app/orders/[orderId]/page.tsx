@@ -37,53 +37,53 @@ export default async function OrderDetailPage({
   if (order.customerId !== userId) redirect("/dashboard");
 
   return (
-    <div className="min-h-screen bg-zinc-50 dark:bg-zinc-900">
-      <header className="border-b border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800">
+    <div className="min-h-screen bg-fern-50">
+      <header className="border-b border-fern-200/80 bg-white shadow-sm">
         <div className="mx-auto max-w-4xl px-4 py-4 flex justify-between items-center">
-          <h1 className="text-xl font-semibold text-zinc-900 dark:text-zinc-100 font-mono">
+          <h1 className="text-xl font-semibold text-fern-900 font-mono">
             {order.orderNumber}
           </h1>
           <Link
             href="/dashboard"
-            className="text-sm font-medium text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100"
+            className="text-sm font-medium text-fern-600 hover:text-fern-900 transition-colors"
           >
             Back to dashboard
           </Link>
         </div>
       </header>
       <main className="mx-auto max-w-4xl px-4 py-8 space-y-6">
-        <div className="rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 p-6">
+        <div className="rounded-2xl border border-fern-200/80 bg-white p-6 shadow-sm">
           <div className="flex justify-between items-start mb-4">
-            <span className="text-zinc-500 dark:text-zinc-400">Status</span>
+            <span className="text-fern-500">Status</span>
             <div className="flex items-center gap-3">
               {order.status === "draft" && !order.stripePaymentId && (
                 <PayButton orderId={order.id} />
               )}
               <span
-              className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                order.status === "delivered"
-                  ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
-                  : order.status === "cancelled"
-                    ? "bg-zinc-100 text-zinc-600 dark:bg-zinc-700 dark:text-zinc-400"
-                    : "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400"
-              }`}
+                className={`rounded-full px-2.5 py-1 text-xs font-medium ${
+                  order.status === "delivered"
+                    ? "bg-fern-100 text-fern-700"
+                    : order.status === "cancelled"
+                      ? "bg-fern-100 text-fern-500"
+                      : "bg-fern-200 text-fern-800"
+                }`}
               >
                 {statusLabel[order.status] ?? order.status}
               </span>
             </div>
           </div>
-          <dl className="grid gap-2 text-sm">
+          <dl className="grid gap-3 text-sm">
             <div>
-              <dt className="text-zinc-500 dark:text-zinc-400">Pickup</dt>
-              <dd>
+              <dt className="text-fern-500">Pickup</dt>
+              <dd className="text-fern-900 mt-0.5">
                 {new Date(order.pickupDate).toLocaleDateString()} –{" "}
                 {order.pickupAddress.street}, {order.pickupAddress.city},{" "}
                 {order.pickupAddress.state} {order.pickupAddress.zip}
               </dd>
             </div>
             <div>
-              <dt className="text-zinc-500 dark:text-zinc-400">Delivery</dt>
-              <dd>
+              <dt className="text-fern-500">Delivery</dt>
+              <dd className="text-fern-900 mt-0.5">
                 {new Date(order.deliveryDate).toLocaleDateString()} –{" "}
                 {order.deliveryAddress.street}, {order.deliveryAddress.city},{" "}
                 {order.deliveryAddress.state} {order.deliveryAddress.zip}
@@ -91,33 +91,33 @@ export default async function OrderDetailPage({
             </div>
             {order.notes && (
               <div>
-                <dt className="text-zinc-500 dark:text-zinc-400">Notes</dt>
-                <dd>{order.notes}</dd>
+                <dt className="text-fern-500">Notes</dt>
+                <dd className="text-fern-900 mt-0.5">{order.notes}</dd>
               </div>
             )}
             <div>
-              <dt className="text-zinc-500 dark:text-zinc-400">Total</dt>
-              <dd>${(order.totalCents / 100).toFixed(2)}</dd>
+              <dt className="text-fern-500">Total</dt>
+              <dd className="text-fern-900 mt-0.5 font-medium">${(order.totalCents / 100).toFixed(2)}</dd>
             </div>
           </dl>
         </div>
 
         {order.statusHistory.length > 0 && (
-          <div className="rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 p-6">
-            <h2 className="text-lg font-medium text-zinc-900 dark:text-zinc-100 mb-4">
+          <div className="rounded-2xl border border-fern-200/80 bg-white p-6 shadow-sm">
+            <h2 className="text-lg font-medium text-fern-900 mb-4">
               Status history
             </h2>
             <ul className="space-y-3">
               {order.statusHistory.map((h) => (
                 <li key={h.id} className="flex gap-3 text-sm">
-                  <span className="text-zinc-500 dark:text-zinc-400 shrink-0">
+                  <span className="text-fern-500 shrink-0">
                     {new Date(h.createdAt).toLocaleString()}
                   </span>
-                  <span className="font-medium">
+                  <span className="font-medium text-fern-800">
                     {statusLabel[h.status] ?? h.status}
                   </span>
                   {h.note && (
-                    <span className="text-zinc-600 dark:text-zinc-400">
+                    <span className="text-fern-600">
                       – {h.note}
                     </span>
                   )}

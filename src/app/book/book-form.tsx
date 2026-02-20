@@ -147,22 +147,26 @@ export function BookForm({
 
   const minDate = new Date().toISOString().slice(0, 10);
 
+  const inputClass =
+    "block w-full rounded-lg border border-fern-200 bg-white px-3 py-2.5 text-fern-900 placeholder-fern-400 focus:border-fern-500 focus:outline-none focus:ring-2 focus:ring-fern-500/20";
+  const labelClass = "block text-sm font-medium text-fern-700";
+
   return (
-    <div className="rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 p-6 space-y-6">
+    <div className="rounded-2xl border border-fern-200/80 bg-white p-6 space-y-6 shadow-sm">
       <form onSubmit={handleSubmit} className="space-y-6">
         {error && (
-          <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+          <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{error}</p>
         )}
 
         <div>
-          <h2 className="text-lg font-medium text-zinc-900 dark:text-zinc-100 mb-3">
+          <h2 className="text-lg font-medium text-fern-900 mb-3">
             Pickup address
           </h2>
           {addresses.length > 0 && !useNewPickup && (
             <select
               value={pickupAddressId}
               onChange={(e) => setPickupAddressId(e.target.value)}
-              className="block w-full rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-700 px-3 py-2 text-zinc-900 dark:text-zinc-100"
+              className={inputClass}
             >
               {addresses.map((a) => (
                 <option key={a.id} value={a.id}>
@@ -177,8 +181,9 @@ export function BookForm({
                 type="checkbox"
                 checked={useNewPickup}
                 onChange={(e) => setUseNewPickup(e.target.checked)}
+                className="rounded border-fern-200 text-fern-500 focus:ring-fern-500"
               />
-              <span className="text-sm text-zinc-600 dark:text-zinc-400">
+              <span className="text-sm text-fern-600">
                 Use a new address
               </span>
             </label>
@@ -191,7 +196,7 @@ export function BookForm({
                 onChange={(e) =>
                   setNewAddress((a) => ({ ...a, label: e.target.value }))
                 }
-                className="block w-full rounded-lg border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-zinc-900 dark:text-zinc-100"
+                className={inputClass}
               />
               <input
                 placeholder="Street"
@@ -199,7 +204,7 @@ export function BookForm({
                 onChange={(e) =>
                   setNewAddress((a) => ({ ...a, street: e.target.value }))
                 }
-                className="block w-full rounded-lg border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-zinc-900 dark:text-zinc-100"
+                className={inputClass}
               />
               <div className="grid grid-cols-2 gap-2">
                 <input
@@ -208,7 +213,7 @@ export function BookForm({
                   onChange={(e) =>
                     setNewAddress((a) => ({ ...a, city: e.target.value }))
                   }
-                  className="block w-full rounded-lg border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-zinc-900 dark:text-zinc-100"
+                  className={inputClass}
                 />
                 <input
                   placeholder="State"
@@ -216,7 +221,7 @@ export function BookForm({
                   onChange={(e) =>
                     setNewAddress((a) => ({ ...a, state: e.target.value }))
                   }
-                  className="block w-full rounded-lg border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-zinc-900 dark:text-zinc-100"
+                  className={inputClass}
                 />
               </div>
               <input
@@ -225,14 +230,14 @@ export function BookForm({
                 onChange={(e) =>
                   setNewAddress((a) => ({ ...a, zip: e.target.value }))
                 }
-                className="block w-full rounded-lg border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-zinc-900 dark:text-zinc-100"
+                className={inputClass}
               />
               {addresses.length === 0 && (
                 <button
                   type="button"
                   onClick={handleAddAddress}
                   disabled={loading}
-                  className="rounded-lg bg-zinc-200 dark:bg-zinc-600 px-4 py-2 text-sm font-medium"
+                  className="rounded-lg bg-fern-100 text-fern-700 px-4 py-2 text-sm font-medium hover:bg-fern-200 transition-colors"
                 >
                   Add address
                 </button>
@@ -242,14 +247,14 @@ export function BookForm({
         </div>
 
         <div>
-          <h2 className="text-lg font-medium text-zinc-900 dark:text-zinc-100 mb-3">
+          <h2 className="text-lg font-medium text-fern-900 mb-3">
             Delivery address
           </h2>
           {addresses.length > 0 && !useNewDelivery && (
             <select
               value={deliveryAddressId}
               onChange={(e) => setDeliveryAddressId(e.target.value)}
-              className="block w-full rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-700 px-3 py-2 text-zinc-900 dark:text-zinc-100"
+              className={inputClass}
             >
               {addresses.map((a) => (
                 <option key={a.id} value={a.id}>
@@ -264,14 +269,15 @@ export function BookForm({
                 type="checkbox"
                 checked={useNewDelivery}
                 onChange={(e) => setUseNewDelivery(e.target.checked)}
+                className="rounded border-fern-200 text-fern-500 focus:ring-fern-500"
               />
-              <span className="text-sm text-zinc-600 dark:text-zinc-400">
+              <span className="text-sm text-fern-600">
                 Use a new address
               </span>
             </label>
           )}
           {(useNewDelivery || addresses.length === 0) && !useNewPickup && addresses.length > 0 && (
-            <p className="mt-2 text-sm text-zinc-500">
+            <p className="mt-2 text-sm text-fern-500">
               Reusing the new address form above for delivery.
             </p>
           )}
@@ -279,7 +285,7 @@ export function BookForm({
 
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">
+            <label className={labelClass}>
               Pickup date
             </label>
             <input
@@ -288,11 +294,11 @@ export function BookForm({
               min={minDate}
               value={pickupDate}
               onChange={(e) => setPickupDate(e.target.value)}
-              className="mt-1 block w-full rounded-lg border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-zinc-900 dark:text-zinc-100"
+              className={`mt-1 ${inputClass}`}
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">
+            <label className={labelClass}>
               Delivery date
             </label>
             <input
@@ -301,25 +307,25 @@ export function BookForm({
               min={pickupDate || minDate}
               value={deliveryDate}
               onChange={(e) => setDeliveryDate(e.target.value)}
-              className="mt-1 block w-full rounded-lg border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-zinc-900 dark:text-zinc-100"
+              className={`mt-1 ${inputClass}`}
             />
           </div>
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">
+          <label className={labelClass}>
             Notes (optional)
           </label>
           <textarea
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             rows={2}
-            className="mt-1 block w-full rounded-lg border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-zinc-900 dark:text-zinc-100"
+            className={`mt-1 ${inputClass}`}
           />
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">
+          <label className={labelClass}>
             Total (cents, e.g. 2500 = $25)
           </label>
           <input
@@ -327,14 +333,14 @@ export function BookForm({
             min={0}
             value={totalCents}
             onChange={(e) => setTotalCents(Number(e.target.value) || 0)}
-            className="mt-1 block w-full rounded-lg border border-zinc-300 dark:border-zinc-600 px-3 py-2 text-zinc-900 dark:text-zinc-100"
+            className={`mt-1 ${inputClass}`}
           />
         </div>
 
         <button
           type="submit"
           disabled={loading}
-          className="w-full rounded-lg bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 py-3 font-medium disabled:opacity-50"
+          className="w-full rounded-lg bg-fern-500 text-white py-3 font-medium hover:bg-fern-600 disabled:opacity-50 transition-colors"
         >
           {loading ? "Creating order…" : "Create order & continue to payment"}
         </button>

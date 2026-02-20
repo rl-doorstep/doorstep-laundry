@@ -20,15 +20,15 @@ export default async function BookPage() {
   });
 
   return (
-    <div className="min-h-screen bg-zinc-50 dark:bg-zinc-900">
-      <header className="border-b border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800">
+    <div className="min-h-screen bg-fern-50">
+      <header className="border-b border-fern-200/80 bg-white shadow-sm">
         <div className="mx-auto max-w-4xl px-4 py-4 flex justify-between items-center">
-          <h1 className="text-xl font-semibold text-zinc-900 dark:text-zinc-100">
+          <h1 className="text-xl font-semibold text-fern-900">
             Book a pickup
           </h1>
           <Link
             href="/dashboard"
-            className="text-sm font-medium text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100"
+            className="text-sm font-medium text-fern-600 hover:text-fern-900 transition-colors"
           >
             Dashboard
           </Link>
@@ -36,8 +36,8 @@ export default async function BookPage() {
       </header>
       <main className="mx-auto max-w-4xl px-4 py-8">
         {addresses.length === 0 ? (
-          <div className="rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 p-8">
-            <p className="text-zinc-600 dark:text-zinc-400">
+          <div className="rounded-2xl border border-fern-200/80 bg-white p-8 shadow-sm">
+            <p className="text-fern-600 mb-6">
               Add an address in your account first, or add one below.
             </p>
             <BookForm addresses={[]} defaultTotalCents={DEFAULT_TOTAL_CENTS} />

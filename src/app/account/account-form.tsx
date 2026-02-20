@@ -2,6 +2,10 @@
 
 import { useState } from "react";
 
+const inputClass =
+  "mt-1 block w-full rounded-lg border border-fern-200 bg-white px-3 py-2.5 text-fern-900 placeholder-fern-400 focus:border-fern-500 focus:outline-none focus:ring-2 focus:ring-fern-500/20 transition-colors";
+const labelClass = "block text-sm font-medium text-fern-700";
+
 export function AccountForm({
   name,
   email,
@@ -42,46 +46,46 @@ export function AccountForm({
   return (
     <form onSubmit={handleSubmit} className="space-y-4 max-w-md">
       {message && (
-        <p className="text-sm text-zinc-600 dark:text-zinc-400">{message}</p>
+        <p className="text-sm text-fern-600">{message}</p>
       )}
       <div>
-        <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">
+        <label className={labelClass}>
           Name
         </label>
         <input
           type="text"
           value={form.name}
           onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-          className="mt-1 block w-full rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-700 px-3 py-2 text-zinc-900 dark:text-zinc-100"
+          className={inputClass}
         />
       </div>
       <div>
-        <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">
+        <label className={labelClass}>
           Email
         </label>
         <input
           type="email"
           value={form.email}
           readOnly
-          className="mt-1 block w-full rounded-lg border border-zinc-200 dark:border-zinc-600 bg-zinc-50 dark:bg-zinc-800 px-3 py-2 text-zinc-500 dark:text-zinc-400"
+          className="mt-1 block w-full rounded-lg border border-fern-200 bg-fern-50 px-3 py-2.5 text-fern-500"
         />
-        <p className="text-xs text-zinc-500 mt-1">Email cannot be changed here.</p>
+        <p className="text-xs text-fern-500 mt-1">Email cannot be changed here.</p>
       </div>
       <div>
-        <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">
+        <label className={labelClass}>
           Phone (for SMS updates)
         </label>
         <input
           type="tel"
           value={form.phone}
           onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
-          className="mt-1 block w-full rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-700 px-3 py-2 text-zinc-900 dark:text-zinc-100"
+          className={inputClass}
         />
       </div>
       <button
         type="submit"
         disabled={saving}
-        className="rounded-lg bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 px-4 py-2 text-sm font-medium disabled:opacity-50"
+        className="rounded-lg bg-fern-500 text-white px-4 py-2 text-sm font-medium hover:bg-fern-600 disabled:opacity-50 transition-colors"
       >
         {saving ? "Saving…" : "Save"}
       </button>

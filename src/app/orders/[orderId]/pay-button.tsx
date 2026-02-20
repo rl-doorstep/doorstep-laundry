@@ -35,7 +35,7 @@ export function PayButton({ orderId }: { orderId: string }) {
       type="button"
       onClick={handlePay}
       disabled={loading}
-      className="rounded-lg bg-green-600 text-white px-4 py-2 font-medium hover:bg-green-700 disabled:opacity-50"
+      className="rounded-lg bg-fern-500 text-white px-4 py-2 font-medium hover:bg-fern-600 disabled:opacity-50 transition-colors"
     >
       {loading ? "Redirecting…" : "Pay with Stripe"}
     </button>

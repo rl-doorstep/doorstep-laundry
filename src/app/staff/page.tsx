@@ -28,16 +28,16 @@ export default async function StaffPage() {
   });
 
   return (
-    <div className="min-h-screen bg-zinc-50 dark:bg-zinc-900">
-      <header className="border-b border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800">
+    <div className="min-h-screen bg-fern-50">
+      <header className="border-b border-fern-200/80 bg-white shadow-sm">
         <div className="mx-auto max-w-6xl px-4 py-4 flex justify-between items-center">
-          <h1 className="text-xl font-semibold text-zinc-900 dark:text-zinc-100">
+          <h1 className="text-xl font-semibold text-fern-900">
             Staff – Today&apos;s loads
           </h1>
           <form action="/api/auth/signout" method="POST">
             <button
               type="submit"
-              className="text-sm font-medium text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100"
+              className="text-sm font-medium text-fern-600 hover:text-fern-900 transition-colors"
             >
               Sign out
             </button>
