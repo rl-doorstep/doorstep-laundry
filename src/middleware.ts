@@ -6,7 +6,9 @@ const washPaths = ["/wash"];
 const driverPaths = ["/driver"];
 const driverApiPattern = /^\/api\/driver\/.+$/;
 const adminPaths = ["/admin"];
+const debugPaths = ["/debug"];
 const adminApiPattern = /^\/api\/admin\/.+$/;
+const debugApiPattern = /^\/api\/debug\/.+$/;
 const staffApiPattern = /^\/api\/orders\/[^/]+\/status$/;
 const customerPaths = ["/dashboard", "/book", "/account", "/welcome"];
 const orderPathPattern = /^\/orders\/[^/]+$/;
@@ -24,6 +26,9 @@ export async function middleware(request: NextRequest) {
   const isAdminRoute =
     adminPaths.some((p) => pathname === p || pathname.startsWith(p + "/")) ||
     adminApiPattern.test(pathname);
+  const isDebugRoute =
+    debugPaths.some((p) => pathname === p || pathname.startsWith(p + "/")) ||
+    debugApiPattern.test(pathname);
   const isStaffApi = staffApiPattern.test(pathname);
   const isCustomerRoute =
     customerPaths.some((p) => pathname === p || pathname.startsWith(p + "/")) ||
@@ -42,7 +47,7 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  if (isAdminRoute) {
+  if (isAdminRoute || isDebugRoute) {
     if (!token) {
       const login = new URL("/login", request.url);
       login.searchParams.set("callbackUrl", pathname);
@@ -91,9 +96,11 @@ export const config = {
     "/account/:path*",
     "/wash/:path*",
     "/admin/:path*",
+    "/debug/:path*",
     "/welcome",
     "/api/orders/:path*/status",
     "/api/admin/:path*",
+    "/api/debug/:path*",
     "/driver/:path*",
     "/api/driver/:path*",
   ],
