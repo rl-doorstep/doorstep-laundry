@@ -4,6 +4,7 @@ import Link from "next/link";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { getTimeSlotById } from "@/lib/slots";
+import { AppHeader } from "@/components/app-header";
 import { PayButton } from "./pay-button";
 
 const statusLabel: Record<string, string> = {
@@ -39,8 +40,9 @@ export default async function OrderDetailPage({
 
   return (
     <div className="min-h-screen bg-fern-50">
-      <header className="border-b border-fern-200/80 bg-white shadow-sm">
-        <div className="mx-auto max-w-4xl px-4 py-4 flex justify-between items-center">
+      <AppHeader />
+      <main className="mx-auto max-w-4xl px-4 py-8 space-y-6">
+        <div className="flex items-center justify-between mb-6">
           <h1 className="text-xl font-semibold text-fern-900 font-mono">
             {order.orderNumber}
           </h1>
@@ -51,8 +53,6 @@ export default async function OrderDetailPage({
             Back to dashboard
           </Link>
         </div>
-      </header>
-      <main className="mx-auto max-w-4xl px-4 py-8 space-y-6">
         <div className="rounded-2xl border border-fern-200/80 bg-white p-6 shadow-sm">
           <div className="flex justify-between items-start mb-4">
             <span className="text-fern-500">Status</span>

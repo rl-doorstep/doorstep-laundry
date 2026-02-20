@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { AppHeader } from "@/components/app-header";
 import { StaffDashboard } from "./staff-dashboard";
 
 export default async function StaffPage() {
@@ -29,22 +30,11 @@ export default async function StaffPage() {
 
   return (
     <div className="min-h-screen bg-fern-50">
-      <header className="border-b border-fern-200/80 bg-white shadow-sm">
-        <div className="mx-auto max-w-6xl px-4 py-4 flex justify-between items-center">
-          <h1 className="text-xl font-semibold text-fern-900">
-            Staff – Today&apos;s loads
-          </h1>
-          <form action="/api/auth/signout" method="POST">
-            <button
-              type="submit"
-              className="text-sm font-medium text-fern-600 hover:text-fern-900 transition-colors"
-            >
-              Sign out
-            </button>
-          </form>
-        </div>
-      </header>
+      <AppHeader />
       <main className="mx-auto max-w-6xl px-4 py-8">
+        <h1 className="text-xl font-semibold text-fern-900 mb-6">
+          Staff – Today&apos;s loads
+        </h1>
         <StaffDashboard initialOrders={orders} />
       </main>
     </div>

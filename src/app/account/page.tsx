@@ -1,8 +1,8 @@
 import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
-import Link from "next/link";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { AppHeader } from "@/components/app-header";
 import { AccountForm } from "./account-form";
 
 export default async function AccountPage() {
@@ -25,20 +25,11 @@ export default async function AccountPage() {
 
   return (
     <div className="min-h-screen bg-fern-50">
-      <header className="border-b border-fern-200/80 bg-white shadow-sm">
-        <div className="mx-auto max-w-4xl px-4 py-4 flex justify-between items-center">
-          <h1 className="text-xl font-semibold text-fern-900">
-            Account
-          </h1>
-          <Link
-            href="/dashboard"
-            className="text-sm font-medium text-fern-600 hover:text-fern-900 transition-colors"
-          >
-            Back to dashboard
-          </Link>
-        </div>
-      </header>
+      <AppHeader />
       <main className="mx-auto max-w-4xl px-4 py-8 space-y-8">
+        <h1 className="text-xl font-semibold text-fern-900 mb-6">
+          Account
+        </h1>
         <section className="rounded-2xl border border-fern-200/80 bg-white p-6 shadow-sm">
           <h2 className="text-lg font-medium text-fern-900 mb-4">
             Profile

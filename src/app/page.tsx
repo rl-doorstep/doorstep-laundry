@@ -1,29 +1,38 @@
 import Link from "next/link";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
+import { AppHeader } from "@/components/app-header";
 
-export default function HomePage() {
+export default async function HomePage() {
+  const session = await getServerSession(authOptions);
+
   return (
     <div className="min-h-screen bg-fern-50">
-      <header className="border-b border-fern-200/80 bg-white shadow-sm">
-        <div className="mx-auto max-w-5xl px-4 py-4 flex justify-between items-center">
-          <span className="text-lg font-semibold text-fern-900">
-            Doorstep Laundry
-          </span>
-          <nav className="flex gap-6">
-            <Link
-              href="/login"
-              className="text-sm font-medium text-fern-600 hover:text-fern-900 transition-colors"
-            >
-              Sign in
+      {session ? (
+        <AppHeader />
+      ) : (
+        <header className="border-b border-fern-200/80 bg-white shadow-sm">
+          <div className="mx-auto max-w-5xl px-4 py-4 flex justify-between items-center">
+            <Link href="/" className="text-lg font-semibold text-fern-900 hover:text-fern-700 transition-colors">
+              Doorstep Laundry
             </Link>
-            <Link
-              href="/signup"
-              className="rounded-lg bg-fern-500 text-white px-4 py-2 text-sm font-medium hover:bg-fern-600 transition-colors shadow-sm"
-            >
-              Sign up
-            </Link>
-          </nav>
-        </div>
-      </header>
+            <nav className="flex items-center gap-4">
+              <Link
+                href="/login"
+                className="text-sm font-medium text-fern-600 hover:text-fern-900 transition-colors"
+              >
+                Sign in
+              </Link>
+              <Link
+                href="/signup"
+                className="rounded-lg bg-fern-500 text-white px-4 py-2 text-sm font-medium hover:bg-fern-600 transition-colors shadow-sm"
+              >
+                Sign up
+              </Link>
+            </nav>
+          </div>
+        </header>
+      )}
 
       <main>
         <section className="mx-auto max-w-5xl px-4 py-24 text-center">
