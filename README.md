@@ -1,36 +1,77 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Doorstep Laundry Service
 
-## Getting Started
+Next.js app for a doorstep laundry pickup and delivery service. Customers can sign up, book pickups, track orders, and pay with Stripe. Staff have a dashboard to manage the day’s loads and update order status. Notifications go out via Twilio (SMS) and Resend (email).
 
-First, run the development server:
+## Stack
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+- **Next.js 16** (App Router), TypeScript, Tailwind CSS
+- **Auth:** NextAuth.js (credentials + optional Google), roles: customer, staff, admin
+- **DB:** PostgreSQL (Supabase/Railway) with Prisma
+- **Payments:** Stripe Checkout
+- **Notifications:** Twilio (SMS), Resend (email)
+- **Tests:** Vitest; CI with GitHub Actions
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Setup
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+1. **Clone and install**
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+   ```bash
+   npm install
+   ```
 
-## Learn More
+2. **Environment**
 
-To learn more about Next.js, take a look at the following resources:
+   Copy `.env.example` to `.env` and set:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+   - `DATABASE_URL` – Postgres connection string (e.g. Supabase)
+   - `NEXTAUTH_SECRET` – e.g. `openssl rand -base64 32`
+   - `NEXTAUTH_URL` – e.g. `http://localhost:3000`
+   - Optional: Stripe, Twilio, Resend, Google OAuth (see `.env.example`)
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+3. **Database**
 
-## Deploy on Vercel
+   ```bash
+   npm run db:migrate
+   npm run db:seed
+   ```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+   Seed creates a staff user: `staff@example.com` / `staff123`.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+4. **Run**
+
+   ```bash
+   npm run dev
+   ```
+
+   Open [http://localhost:3000](http://localhost:3000). Sign up as a customer or sign in as staff.
+
+## Scripts
+
+- `npm run dev` – development server
+- `npm run build` – production build
+- `npm run start` – run production build
+- `npm run lint` – ESLint
+- `npm run test` – Vitest
+- `npm run db:migrate` – Prisma migrate dev
+- `npm run db:seed` – seed staff user
+- `npm run db:push` – Prisma db push (no migration files)
+
+## Deployment (Vercel)
+
+1. Push to GitHub; connect the repo in Vercel and deploy from `main`.
+2. In Vercel, set env vars (see `.env.example`).
+3. Run migrations against the production DB (e.g. from CI or once from local with prod `DATABASE_URL`).
+4. In Stripe Dashboard, add webhook endpoint: `https://<your-vercel-domain>/api/webhooks/stripe`, event `checkout.session.completed`, and set `STRIPE_WEBHOOK_SECRET` in Vercel.
+
+## Routes
+
+- **Public:** `/`, `/login`, `/signup`
+- **Customer:** `/dashboard`, `/book`, `/orders/[id]`, `/account`
+- **Staff/Admin:** `/staff` (today’s loads, update status)
+- **API:** `/api/orders`, `/api/orders/[id]`, `/api/orders/[id]/status`, `/api/checkout`, `/api/webhooks/stripe`, `/api/addresses`, `/api/account`
+
+## Security
+
+- All order and staff routes require auth; `/staff` and status updates require staff or admin.
+- Customer data is scoped by `customer_id`; staff see only what’s needed for operations.
+- No secrets in the repo; use `.env` and Vercel env vars.

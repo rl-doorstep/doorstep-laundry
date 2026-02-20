@@ -1,0 +1,118 @@
+// Doorstep Laundry Service - Prisma schema
+// Compatible with PostgreSQL (Supabase, Railway)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  customer
+  staff
+  admin
+}
+
+enum OrderStatus {
+  draft
+  scheduled
+  picked_up
+  in_progress
+  out_for_delivery
+  delivered
+  cancelled
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  name          String?
+  phone         String?
+  role          Role      @default(customer)
+  passwordHash  String?   @map("password_hash")
+  authProvider  String?   @map("auth_provider")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  addresses     Address[]
+  orders        Order[]   @relation("CustomerOrders")
+  staffAssignments StaffAssignment[]
+}
+
+model Address {
+  id         String   @id @default(cuid())
+  userId     String   @map("user_id")
+  label      String
+  street     String
+  city       String
+  state      String
+  zip        String
+  isDefault  Boolean  @default(false) @map("is_default")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  user            User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  pickupOrders    Order[] @relation("PickupAddress")
+  deliveryOrders  Order[] @relation("DeliveryAddress")
+}
+
+model Order {
+  id                 String      @id @default(cuid())
+  orderNumber        String      @unique @map("order_number")
+  customerId         String      @map("customer_id")
+  pickupAddressId    String      @map("pickup_address_id")
+  deliveryAddressId String      @map("delivery_address_id")
+  status             OrderStatus @default(draft)
+  pickupDate         DateTime    @map("pickup_date") @db.Date
+  deliveryDate      DateTime    @map("delivery_date") @db.Date
+  notes              String?
+  totalCents         Int         @map("total_cents")
+  stripePaymentId    String?     @map("stripe_payment_id")
+  createdAt          DateTime    @default(now()) @map("created_at")
+  updatedAt          DateTime    @updatedAt @map("updated_at")
+
+  customer         User     @relation("CustomerOrders", fields: [customerId], references: [id], onDelete: Cascade)
+  pickupAddress    Address  @relation("PickupAddress", fields: [pickupAddressId], references: [id])
+  deliveryAddress  Address  @relation("DeliveryAddress", fields: [deliveryAddressId], references: [id])
+  statusHistory    OrderStatusHistory[]
+  staffAssignments StaffAssignment[]
+
+  @@index([status, pickupDate])
+  @@index([customerId, createdAt])
+}
+
+model OrderStatusHistory {
+  id        String      @id @default(cuid())
+  orderId   String      @map("order_id")
+  status    OrderStatus
+  note      String?
+  createdAt DateTime    @default(now()) @map("created_at")
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+}
+
+model OrderSequence {
+  id          String   @id @default(cuid())
+  datePrefix  String   @unique @map("date_prefix") // YYYYMMDD
+  lastNumber  Int      @default(0) @map("last_number")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+}
+
+model StaffAssignment {
+  id        String   @id @default(cuid())
+  orderId   String   @map("order_id")
+  staffId   String   @map("staff_id")
+  role      String   // e.g. "driver"
+  assignedAt DateTime @default(now()) @map("assigned_at")
+
+  order  Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  staff  User   @relation(fields: [staffId], references: [id], onDelete: Cascade)
+
+  @@unique([orderId, staffId, role])
+  @@index([orderId])
+  @@index([staffId])
+}
