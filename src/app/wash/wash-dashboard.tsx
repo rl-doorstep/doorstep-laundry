@@ -72,6 +72,19 @@ export function WashDashboard({
   const [orders, setOrders] = useState(initialOrders);
   const [loading, setLoading] = useState(false);
   const [updatingLoadId, setUpdatingLoadId] = useState<string | null>(null);
+  const [loadLocationNames, setLoadLocationNames] = useState<string[]>([]);
+
+  useEffect(() => {
+    fetch("/api/load-locations")
+      .then((res) => res.json())
+      .then((data) => {
+        const names = Array.isArray(data)
+          ? data.map((loc: { name: string }) => loc.name)
+          : [];
+        setLoadLocationNames(names);
+      })
+      .catch(() => {});
+  }, []);
 
   const fetchOrders = useCallback(async (showLoading = true) => {
     if (showLoading) setLoading(true);
@@ -323,11 +336,10 @@ export function WashDashboard({
                   </td>
                   <td className="px-4 py-3">
                     {load ? (
-                      <input
-                        type="text"
-                        placeholder="e.g. Washer 2, Shelf 1"
+                      <select
                         value={load.location ?? ""}
-                        onChange={(e) =>
+                        onChange={(e) => {
+                          const v = e.target.value || null;
                           setOrders((prev) =>
                             prev.map((o) =>
                               o.id === order.id
@@ -335,23 +347,31 @@ export function WashDashboard({
                                     ...o,
                                     orderLoads: o.orderLoads.map((l) =>
                                       l.id === load.id
-                                        ? { ...l, location: e.target.value || null }
+                                        ? { ...l, location: v }
                                         : l
                                     ),
                                   }
                                 : o
                             )
-                          )
-                        }
-                        onBlur={(e) => {
-                          const v = e.target.value.trim();
-                          if (v !== (load.location ?? "")) {
-                            updateLoad(load.id, { location: v || "" });
-                          }
+                          );
+                          updateLoad(load.id, { location: v ?? "" });
                         }}
                         disabled={updatingLoadId === load.id}
                         className={`${inputClass} min-w-[120px]`}
-                      />
+                      >
+                        <option value="">—</option>
+                        {[
+                          ...loadLocationNames,
+                          ...(load.location &&
+                          !loadLocationNames.includes(load.location)
+                            ? [load.location]
+                            : []),
+                        ].map((name) => (
+                          <option key={name} value={name}>
+                            {name}
+                          </option>
+                        ))}
+                      </select>
                     ) : (
                       <span className="text-fern-400 text-sm">—</span>
                     )}

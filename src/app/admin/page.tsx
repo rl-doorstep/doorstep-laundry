@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { AppHeader } from "@/components/app-header";
 import { AdminUserList } from "./admin-user-list";
+import { AdminLoadLocations } from "./admin-load-locations";
 
 export default async function AdminPage() {
   const session = await getServerSession(authOptions);
@@ -13,14 +14,26 @@ export default async function AdminPage() {
   return (
     <div className="min-h-screen bg-fern-50">
       <AppHeader />
-      <main className="mx-auto max-w-4xl px-4 py-8">
-        <h1 className="text-xl font-semibold text-fern-900 mb-6">
-          Admin – User roles
-        </h1>
-        <p className="text-sm text-fern-600 mb-6">
-          Set each user&apos;s role. Changes take effect on their next request or when they sign in again.
-        </p>
-        <AdminUserList />
+      <main className="mx-auto max-w-4xl px-4 py-8 space-y-12">
+        <section>
+          <h1 className="text-xl font-semibold text-fern-900 mb-6">
+            Admin – User roles
+          </h1>
+          <p className="text-sm text-fern-600 mb-6">
+            Set each user&apos;s role. Changes take effect on their next request or when they sign in again.
+          </p>
+          <AdminUserList />
+        </section>
+
+        <section>
+          <h2 className="text-lg font-semibold text-fern-900 mb-2">
+            Load locations
+          </h2>
+          <p className="text-sm text-fern-600 mb-6">
+            Locations staff can assign to loads on the Wash page (e.g. Washer 2, Shelf 1, Folding station). Add or edit when you add equipment.
+          </p>
+          <AdminLoadLocations />
+        </section>
       </main>
     </div>
   );

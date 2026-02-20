@@ -123,6 +123,14 @@ model OrderStatusHistory {
   @@index([orderId])
 }
 
+model LoadLocation {
+  id        String   @id @default(cuid())
+  name      String   @unique @map("name")
+  sortOrder Int      @default(0) @map("sort_order")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+}
+
 model OrderSequence {
   id          String   @id @default(cuid())
   datePrefix  String   @unique @map("date_prefix") // YYYYMMDD
