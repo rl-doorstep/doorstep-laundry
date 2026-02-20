@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -17,9 +18,13 @@ const linkInactive =
 
 export function AppHeader() {
   const pathname = usePathname();
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  const isActive = (href: string) =>
+    pathname === href || (href === "/dashboard" && pathname === "/staff");
 
   return (
-    <header className="border-b border-fern-200/80 bg-white shadow-sm">
+    <header className="relative border-b border-fern-200/80 bg-white shadow-sm">
       <div className="mx-auto max-w-5xl px-4 py-4 flex justify-between items-center">
         <Link
           href="/"
@@ -27,12 +32,11 @@ export function AppHeader() {
         >
           Doorstep Laundry
         </Link>
-        <nav className="flex items-center gap-1">
+
+        {/* Desktop nav */}
+        <nav className="hidden md:flex items-center gap-1">
           {navLinks.map(({ href, label }) => {
-            const isActive =
-              pathname === href ||
-              (href === "/dashboard" && pathname === "/staff");
-            return isActive ? (
+            return isActive(href) ? (
               <span
                 key={href}
                 aria-current="page"
@@ -59,7 +63,65 @@ export function AppHeader() {
             </button>
           </form>
         </nav>
+
+        {/* Mobile: hamburger button */}
+        <button
+          type="button"
+          onClick={() => setMenuOpen((o) => !o)}
+          className="md:hidden p-2 rounded-lg text-fern-700 hover:bg-fern-100"
+          aria-expanded={menuOpen}
+          aria-label="Toggle menu"
+        >
+          {menuOpen ? (
+            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          ) : (
+            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+          )}
+        </button>
       </div>
+
+      {/* Mobile menu panel */}
+      {menuOpen && (
+        <>
+          <div
+            className="fixed inset-0 z-10 bg-fern-900/20 md:hidden"
+            aria-hidden="true"
+            onClick={() => setMenuOpen(false)}
+          />
+          <nav
+            className="absolute left-0 right-0 top-full z-20 border-b border-fern-200/80 bg-white shadow-lg md:hidden"
+            aria-label="Mobile menu"
+          >
+            <div className="mx-auto max-w-5xl px-4 py-3 flex flex-col gap-0">
+              {navLinks.map(({ href, label }) => (
+                <Link
+                  key={href}
+                  href={href}
+                  onClick={() => setMenuOpen(false)}
+                  className={`py-3 px-2 text-base font-medium border-b border-fern-100 last:border-0 ${
+                    isActive(href) ? "text-fern-900" : "text-fern-600 hover:text-fern-900"
+                  }`}
+                  aria-current={isActive(href) ? "page" : undefined}
+                >
+                  {label}
+                </Link>
+              ))}
+              <form action="/api/auth/signout" method="POST" className="border-t border-fern-100 mt-1 pt-2">
+                <button
+                  type="submit"
+                  className="w-full text-left py-3 px-2 text-base font-medium text-fern-600 hover:text-fern-900"
+                >
+                  Sign out
+                </button>
+              </form>
+            </div>
+          </nav>
+        </>
+      )}
     </header>
   );
 }
