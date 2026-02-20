@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { AppHeader } from "@/components/app-header";
 import { AccountForm } from "./account-form";
+import { AddressSection } from "./address-section";
 
 export default async function AccountPage() {
   const session = await getServerSession(authOptions);
@@ -44,29 +45,7 @@ export default async function AccountPage() {
           <h2 className="text-lg font-medium text-fern-900 mb-4">
             Addresses
           </h2>
-          <ul className="space-y-3">
-            {addresses.map((addr) => (
-              <li
-                key={addr.id}
-                className="flex justify-between items-start rounded-xl border border-fern-200/80 p-4 bg-fern-50/50"
-              >
-                <div>
-                  <span className="font-medium text-fern-900">
-                    {addr.label}
-                    {addr.isDefault && (
-                      <span className="ml-2 text-xs text-fern-500">(default)</span>
-                    )}
-                  </span>
-                  <p className="text-sm text-fern-600 mt-1">
-                    {addr.street}, {addr.city}, {addr.state} {addr.zip}
-                  </p>
-                </div>
-              </li>
-            ))}
-          </ul>
-          <p className="mt-3 text-sm text-fern-500">
-            Add or edit addresses when booking a pickup.
-          </p>
+          <AddressSection addresses={addresses} />
         </section>
       </main>
     </div>
