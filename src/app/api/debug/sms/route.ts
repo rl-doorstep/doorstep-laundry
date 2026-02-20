@@ -56,6 +56,10 @@ export async function POST(request: Request) {
       message =
         "The 'From' number in TWILIO_PHONE_NUMBER isn't on this Twilio account. Use a number from your Twilio console (Phone Numbers) or a verified caller ID.";
       if (err.moreInfo) message += ` See: ${err.moreInfo}`;
+    } else if (err.code === 21266) {
+      message =
+        "Twilio doesn't allow sending to the same number as the 'From' number. Use a different 'To' number (on a trial account it must be verified in Twilio Console → Verified Caller IDs).";
+      if (err.moreInfo) message += ` See: ${err.moreInfo}`;
     } else if (err.moreInfo) {
       message += ` See: ${err.moreInfo}`;
     }

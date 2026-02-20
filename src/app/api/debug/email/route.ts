@@ -48,7 +48,12 @@ export async function POST(request: Request) {
       text,
     });
     if (result.error) {
-      return NextResponse.json({ error: result.error.message }, { status: 500 });
+      const msg =
+        typeof result.error === "object" && result.error !== null && "message" in result.error
+          ? String((result.error as { message: unknown }).message)
+          : String(result.error);
+      console.error("Debug Resend error:", result.error);
+      return NextResponse.json({ error: msg }, { status: 500 });
     }
     return NextResponse.json({ ok: true, id: result.data?.id });
   } catch (e: unknown) {
