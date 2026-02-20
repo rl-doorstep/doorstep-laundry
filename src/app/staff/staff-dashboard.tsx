@@ -34,6 +34,7 @@ const NEXT_STATUS: Record<string, string[]> = {
 type OrderLoadRow = {
   id: string;
   loadNumber: number;
+  loadCode: string | null;
   status: string;
   location: string | null;
 };
@@ -136,6 +137,7 @@ export function StaffDashboard({
                   ...l,
                   status: updated.status ?? l.status,
                   location: updated.location !== undefined ? updated.location : l.location,
+                  loadCode: updated.loadCode !== undefined ? updated.loadCode : l.loadCode,
                 }
               : l
           ),
@@ -203,6 +205,9 @@ export function StaffDashboard({
         </button>
       </div>
 
+      <p className="text-sm text-fern-600">
+        Each load has a unique ID. Loads in the same order are grouped for pickup and delivery.
+      </p>
       <div className="overflow-x-auto rounded-2xl border border-fern-200/80 bg-white shadow-sm">
         <table className="min-w-full divide-y divide-fern-200">
           <thead>
@@ -220,7 +225,7 @@ export function StaffDashboard({
                 Order status
               </th>
               <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-fern-500">
-                Loads (status + location)
+                Loads (ID, status + location)
               </th>
               <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-fern-500">
                 Time / Dates
@@ -267,8 +272,11 @@ export function StaffDashboard({
                           key={load.id}
                           className="flex flex-wrap items-center gap-2 text-sm"
                         >
-                          <span className="font-medium text-fern-700 shrink-0">
-                            Load {load.loadNumber}:
+                          <span
+                            className="font-mono text-fern-800 shrink-0"
+                            title={`Load ID: ${load.id}`}
+                          >
+                            {load.loadCode ?? `${order.orderNumber}-L${load.loadNumber}`}:
                           </span>
                           <select
                             value={load.status}

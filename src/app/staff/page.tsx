@@ -36,7 +36,12 @@ export default async function StaffPage() {
       for (let n = 1; n <= order.numberOfLoads; n++) {
         if (!existingNumbers.has(n)) {
           await prisma.orderLoad.create({
-            data: { orderId: order.id, loadNumber: n, status: "washing" },
+            data: {
+              orderId: order.id,
+              loadNumber: n,
+              loadCode: `${order.orderNumber}-L${n}`,
+              status: "washing",
+            },
           });
         }
       }

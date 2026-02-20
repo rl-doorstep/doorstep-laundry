@@ -98,6 +98,7 @@ model OrderLoad {
   id         String     @id @default(cuid())
   orderId    String     @map("order_id")
   loadNumber Int        @map("load_number")
+  loadCode   String?    @unique @map("load_code")
   status     LoadStatus @default(washing)
   location   String?    @map("location")
   createdAt  DateTime   @default(now()) @map("created_at")

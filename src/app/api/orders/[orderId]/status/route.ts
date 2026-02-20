@@ -71,13 +71,25 @@ export async function POST(
   });
 
   if (newStatus === "scheduled" || newStatus === "picked_up") {
+    const orderWithNumber = await prisma.order.findUnique({
+      where: { id: orderId },
+      select: { orderNumber: true },
+    });
     const existingLoads = await prisma.orderLoad.count({
       where: { orderId },
     });
-    if (existingLoads < order.numberOfLoads) {
+    if (
+      orderWithNumber &&
+      existingLoads < order.numberOfLoads
+    ) {
       for (let n = existingLoads + 1; n <= order.numberOfLoads; n++) {
         await prisma.orderLoad.create({
-          data: { orderId, loadNumber: n, status: "washing" },
+          data: {
+            orderId,
+            loadNumber: n,
+            loadCode: `${orderWithNumber.orderNumber}-L${n}`,
+            status: "washing",
+          },
         });
       }
     }

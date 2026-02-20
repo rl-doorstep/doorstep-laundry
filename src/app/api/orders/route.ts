@@ -53,12 +53,18 @@ export async function GET(request: Request) {
       )
       .map((o) => ({ id: o.id, numberOfLoads: o.numberOfLoads }));
     for (const { id: orderId, numberOfLoads } of orderIdsNeedingLoads) {
-      const existing = orders.find((o) => o.id === orderId)!.orderLoads;
+      const order = orders.find((o) => o.id === orderId)!;
+      const existing = order.orderLoads;
       const existingNumbers = new Set(existing.map((l) => l.loadNumber));
       for (let n = 1; n <= numberOfLoads; n++) {
         if (!existingNumbers.has(n)) {
           await prisma.orderLoad.create({
-            data: { orderId, loadNumber: n, status: "washing" },
+            data: {
+              orderId,
+              loadNumber: n,
+              loadCode: `${order.orderNumber}-L${n}`,
+              status: "washing",
+            },
           });
         }
       }
