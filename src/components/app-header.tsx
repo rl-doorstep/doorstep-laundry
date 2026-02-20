@@ -3,9 +3,9 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { signOut } from "next-auth/react";
+import { signOut, useSession } from "next-auth/react";
 
-const navLinks = [
+const allNavLinks = [
   { href: "/dashboard", label: "Dashboard" },
   { href: "/book", label: "Book a pickup" },
 ] as const;
@@ -26,6 +26,13 @@ function PersonIcon({ className = "w-5 h-5" }: { className?: string }) {
 
 export function AppHeader() {
   const pathname = usePathname();
+  const { data: session } = useSession();
+  const role = (session?.user as { role?: string } | undefined)?.role ?? "customer";
+  const isStaffOrAdmin = role === "staff" || role === "admin";
+  const navLinks = isStaffOrAdmin
+    ? allNavLinks.filter((l) => l.href !== "/book")
+    : allNavLinks;
+
   const [menuOpen, setMenuOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
 
