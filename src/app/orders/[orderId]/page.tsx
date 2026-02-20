@@ -57,9 +57,17 @@ export default async function OrderDetailPage({
         <div className="rounded-2xl border border-fern-200/80 bg-white p-6 shadow-sm">
           <div className="flex justify-between items-start mb-4">
             <span className="text-fern-500">Status</span>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 flex-wrap">
               {order.status === "draft" && !order.stripePaymentId && (
                 <PayButton orderId={order.id} />
+              )}
+              {order.status === "draft" && (
+                <Link
+                  href={`/orders/${order.id}/edit`}
+                  className="rounded-lg border border-fern-200 bg-white px-4 py-2 text-sm font-medium text-fern-700 hover:bg-fern-50 transition-colors"
+                >
+                  Edit
+                </Link>
               )}
               {order.status === "draft" && (
                 <DeleteDraftOrderButton orderId={order.id} variant="button" />

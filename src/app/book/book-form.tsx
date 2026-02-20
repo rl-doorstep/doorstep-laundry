@@ -9,34 +9,61 @@ const PRICE_PER_LOAD_CENTS = 2500;
 const DAYS_AHEAD = 14;
 const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
+export type BookFormInitialOrder = {
+  numberOfLoads: number;
+  pickupDate: Date | string;
+  deliveryDate: Date | string;
+  pickupTimeSlot: string;
+  deliveryTimeSlot: string;
+  pickupAddressId: string;
+  deliveryAddressId: string;
+  notes: string;
+};
+
 export function BookForm({
   addresses,
+  editOrderId,
+  initialOrder,
 }: {
   addresses: Address[];
   defaultTotalCents?: number;
+  editOrderId?: string;
+  initialOrder?: BookFormInitialOrder;
 }) {
   const router = useRouter();
   const timeSlots = getTimeSlots();
+  const isEdit = Boolean(editOrderId && initialOrder);
+
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
   // Step 1 state
-  const [numberOfLoads, setNumberOfLoads] = useState(1);
+  const [numberOfLoads, setNumberOfLoads] = useState(initialOrder?.numberOfLoads ?? 1);
   const [pickupDate, setPickupDate] = useState<Date>(() => {
+    if (initialOrder?.pickupDate) {
+      const d = new Date(initialOrder.pickupDate);
+      d.setHours(0, 0, 0, 0);
+      return d;
+    }
     const d = new Date();
     d.setHours(0, 0, 0, 0);
     return d;
   });
   const [deliveryDate, setDeliveryDate] = useState<Date>(() => {
+    if (initialOrder?.deliveryDate) {
+      const d = new Date(initialOrder.deliveryDate);
+      d.setHours(0, 0, 0, 0);
+      return d;
+    }
     const d = new Date();
     d.setDate(d.getDate() + 1);
     d.setHours(0, 0, 0, 0);
     return d;
   });
-  const [pickupTimeSlot, setPickupTimeSlot] = useState(timeSlots[0]?.id ?? "morning");
-  const [deliveryTimeSlot, setDeliveryTimeSlot] = useState(timeSlots[0]?.id ?? "morning");
-  const [dayPickerStart, setDayPickerStart] = useState(0); // offset from today
+  const [pickupTimeSlot, setPickupTimeSlot] = useState(initialOrder?.pickupTimeSlot ?? timeSlots[0]?.id ?? "morning");
+  const [deliveryTimeSlot, setDeliveryTimeSlot] = useState(initialOrder?.deliveryTimeSlot ?? timeSlots[0]?.id ?? "morning");
+  const [dayPickerStart, setDayPickerStart] = useState(0);
 
   // Step 2 state
   const [newAddress, setNewAddress] = useState({
@@ -46,11 +73,11 @@ export function BookForm({
     state: "",
     zip: "",
   });
-  const [useNewPickup, setUseNewPickup] = useState(addresses.length === 0);
-  const [useNewDelivery, setUseNewDelivery] = useState(addresses.length === 0);
-  const [pickupAddressId, setPickupAddressId] = useState(addresses[0]?.id ?? "");
-  const [deliveryAddressId, setDeliveryAddressId] = useState(addresses[0]?.id ?? "");
-  const [notes, setNotes] = useState("");
+  const [useNewPickup, setUseNewPickup] = useState(!isEdit && addresses.length === 0);
+  const [useNewDelivery, setUseNewDelivery] = useState(!isEdit && addresses.length === 0);
+  const [pickupAddressId, setPickupAddressId] = useState(initialOrder?.pickupAddressId ?? addresses[0]?.id ?? "");
+  const [deliveryAddressId, setDeliveryAddressId] = useState(initialOrder?.deliveryAddressId ?? addresses[0]?.id ?? "");
+  const [notes, setNotes] = useState(initialOrder?.notes ?? "");
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -168,27 +195,30 @@ export function BookForm({
 
     setLoading(true);
     try {
-      const res = await fetch("/api/orders", {
-        method: "POST",
+      const payload = {
+        pickupAddressId: finalPickupId,
+        deliveryAddressId: finalDeliveryId,
+        pickupDate: pickupDateStr,
+        deliveryDate: deliveryDateStr,
+        pickupTimeSlot,
+        deliveryTimeSlot,
+        notes: notes || undefined,
+        numberOfLoads,
+      };
+      const url = editOrderId ? `/api/orders/${editOrderId}` : "/api/orders";
+      const method = editOrderId ? "PATCH" : "POST";
+      const res = await fetch(url, {
+        method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          pickupAddressId: finalPickupId,
-          deliveryAddressId: finalDeliveryId,
-          pickupDate: pickupDateStr,
-          deliveryDate: deliveryDateStr,
-          pickupTimeSlot,
-          deliveryTimeSlot,
-          notes: notes || undefined,
-          numberOfLoads,
-        }),
+        body: JSON.stringify(payload),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setError(data.error ?? "Failed to create order");
+        setError(data.error ?? (editOrderId ? "Failed to update order" : "Failed to create order"));
         setLoading(false);
         return;
       }
-      router.push(`/orders/${data.id}`);
+      router.push(editOrderId ? `/orders/${editOrderId}` : `/orders/${data.id}`);
       router.refresh();
     } catch {
       setError("Something went wrong");
@@ -205,7 +235,7 @@ export function BookForm({
     return (
       <div className="rounded-2xl border border-fern-200/80 bg-white p-6 sm:p-8 shadow-sm max-w-2xl">
         <h2 className="text-2xl font-bold text-fern-900 mb-6">
-          Book your pickup
+          {isEdit ? "Edit pickup & delivery" : "Book your pickup"}
         </h2>
 
         {/* Service card */}
@@ -389,7 +419,7 @@ export function BookForm({
     <div className="rounded-2xl border border-fern-200/80 bg-white p-6 sm:p-8 shadow-sm max-w-2xl">
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-xl font-bold text-fern-900">
-          Address & details
+          {isEdit ? "Edit address & details" : "Address & details"}
         </h2>
         <button
           type="button"
@@ -485,7 +515,11 @@ export function BookForm({
           disabled={loading}
           className="w-full rounded-lg bg-fern-500 text-white py-3 font-medium hover:bg-fern-600 disabled:opacity-50 transition-colors"
         >
-          {loading ? "Creating order…" : "Create order & continue to payment"}
+          {loading
+            ? (isEdit ? "Saving…" : "Creating order…")
+            : isEdit
+              ? "Save changes"
+              : "Create order & continue to payment"}
         </button>
       </form>
     </div>
