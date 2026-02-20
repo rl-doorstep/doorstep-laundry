@@ -225,7 +225,13 @@ export function StaffDashboard({
                 Order status
               </th>
               <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-fern-500">
-                Loads (ID, status + location)
+                Load
+              </th>
+              <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-fern-500">
+                Load status
+              </th>
+              <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-fern-500">
+                Location
               </th>
               <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-fern-500">
                 Time / Dates
@@ -236,19 +242,34 @@ export function StaffDashboard({
             </tr>
           </thead>
           <tbody className="divide-y divide-fern-200">
-            {orders.length === 0 ? (
-              <tr>
-                <td colSpan={7} className="px-4 py-10 text-center text-fern-500">
-                  No orders for this filter.
-                </td>
-              </tr>
-            ) : (
-              orders.map((order) => (
-                <tr key={order.id} className="hover:bg-fern-50/50 transition-colors">
-                  <td className="px-4 py-3 font-mono text-sm text-fern-900 align-top">
+            {(() => {
+              const rows: { order: OrderRow; load: OrderLoadRow | null }[] = orders.flatMap(
+                (order) => {
+                  const loads = order.orderLoads ?? [];
+                  if (loads.length === 0) {
+                    return [{ order, load: null }];
+                  }
+                  return loads.map((load) => ({ order, load }));
+                }
+              );
+              if (rows.length === 0) {
+                return (
+                  <tr>
+                    <td colSpan={9} className="px-4 py-10 text-center text-fern-500">
+                      No orders for this filter.
+                    </td>
+                  </tr>
+                );
+              }
+              return rows.map(({ order, load }) => (
+                <tr
+                  key={load ? load.id : `${order.id}-empty`}
+                  className="hover:bg-fern-50/50 transition-colors"
+                >
+                  <td className="px-4 py-3 font-mono text-sm text-fern-900">
                     {order.orderNumber}
                   </td>
-                  <td className="px-4 py-3 text-sm align-top">
+                  <td className="px-4 py-3 text-sm">
                     <div className="font-medium text-fern-900">
                       {order.customer.name ?? order.customer.email}
                     </div>
@@ -256,87 +277,80 @@ export function StaffDashboard({
                       {order.customer.phone ?? order.customer.email}
                     </div>
                   </td>
-                  <td className="px-4 py-3 text-sm text-fern-600 align-top">
+                  <td className="px-4 py-3 text-sm text-fern-600">
                     {order.pickupAddress.street}, {order.pickupAddress.city},{" "}
                     {order.pickupAddress.state} {order.pickupAddress.zip}
                   </td>
-                  <td className="px-4 py-3 align-top">
+                  <td className="px-4 py-3">
                     <span className="rounded-full px-2.5 py-1 text-xs font-medium bg-fern-100 text-fern-700">
                       {STATUS_LABEL[order.status] ?? order.status}
                     </span>
                   </td>
-                  <td className="px-4 py-3 align-top">
-                    <div className="space-y-2">
-                      {(order.orderLoads ?? []).map((load) => (
-                        <div
-                          key={load.id}
-                          className="flex flex-wrap items-center gap-2 text-sm"
-                        >
-                          <span
-                            className="font-mono text-fern-800 shrink-0"
-                            title={`Load ID: ${load.id}`}
-                          >
-                            {load.loadCode ?? `${order.orderNumber}-L${load.loadNumber}`}:
-                          </span>
-                          <select
-                            value={load.status}
-                            onChange={(e) =>
-                              updateLoad(load.id, {
-                                status: e.target.value,
-                              })
-                            }
-                            disabled={updatingLoadId === load.id}
-                            className={inputClass}
-                          >
-                            {Object.entries(LOAD_STATUS_LABEL).map(([v, l]) => (
-                              <option key={v} value={v}>
-                                {l}
-                              </option>
-                            ))}
-                          </select>
-                          <input
-                            type="text"
-                            placeholder="e.g. Washer 2, Shelf 1"
-                            value={load.location ?? ""}
-                            onChange={(e) =>
-                              setOrders((prev) =>
-                                prev.map((o) =>
-                                  o.id === order.id
-                                    ? {
-                                        ...o,
-                                        orderLoads: o.orderLoads.map((l) =>
-                                          l.id === load.id
-                                            ? {
-                                                ...l,
-                                                location:
-                                                  e.target.value || null,
-                                              }
-                                            : l
-                                        ),
-                                      }
-                                    : o
-                                )
-                              )
-                            }
-                            onBlur={(e) => {
-                              const v = e.target.value.trim();
-                              if (v !== (load.location ?? "")) {
-                                updateLoad(load.id, {
-                                  location: v || "",
-                                });
-                              }
-                            }}
-                            disabled={updatingLoadId === load.id}
-                            className={`${inputClass} min-w-[120px]`}
-                          />
-                        </div>
-                      ))}
-                      {(!order.orderLoads || order.orderLoads.length === 0) && (
-                        <span className="text-fern-400 text-sm">—</span>
-                      )}
-                    </div>
+                  <td className="px-4 py-3 font-mono text-sm text-fern-800">
+                    {load ? (
+                      <span title={`Load ID: ${load.loadCode ?? `${order.orderNumber}-L${load.loadNumber}`}`}>
+                        L{load.loadNumber}/{order.numberOfLoads}
+                      </span>
+                    ) : (
+                      <span className="text-fern-400">—</span>
+                    )}
                   </td>
-                  <td className="px-4 py-3 text-sm text-fern-600 align-top">
+                  <td className="px-4 py-3">
+                    {load ? (
+                      <select
+                        value={load.status}
+                        onChange={(e) =>
+                          updateLoad(load.id, { status: e.target.value })
+                        }
+                        disabled={updatingLoadId === load.id}
+                        className={inputClass}
+                      >
+                        {Object.entries(LOAD_STATUS_LABEL).map(([v, l]) => (
+                          <option key={v} value={v}>
+                            {l}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <span className="text-fern-400 text-sm">—</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-3">
+                    {load ? (
+                      <input
+                        type="text"
+                        placeholder="e.g. Washer 2, Shelf 1"
+                        value={load.location ?? ""}
+                        onChange={(e) =>
+                          setOrders((prev) =>
+                            prev.map((o) =>
+                              o.id === order.id
+                                ? {
+                                    ...o,
+                                    orderLoads: o.orderLoads.map((l) =>
+                                      l.id === load.id
+                                        ? { ...l, location: e.target.value || null }
+                                        : l
+                                    ),
+                                  }
+                                : o
+                            )
+                          )
+                        }
+                        onBlur={(e) => {
+                          const v = e.target.value.trim();
+                          if (v !== (load.location ?? "")) {
+                            updateLoad(load.id, { location: v || "" });
+                          }
+                        }}
+                        disabled={updatingLoadId === load.id}
+                        className={`${inputClass} min-w-[120px]`}
+                      />
+                    ) : (
+                      <span className="text-fern-400 text-sm">—</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-3 text-sm text-fern-600">
                     <div>
                       {order.pickupTimeSlot
                         ? getTimeSlotById(order.pickupTimeSlot)?.label ??
@@ -353,7 +367,7 @@ export function StaffDashboard({
                       {new Date(order.deliveryDate as string).toLocaleDateString()}
                     </div>
                   </td>
-                  <td className="px-4 py-3 align-top">
+                  <td className="px-4 py-3">
                     {NEXT_STATUS[order.status]?.length ? (
                       <select
                         className={`${inputClass} w-full max-w-[160px]`}
@@ -375,8 +389,8 @@ export function StaffDashboard({
                     )}
                   </td>
                 </tr>
-              ))
-            )}
+              ));
+            })()}
           </tbody>
         </table>
       </div>
