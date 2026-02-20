@@ -1,8 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { getTimeSlotById } from "@/lib/slots";
+
+const POLL_INTERVAL_MS = 15_000;
 
 const STATUS_LABEL: Record<string, string> = {
   draft: "Draft",
@@ -53,6 +55,19 @@ export function OrdersTable({
   const [filter, setFilter] = useState<"due_today" | "all">("all");
   const [loading, setLoading] = useState(false);
 
+  const fetchOrders = useCallback(
+    async (showLoading = false) => {
+      if (showLoading) setLoading(true);
+      const params = new URLSearchParams();
+      params.set("filter", filter);
+      const res = await fetch(`/api/orders?${params}`);
+      const data = await res.json().catch(() => []);
+      setOrders(Array.isArray(data) ? data : []);
+      if (showLoading) setLoading(false);
+    },
+    [filter]
+  );
+
   useEffect(() => {
     if (filter === "all") {
       setOrders(initialOrders);
@@ -66,6 +81,20 @@ export function OrdersTable({
       .then((data) => setOrders(Array.isArray(data) ? data : []))
       .finally(() => setLoading(false));
   }, [filter, initialOrders]);
+
+  // Poll for updates from other washers; refetch when tab becomes visible
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    const onVisible = () => fetchOrders(false);
+    document.addEventListener("visibilitychange", onVisible);
+    const interval = setInterval(() => {
+      if (document.visibilityState === "visible") fetchOrders(false);
+    }, POLL_INTERVAL_MS);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisible);
+      clearInterval(interval);
+    };
+  }, [fetchOrders]);
 
   return (
     <div className="space-y-5">
@@ -97,6 +126,9 @@ export function OrdersTable({
         {loading && (
           <span className="text-sm text-fern-500">Loading…</span>
         )}
+        <span className="text-xs text-fern-500">
+          Updates from other washers refresh every 15s and when you return to this tab.
+        </span>
       </div>
 
       <div className="overflow-x-auto rounded-2xl border border-fern-200/80 bg-white shadow-sm">

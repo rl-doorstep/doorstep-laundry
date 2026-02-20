@@ -76,13 +76,14 @@ export async function PATCH(
 
   const currentOrderStatus = updated.order.status;
   type OrderStatus = import("@prisma/client").OrderStatus;
+  const canSetInProgress =
+    currentOrderStatus !== "out_for_delivery" &&
+    currentOrderStatus !== "delivered" &&
+    currentOrderStatus !== "cancelled";
   let newOrderStatus: OrderStatus | null = null;
-  if (allReady && currentOrderStatus !== "delivered" && currentOrderStatus !== "cancelled") {
+  if (allReady && canSetInProgress) {
     newOrderStatus = "ready_for_delivery";
-  } else if (
-    anyInProgress &&
-    (currentOrderStatus === "scheduled" || currentOrderStatus === "picked_up")
-  ) {
+  } else if (anyInProgress && canSetInProgress) {
     newOrderStatus = "in_progress";
   }
 

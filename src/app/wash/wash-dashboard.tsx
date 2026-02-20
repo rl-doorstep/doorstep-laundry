@@ -1,8 +1,10 @@
 "use client";
 
-import React, { useState, useTransition } from "react";
+import React, { useState, useTransition, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { getTimeSlotById } from "@/lib/slots";
+
+const POLL_INTERVAL_MS = 15_000;
 
 const STATUS_LABEL: Record<string, string> = {
   draft: "Draft",
@@ -71,16 +73,34 @@ export function WashDashboard({
   const [loading, setLoading] = useState(false);
   const [updatingLoadId, setUpdatingLoadId] = useState<string | null>(null);
 
-  async function fetchOrders() {
-    setLoading(true);
+  const fetchOrders = useCallback(async (showLoading = true) => {
+    if (showLoading) setLoading(true);
     const params = new URLSearchParams();
     params.set("filter", filter);
     if (statusFilter) params.set("status", statusFilter);
     const res = await fetch(`/api/orders?${params}`);
     const data = await res.json().catch(() => []);
     setOrders(Array.isArray(data) ? data : []);
-    setLoading(false);
-  }
+    if (showLoading) setLoading(false);
+  }, [filter, statusFilter]);
+
+  // Poll for updates from other washers; refetch when tab becomes visible
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    const onVisible = () => {
+      fetchOrders(false);
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    const interval = setInterval(() => {
+      if (document.visibilityState === "visible") {
+        fetchOrders(false);
+      }
+    }, POLL_INTERVAL_MS);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisible);
+      clearInterval(interval);
+    };
+  }, [fetchOrders]);
 
   function setFilterAndFetch(value: "due_today" | "all") {
     setFilter(value);
@@ -111,6 +131,7 @@ export function WashDashboard({
         prev.map((o) => (o.id === orderId ? { ...o, status } : o))
       );
     });
+    fetchOrders(false);
   }
 
   async function updateLoad(
@@ -145,6 +166,7 @@ export function WashDashboard({
           ),
         }))
       );
+      fetchOrders(false);
     } finally {
       setUpdatingLoadId(null);
     }
@@ -199,12 +221,15 @@ export function WashDashboard({
         </div>
         <button
           type="button"
-          onClick={fetchOrders}
+          onClick={() => fetchOrders(true)}
           disabled={loading}
           className="rounded-lg bg-fern-500 text-white px-4 py-2 text-sm font-medium hover:bg-fern-600 disabled:opacity-50 transition-colors"
         >
           {loading ? "Loading…" : "Apply"}
         </button>
+        <span className="text-xs text-fern-500">
+          Updates from other washers refresh every 15s and when you return to this tab.
+        </span>
       </div>
 
       <p className="text-sm text-fern-600">
