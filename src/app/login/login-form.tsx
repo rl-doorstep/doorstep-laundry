@@ -13,6 +13,7 @@ export function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get("callbackUrl") ?? "/welcome";
+  const resetSuccess = searchParams.get("reset") === "1";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -56,6 +57,11 @@ export function LoginForm() {
           </h1>
         </div>
         <form onSubmit={handleCredentials} className="space-y-5">
+          {resetSuccess && (
+            <p className="text-sm text-fern-700 bg-fern-50 rounded-lg px-3 py-2">
+              Your password has been updated. Sign in with your new password.
+            </p>
+          )}
           {error && (
             <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{error}</p>
           )}
@@ -75,9 +81,17 @@ export function LoginForm() {
             />
           </div>
           <div>
-            <label htmlFor="password" className={labelClass}>
-              Password
-            </label>
+            <div className="flex items-center justify-between">
+              <label htmlFor="password" className={labelClass}>
+                Password
+              </label>
+              <Link
+                href="/forgot-password"
+                className="text-sm font-medium text-fern-600 hover:text-fern-700"
+              >
+                Forgot password?
+              </Link>
+            </div>
             <input
               id="password"
               name="password"
