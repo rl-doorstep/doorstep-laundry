@@ -1,13 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { signOut } from "next-auth/react";
 
 const navLinks = [
   { href: "/dashboard", label: "Dashboard" },
   { href: "/book", label: "Book a pickup" },
-  { href: "/account", label: "Account" },
 ] as const;
 
 const linkBase =
@@ -16,12 +16,30 @@ const linkActive = "text-fern-900 font-semibold border-fern-500 cursor-default";
 const linkInactive =
   "text-fern-600 hover:text-fern-900 border-transparent hover:border-fern-200";
 
+function PersonIcon({ className = "w-5 h-5" }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+    </svg>
+  );
+}
+
 export function AppHeader() {
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [accountOpen, setAccountOpen] = useState(false);
 
   const isActive = (href: string) =>
     pathname === href || (href === "/dashboard" && pathname === "/staff");
+
+  useEffect(() => {
+    if (!accountOpen) return;
+    function close() {
+      setAccountOpen(false);
+    }
+    document.addEventListener("click", close);
+    return () => document.removeEventListener("click", close);
+  }, [accountOpen]);
 
   return (
     <header className="relative border-b border-fern-200/80 bg-white shadow-sm">
@@ -54,14 +72,46 @@ export function AppHeader() {
               </Link>
             );
           })}
-          <form action="/api/auth/signout" method="POST" className="inline ml-2">
+          <div className="relative ml-2">
             <button
-              type="submit"
-              className={`${linkBase} ${linkInactive}`}
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setAccountOpen((o) => !o);
+              }}
+              className="flex items-center justify-center w-9 h-9 rounded-full border-2 border-fern-200 bg-fern-50 text-fern-700 hover:bg-fern-100 hover:border-fern-300 transition-colors"
+              aria-expanded={accountOpen}
+              aria-label="Account menu"
             >
-              Sign out
+              <PersonIcon />
             </button>
-          </form>
+            {accountOpen && (
+              <div
+                className="absolute right-0 top-full mt-1 py-1 min-w-[140px] rounded-lg border border-fern-200 bg-white shadow-lg z-30"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <Link
+                  href="/account"
+                  onClick={() => setAccountOpen(false)}
+                  className={`block px-4 py-2 text-sm font-medium ${
+                    pathname === "/account"
+                      ? "text-fern-900 bg-fern-50"
+                      : "text-fern-700 hover:bg-fern-50"
+                  }`}
+                  aria-current={pathname === "/account" ? "page" : undefined}
+                >
+                  Profile
+                </Link>
+                <button
+                  type="button"
+                  onClick={() => signOut({ callbackUrl: "/" })}
+                  className="w-full text-left px-4 py-2 text-sm font-medium text-fern-700 hover:bg-fern-50"
+                >
+                  Sign out
+                </button>
+              </div>
+            )}
+          </div>
         </nav>
 
         {/* Mobile: hamburger button */}
@@ -102,7 +152,7 @@ export function AppHeader() {
                   key={href}
                   href={href}
                   onClick={() => setMenuOpen(false)}
-                  className={`py-3 px-2 text-base font-medium border-b border-fern-100 last:border-0 ${
+                  className={`py-3 px-2 text-base font-medium border-b border-fern-100 ${
                     isActive(href) ? "text-fern-900" : "text-fern-600 hover:text-fern-900"
                   }`}
                   aria-current={isActive(href) ? "page" : undefined}
@@ -110,14 +160,25 @@ export function AppHeader() {
                   {label}
                 </Link>
               ))}
-              <form action="/api/auth/signout" method="POST" className="border-t border-fern-100 mt-1 pt-2">
+              <Link
+                href="/account"
+                onClick={() => setMenuOpen(false)}
+                className={`py-3 px-2 text-base font-medium border-b border-fern-100 ${
+                  pathname === "/account" ? "text-fern-900" : "text-fern-600 hover:text-fern-900"
+                }`}
+                aria-current={pathname === "/account" ? "page" : undefined}
+              >
+                Profile
+              </Link>
+              <div className="border-t border-fern-100 mt-1 pt-2">
                 <button
-                  type="submit"
+                  type="button"
+                  onClick={() => signOut({ callbackUrl: "/" })}
                   className="w-full text-left py-3 px-2 text-base font-medium text-fern-600 hover:text-fern-900"
                 >
                   Sign out
                 </button>
-              </form>
+              </div>
             </div>
           </nav>
         </>
