@@ -13,7 +13,7 @@ export default async function AccountPage() {
   const role = (session.user as { role: string }).role;
   if (role === "staff" || role === "admin") redirect("/staff");
 
-  const [user, addresses] = await Promise.all([
+  const [user, addresses, ordersUsingAddresses] = await Promise.all([
     prisma.user.findUnique({
       where: { id: userId },
       select: { name: true, email: true, phone: true },
@@ -22,7 +22,17 @@ export default async function AccountPage() {
       where: { userId },
       orderBy: [{ isDefault: "desc" }, { createdAt: "asc" }],
     }),
+    prisma.order.findMany({
+      where: { customerId: userId },
+      select: { pickupAddressId: true, deliveryAddressId: true },
+    }),
   ]);
+
+  const addressIdsInUse = [
+    ...new Set(
+      ordersUsingAddresses.flatMap((o) => [o.pickupAddressId, o.deliveryAddressId])
+    ),
+  ];
 
   return (
     <div className="min-h-screen bg-fern-50">
@@ -45,7 +55,7 @@ export default async function AccountPage() {
           <h2 className="text-lg font-medium text-fern-900 mb-4">
             Addresses
           </h2>
-          <AddressSection addresses={addresses} />
+          <AddressSection addresses={addresses} addressIdsInUse={addressIdsInUse} />
         </section>
       </main>
     </div>

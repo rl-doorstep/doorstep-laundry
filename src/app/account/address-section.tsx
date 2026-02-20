@@ -42,7 +42,13 @@ function IconTrash({ className = "w-4 h-4" }: { className?: string }) {
   );
 }
 
-export function AddressSection({ addresses: initialAddresses }: { addresses: Address[] }) {
+export function AddressSection({
+  addresses: initialAddresses,
+  addressIdsInUse = [],
+}: {
+  addresses: Address[];
+  addressIdsInUse?: string[];
+}) {
   const router = useRouter();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [addOpen, setAddOpen] = useState(false);
@@ -325,9 +331,18 @@ export function AddressSection({ addresses: initialAddresses }: { addresses: Add
                     <button
                       type="button"
                       onClick={() => handleDelete(addr.id)}
-                      disabled={saving}
-                      aria-label="Remove address"
-                      className={`${iconBtnClass} border-red-200 bg-white text-red-700 hover:bg-red-50`}
+                      disabled={saving || addressIdsInUse.includes(addr.id)}
+                      aria-label={
+                        addressIdsInUse.includes(addr.id)
+                          ? "Cannot remove: address is used by an order"
+                          : "Remove address"
+                      }
+                      title={
+                        addressIdsInUse.includes(addr.id)
+                          ? "Cannot remove: address is used by an order"
+                          : undefined
+                      }
+                      className={`${iconBtnClass} border-red-200 bg-white text-red-700 hover:bg-red-50 disabled:cursor-not-allowed`}
                     >
                       <IconTrash />
                     </button>
