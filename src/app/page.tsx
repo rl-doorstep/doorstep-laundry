@@ -13,8 +13,14 @@ export default async function HomePage() {
       ) : (
         <header className="border-b border-fern-200/80 bg-white shadow-sm">
           <div className="mx-auto max-w-5xl px-4 py-4 flex justify-between items-center">
-            <Link href="/" className="text-lg font-semibold text-fern-900 hover:text-fern-700 transition-colors">
-              Doorstep Laundry
+            <Link
+              href="/"
+              className="flex items-center gap-2 text-fern-900 hover:opacity-90 transition-opacity"
+              aria-label="Doorstep Laundry – Home"
+            >
+              <img src="/doorstep/doorstep-logo-icon.svg" alt="" className="h-9 w-auto" />
+              <img src="/doorstep/doorstep-logo-wordmark.svg" alt="Doorstep" className="h-7 w-auto hidden sm:block" />
+              <span className="text-lg font-semibold text-fern-800 sm:hidden">Doorstep Laundry</span>
             </Link>
             <nav className="flex items-center gap-4">
               <Link
@@ -36,6 +42,13 @@ export default async function HomePage() {
 
       <main>
         <section className="mx-auto max-w-5xl px-4 py-24 text-center">
+          <div className="flex justify-center mb-10">
+            <img
+              src="/doorstep/doorstep-laundry-logo-v3.svg"
+              alt="Doorstep Laundry"
+              className="h-24 w-auto sm:h-28"
+            />
+          </div>
           <h1 className="text-4xl font-bold tracking-tight text-fern-900 sm:text-5xl">
             Laundry pickup and delivery, at your door
           </h1>
@@ -145,8 +158,13 @@ export default async function HomePage() {
       </main>
 
       <footer className="border-t border-fern-200/80 bg-white py-8">
-        <div className="mx-auto max-w-5xl px-4 text-center text-sm text-fern-500">
-          Doorstep Laundry Service
+        <div className="mx-auto max-w-5xl px-4 flex flex-col items-center gap-3 text-sm text-fern-500">
+          <img
+            src="/doorstep/doorstep-logo-subtext.svg"
+            alt="Doorstep Laundry – wash · fold · delivered"
+            className="h-12 w-auto opacity-80"
+          />
+          <span>Doorstep Laundry Service</span>
         </div>
       </footer>
     </div>

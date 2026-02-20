@@ -45,13 +45,15 @@ export function LoginForm() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-fern-50 px-4">
       <div className="w-full max-w-sm space-y-8 rounded-2xl border border-fern-200/80 bg-white p-8 shadow-lg shadow-fern-900/5">
-        <div>
-          <h1 className="text-2xl font-semibold text-fern-900">
+        <div className="flex flex-col items-center text-center">
+          <Link href="/" className="flex items-center justify-center gap-2 text-fern-900 mb-4">
+            <img src="/doorstep/doorstep-logo-icon.svg" alt="" className="h-12 w-auto" />
+            <img src="/doorstep/doorstep-logo-wordmark.svg" alt="Doorstep" className="h-8 w-auto" />
+          </Link>
+          <img src="/doorstep/doorstep-logo-subtext.svg" alt="" className="h-10 w-auto opacity-90" />
+          <h1 className="mt-6 text-2xl font-semibold text-fern-900">
             Sign in
           </h1>
-          <p className="mt-1 text-sm text-fern-500">
-            Doorstep Laundry Service
-          </p>
         </div>
         <form onSubmit={handleCredentials} className="space-y-5">
           {error && (

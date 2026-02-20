@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 60" width="320" height="60">
+  <text x="4" y="28"
+    font-family="'Trebuchet MS', 'Arial', sans-serif"
+    font-weight="400"
+    font-size="22"
+    fill="#4a7c59"
+    letter-spacing="7">LAUNDRY</text>
+
+  <!-- Accent line -->
+  <rect x="2" y="34" width="290" height="2" rx="1" fill="#a8d5b0"/>
+
+  <!-- Tagline -->
+  <text x="4" y="54"
+    font-family="'Georgia', 'Times New Roman', serif"
+    font-style="italic"
+    font-size="14"
+    fill="#6b8f72"
+    letter-spacing="0.5">wash · fold · delivered</text>
+</svg>

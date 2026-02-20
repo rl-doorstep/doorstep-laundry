@@ -69,9 +69,20 @@ export function AppHeader() {
       <div className="mx-auto max-w-5xl px-4 py-4 flex justify-between items-center">
         <Link
           href="/"
-          className="text-lg font-semibold text-fern-900 hover:text-fern-700 transition-colors"
+          className="flex items-center gap-2 text-fern-900 hover:opacity-90 transition-opacity"
+          aria-label="Doorstep Laundry – Home"
         >
-          Doorstep Laundry
+          <img
+            src="/doorstep/doorstep-logo-icon.svg"
+            alt=""
+            className="h-9 w-auto"
+          />
+          <img
+            src="/doorstep/doorstep-logo-wordmark.svg"
+            alt="Doorstep"
+            className="h-7 w-auto hidden sm:block"
+          />
+          <span className="text-lg font-semibold text-fern-800 sm:hidden">Doorstep Laundry</span>
         </Link>
 
         {/* Desktop nav */}

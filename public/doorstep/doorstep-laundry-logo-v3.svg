@@ -1,0 +1,135 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 180" width="480" height="180">
+  <defs>
+    <!-- Fern green palette: #4a7c59 (mid), #2d5a3d (dark), #6baa7e (light) -->
+    <linearGradient id="doorGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#4a7c59"/>
+      <stop offset="100%" style="stop-color:#2d5a3d"/>
+    </linearGradient>
+    <linearGradient id="doorFrameGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#f8faf8"/>
+      <stop offset="100%" style="stop-color:#e2ece5"/>
+    </linearGradient>
+    <linearGradient id="bagGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#ffffff"/>
+      <stop offset="100%" style="stop-color:#d6ead9"/>
+    </linearGradient>
+    <linearGradient id="roofGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#2d5a3d"/>
+      <stop offset="100%" style="stop-color:#1e3d2a"/>
+    </linearGradient>
+    <linearGradient id="groundGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#c8d9cb"/>
+      <stop offset="100%" style="stop-color:#a3bba8"/>
+    </linearGradient>
+    <filter id="shadow" x="-15%" y="-10%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="4" stdDeviation="5" flood-color="#2d5a3d" flood-opacity="0.18"/>
+    </filter>
+    <filter id="bagShadow">
+      <feDropShadow dx="2" dy="3" stdDeviation="3" flood-color="#2d5a3d" flood-opacity="0.12"/>
+    </filter>
+  </defs>
+
+  <!-- === HOUSE BODY === -->
+  <rect x="10" y="28" width="130" height="138" rx="4" fill="url(#doorFrameGrad)" filter="url(#shadow)"/>
+
+  <!-- Siding lines -->
+  <line x1="10" y1="50" x2="140" y2="50" stroke="#d1e4d5" stroke-width="1.5"/>
+  <line x1="10" y1="68" x2="140" y2="68" stroke="#d1e4d5" stroke-width="1.5"/>
+  <line x1="10" y1="86" x2="140" y2="86" stroke="#d1e4d5" stroke-width="1.5"/>
+  <line x1="10" y1="104" x2="140" y2="104" stroke="#d1e4d5" stroke-width="1.5"/>
+  <line x1="10" y1="122" x2="140" y2="122" stroke="#d1e4d5" stroke-width="1.5"/>
+  <line x1="10" y1="140" x2="140" y2="140" stroke="#d1e4d5" stroke-width="1.5"/>
+
+  <!-- Roof -->
+  <polygon points="75,4 -4,36 154,36" fill="url(#roofGrad)"/>
+  <!-- Roof trim -->
+  <polygon points="75,10 2,38 148,38" fill="none" stroke="#6baa7e" stroke-width="1.5"/>
+  <!-- Chimney -->
+  <rect x="100" y="8" width="16" height="22" rx="2" fill="#1e3d2a"/>
+
+  <!-- Small window left -->
+  <rect x="18" y="52" width="28" height="26" rx="3" fill="#c8e6c9" stroke="#4a7c59" stroke-width="1.5"/>
+  <line x1="32" y1="52" x2="32" y2="78" stroke="#4a7c59" stroke-width="1"/>
+  <line x1="18" y1="65" x2="46" y2="65" stroke="#4a7c59" stroke-width="1"/>
+
+  <!-- Small window right -->
+  <rect x="104" y="52" width="28" height="26" rx="3" fill="#c8e6c9" stroke="#4a7c59" stroke-width="1.5"/>
+  <line x1="118" y1="52" x2="118" y2="78" stroke="#4a7c59" stroke-width="1"/>
+  <line x1="104" y1="65" x2="132" y2="65" stroke="#4a7c59" stroke-width="1"/>
+
+  <!-- Door frame -->
+  <rect x="42" y="72" width="66" height="94" rx="4" fill="#1e3d2a"/>
+  <!-- Door -->
+  <rect x="46" y="76" width="58" height="88" rx="3" fill="url(#doorGrad)"/>
+
+  <!-- Door panel details -->
+  <rect x="52" y="82" width="20" height="28" rx="2" fill="#2d5a3d" stroke="#6baa7e" stroke-width="1" opacity="0.8"/>
+  <rect x="78" y="82" width="20" height="28" rx="2" fill="#2d5a3d" stroke="#6baa7e" stroke-width="1" opacity="0.8"/>
+  <rect x="52" y="118" width="20" height="28" rx="2" fill="#2d5a3d" stroke="#6baa7e" stroke-width="1" opacity="0.8"/>
+  <rect x="78" y="118" width="20" height="28" rx="2" fill="#2d5a3d" stroke="#6baa7e" stroke-width="1" opacity="0.8"/>
+
+  <!-- Door knob -->
+  <circle cx="98" cy="123" r="4" fill="#fbbf24"/>
+  <circle cx="98" cy="123" r="2" fill="#f59e0b"/>
+
+  <!-- Door mail slot -->
+  <rect x="60" y="109" width="30" height="6" rx="3" fill="#1e3d2a" stroke="#6baa7e" stroke-width="1"/>
+
+  <!-- Step / stoop -->
+  <rect x="28" y="162" width="94" height="10" rx="2" fill="url(#groundGrad)"/>
+  <rect x="20" y="168" width="110" height="8" rx="2" fill="#a3bba8"/>
+
+  <!-- Small potted plant on stoop left -->
+  <rect x="22" y="153" width="10" height="10" rx="2" fill="#6b4f3a"/>
+  <ellipse cx="27" cy="152" rx="8" ry="6" fill="#4a7c59"/>
+  <line x1="27" y1="146" x2="24" y2="142" stroke="#2d5a3d" stroke-width="1.5" stroke-linecap="round"/>
+  <line x1="27" y1="148" x2="30" y2="144" stroke="#2d5a3d" stroke-width="1.5" stroke-linecap="round"/>
+
+  <!-- === LAUNDRY BAG on the step === -->
+  <ellipse cx="152" cy="160" rx="22" ry="14" fill="#b8d9be" filter="url(#bagShadow)"/>
+  <path d="M130 152 Q130 132 152 130 Q174 132 174 152 L174 160 Q174 172 152 172 Q130 172 130 160 Z"
+    fill="url(#bagGrad)" stroke="#6baa7e" stroke-width="1.5" filter="url(#bagShadow)"/>
+
+  <!-- Bag cinch/tie — fern green -->
+  <path d="M140 132 Q152 128 164 132" fill="none" stroke="#2d5a3d" stroke-width="2.5" stroke-linecap="round"/>
+  <!-- Tie knot -->
+  <circle cx="152" cy="129" r="4" fill="#4a7c59"/>
+  <!-- Tie loops -->
+  <path d="M148 126 Q144 120 148 118 Q152 116 152 120" fill="none" stroke="#4a7c59" stroke-width="2" stroke-linecap="round"/>
+  <path d="M156 126 Q160 120 156 118 Q152 116 152 120" fill="none" stroke="#4a7c59" stroke-width="2" stroke-linecap="round"/>
+
+  <!-- Laundry texture lines on bag -->
+  <path d="M138 148 Q145 145 158 148 Q165 150 170 148" fill="none" stroke="#a8d5b0" stroke-width="1.5" stroke-linecap="round"/>
+  <path d="M136 155 Q145 152 158 155 Q165 157 172 155" fill="none" stroke="#a8d5b0" stroke-width="1.5" stroke-linecap="round"/>
+
+  <!-- Sparkles -->
+  <text x="178" y="130" font-size="11" fill="#fbbf24">✦</text>
+  <text x="170" y="118" font-size="7" fill="#6baa7e">✦</text>
+
+  <!-- === WORDMARK === -->
+  <text x="200" y="88"
+    font-family="'Georgia', 'Times New Roman', serif"
+    font-weight="700"
+    font-size="42"
+    fill="#2d5a3d"
+    letter-spacing="-1">Doorstep</text>
+
+  <text x="202" y="122"
+    font-family="'Trebuchet MS', 'Arial', sans-serif"
+    font-weight="400"
+    font-size="21"
+    fill="#4a7c59"
+    letter-spacing="7">LAUNDRY</text>
+
+  <!-- Tagline -->
+  <text x="203" y="148"
+    font-family="'Georgia', 'Times New Roman', serif"
+    font-style="italic"
+    font-size="13"
+    fill="#6b8f72"
+    letter-spacing="0.5">wash · fold · delivered</text>
+
+  <!-- Accent line -->
+  <rect x="200" y="128" width="245" height="2" rx="1" fill="#a8d5b0"/>
+
+</svg>

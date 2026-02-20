@@ -1,0 +1,98 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 180" width="180" height="180">
+  <defs>
+    <linearGradient id="doorGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#4a7c59"/>
+      <stop offset="100%" style="stop-color:#2d5a3d"/>
+    </linearGradient>
+    <linearGradient id="doorFrameGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#f8faf8"/>
+      <stop offset="100%" style="stop-color:#e2ece5"/>
+    </linearGradient>
+    <linearGradient id="roofGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#2d5a3d"/>
+      <stop offset="100%" style="stop-color:#1e3d2a"/>
+    </linearGradient>
+    <linearGradient id="bagGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#ffffff"/>
+      <stop offset="100%" style="stop-color:#d6ead9"/>
+    </linearGradient>
+    <linearGradient id="groundGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#c8d9cb"/>
+      <stop offset="100%" style="stop-color:#a3bba8"/>
+    </linearGradient>
+    <filter id="shadow" x="-15%" y="-10%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="4" stdDeviation="5" flood-color="#2d5a3d" flood-opacity="0.18"/>
+    </filter>
+    <filter id="bagShadow">
+      <feDropShadow dx="2" dy="3" stdDeviation="3" flood-color="#2d5a3d" flood-opacity="0.12"/>
+    </filter>
+  </defs>
+
+  <!-- House body -->
+  <rect x="25" y="48" width="130" height="118" rx="4" fill="url(#doorFrameGrad)" filter="url(#shadow)"/>
+
+  <!-- Siding lines -->
+  <line x1="25" y1="68" x2="155" y2="68" stroke="#d1e4d5" stroke-width="1.5"/>
+  <line x1="25" y1="86" x2="155" y2="86" stroke="#d1e4d5" stroke-width="1.5"/>
+  <line x1="25" y1="104" x2="155" y2="104" stroke="#d1e4d5" stroke-width="1.5"/>
+  <line x1="25" y1="122" x2="155" y2="122" stroke="#d1e4d5" stroke-width="1.5"/>
+  <line x1="25" y1="140" x2="155" y2="140" stroke="#d1e4d5" stroke-width="1.5"/>
+  <line x1="25" y1="158" x2="155" y2="158" stroke="#d1e4d5" stroke-width="1.5"/>
+
+  <!-- Roof -->
+  <polygon points="90,6 16,52 164,52" fill="url(#roofGrad)"/>
+  <polygon points="90,13 22,52 158,52" fill="none" stroke="#6baa7e" stroke-width="1.5"/>
+  <!-- Chimney -->
+  <rect x="118" y="16" width="16" height="26" rx="2" fill="#1e3d2a"/>
+
+  <!-- Window left -->
+  <rect x="33" y="62" width="28" height="26" rx="3" fill="#c8e6c9" stroke="#4a7c59" stroke-width="1.5"/>
+  <line x1="47" y1="62" x2="47" y2="88" stroke="#4a7c59" stroke-width="1"/>
+  <line x1="33" y1="75" x2="61" y2="75" stroke="#4a7c59" stroke-width="1"/>
+
+  <!-- Window right -->
+  <rect x="119" y="62" width="28" height="26" rx="3" fill="#c8e6c9" stroke="#4a7c59" stroke-width="1.5"/>
+  <line x1="133" y1="62" x2="133" y2="88" stroke="#4a7c59" stroke-width="1"/>
+  <line x1="119" y1="75" x2="147" y2="75" stroke="#4a7c59" stroke-width="1"/>
+
+  <!-- Door frame -->
+  <rect x="57" y="90" width="66" height="76" rx="4" fill="#1e3d2a"/>
+  <!-- Door -->
+  <rect x="61" y="94" width="58" height="72" rx="3" fill="url(#doorGrad)"/>
+
+  <!-- Door panels -->
+  <rect x="67" y="100" width="20" height="22" rx="2" fill="#2d5a3d" stroke="#6baa7e" stroke-width="1" opacity="0.8"/>
+  <rect x="93" y="100" width="20" height="22" rx="2" fill="#2d5a3d" stroke="#6baa7e" stroke-width="1" opacity="0.8"/>
+  <rect x="67" y="130" width="20" height="22" rx="2" fill="#2d5a3d" stroke="#6baa7e" stroke-width="1" opacity="0.8"/>
+  <rect x="93" y="130" width="20" height="22" rx="2" fill="#2d5a3d" stroke="#6baa7e" stroke-width="1" opacity="0.8"/>
+
+  <!-- Door knob -->
+  <circle cx="113" cy="133" r="4" fill="#fbbf24"/>
+  <circle cx="113" cy="133" r="2" fill="#f59e0b"/>
+
+  <!-- Mail slot -->
+  <rect x="74" y="120" width="30" height="6" rx="3" fill="#1e3d2a" stroke="#6baa7e" stroke-width="1"/>
+
+  <!-- Stoop -->
+  <rect x="43" y="164" width="94" height="8" rx="2" fill="url(#groundGrad)"/>
+  <rect x="35" y="170" width="110" height="7" rx="2" fill="#a3bba8"/>
+
+  <!-- Potted plant -->
+  <rect x="36" y="155" width="10" height="10" rx="2" fill="#6b4f3a"/>
+  <ellipse cx="41" cy="154" rx="8" ry="6" fill="#4a7c59"/>
+  <line x1="41" y1="148" x2="38" y2="144" stroke="#2d5a3d" stroke-width="1.5" stroke-linecap="round"/>
+  <line x1="41" y1="150" x2="44" y2="146" stroke="#2d5a3d" stroke-width="1.5" stroke-linecap="round"/>
+
+  <!-- Laundry bag -->
+  <ellipse cx="163" cy="166" rx="20" ry="12" fill="#b8d9be" filter="url(#bagShadow)"/>
+  <path d="M143 158 Q143 140 163 138 Q183 140 183 158 L183 166 Q183 176 163 176 Q143 176 143 166 Z"
+    fill="url(#bagGrad)" stroke="#6baa7e" stroke-width="1.5" filter="url(#bagShadow)"/>
+  <path d="M153 140 Q163 136 173 140" fill="none" stroke="#2d5a3d" stroke-width="2.5" stroke-linecap="round"/>
+  <circle cx="163" cy="137" r="4" fill="#4a7c59"/>
+  <path d="M159 134 Q155 128 159 126 Q163 124 163 128" fill="none" stroke="#4a7c59" stroke-width="2" stroke-linecap="round"/>
+  <path d="M167 134 Q171 128 167 126 Q163 124 163 128" fill="none" stroke="#4a7c59" stroke-width="2" stroke-linecap="round"/>
+  <path d="M150 156 Q158 153 168 156 Q174 158 180 156" fill="none" stroke="#a8d5b0" stroke-width="1.5" stroke-linecap="round"/>
+
+  <!-- Sparkles -->
+  <text x="168" y="126" font-size="10" fill="#fbbf24">✦</text>
+</svg>
