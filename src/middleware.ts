@@ -6,7 +6,6 @@ const washPaths = ["/wash"];
 const driverPaths = ["/driver"];
 const driverApiPattern = /^\/api\/driver\/.+$/;
 const adminPaths = ["/admin"];
-const debugPaths = ["/debug"];
 const adminApiPattern = /^\/api\/admin\/.+$/;
 const debugApiPattern = /^\/api\/debug\/.+$/;
 const staffApiPattern = /^\/api\/orders\/[^/]+\/status$/;
@@ -26,9 +25,7 @@ export async function middleware(request: NextRequest) {
   const isAdminRoute =
     adminPaths.some((p) => pathname === p || pathname.startsWith(p + "/")) ||
     adminApiPattern.test(pathname);
-  const isDebugRoute =
-    debugPaths.some((p) => pathname === p || pathname.startsWith(p + "/")) ||
-    debugApiPattern.test(pathname);
+  const isDebugRoute = debugApiPattern.test(pathname);
   const isStaffApi = staffApiPattern.test(pathname);
   const isCustomerRoute =
     customerPaths.some((p) => pathname === p || pathname.startsWith(p + "/")) ||
@@ -96,7 +93,6 @@ export const config = {
     "/account/:path*",
     "/wash/:path*",
     "/admin/:path*",
-    "/debug/:path*",
     "/welcome",
     "/api/orders/:path*/status",
     "/api/admin/:path*",

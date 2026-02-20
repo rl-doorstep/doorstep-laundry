@@ -5,6 +5,7 @@ import { AppHeader } from "@/components/app-header";
 import { AdminUserList } from "./admin-user-list";
 import { AdminLoadLocations } from "./admin-load-locations";
 import { AdminDriverLocations } from "./admin-driver-locations";
+import { AdminDebugSection } from "./admin-debug-section";
 
 export default async function AdminPage() {
   const session = await getServerSession(authOptions);
@@ -44,6 +45,13 @@ export default async function AdminPage() {
             Where drivers are (when they share location from the Driver page). Click &quot;View on map&quot; to open in Google Maps.
           </p>
           <AdminDriverLocations />
+        </section>
+
+        <section>
+          <h2 className="text-lg font-semibold text-fern-900 mb-2">
+            Debug
+          </h2>
+          <AdminDebugSection />
         </section>
       </main>
     </div>

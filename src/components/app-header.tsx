@@ -36,7 +36,6 @@ export function AppHeader() {
           { href: "/orders", label: "Orders" },
           { href: "/driver", label: "Driver" },
           { href: "/admin", label: "Admin" },
-          { href: "/debug", label: "Debug" },
         ]
       : isStaffOrAdmin
         ? [
@@ -54,8 +53,7 @@ export function AppHeader() {
     (href === "/dashboard" && pathname === "/wash") ||
     (href === "/admin" && pathname.startsWith("/admin")) ||
     (href === "/orders" && pathname === "/orders") ||
-    (href === "/driver" && pathname.startsWith("/driver")) ||
-    (href === "/debug" && pathname.startsWith("/debug"));
+    (href === "/driver" && pathname.startsWith("/driver"));
 
   useEffect(() => {
     if (!accountOpen) return;
