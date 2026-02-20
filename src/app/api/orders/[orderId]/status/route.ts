@@ -9,7 +9,8 @@ const VALID_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
   draft: ["scheduled", "cancelled"],
   scheduled: ["picked_up", "cancelled"],
   picked_up: ["in_progress"],
-  in_progress: ["out_for_delivery"],
+  in_progress: ["ready_for_delivery", "out_for_delivery"],
+  ready_for_delivery: ["out_for_delivery"],
   out_for_delivery: ["delivered"],
   delivered: [],
   cancelled: [],
@@ -99,6 +100,7 @@ export async function POST(
     scheduled: "pickup_scheduled",
     picked_up: "picked_up",
     in_progress: "in_progress",
+    ready_for_delivery: "out_for_delivery",
     out_for_delivery: "out_for_delivery",
     delivered: "delivered",
   };

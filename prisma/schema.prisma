@@ -21,6 +21,7 @@ enum OrderStatus {
   scheduled
   picked_up
   in_progress
+  ready_for_delivery
   out_for_delivery
   delivered
   cancelled

@@ -3,11 +3,17 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { getTimeSlotById } from "@/lib/slots";
-import {
-  getDerivedOrderStatus,
-  DERIVED_STATUS_LABEL,
-} from "@/lib/order-status-derived";
-import type { LoadStatus } from "@/lib/order-status-derived";
+
+const STATUS_LABEL: Record<string, string> = {
+  draft: "Draft",
+  scheduled: "Scheduled",
+  picked_up: "Picked up",
+  in_progress: "In progress",
+  ready_for_delivery: "Ready for delivery",
+  out_for_delivery: "Out for delivery",
+  delivered: "Delivered",
+  cancelled: "Cancelled",
+};
 
 type OrderLoadRow = {
   id: string;
@@ -30,13 +36,6 @@ type OrderRow = {
   deliveryAddress: { street: string; city: string; state: string; zip: string };
   orderLoads: OrderLoadRow[];
 };
-
-function derivedStatus(order: OrderRow): string {
-  const loadStatuses = (order.orderLoads ?? []).map(
-    (l) => l.status as LoadStatus
-  );
-  return getDerivedOrderStatus(order.status, loadStatuses);
-}
 
 function loadsSummary(order: OrderRow): string {
   const loads = order.orderLoads ?? [];
@@ -157,8 +156,7 @@ export function OrdersTable({
                   </td>
                   <td className="px-4 py-3">
                     <span className="rounded-full px-2.5 py-1 text-xs font-medium bg-fern-100 text-fern-700">
-                      {DERIVED_STATUS_LABEL[derivedStatus(order)] ??
-                        derivedStatus(order)}
+                      {STATUS_LABEL[order.status] ?? order.status}
                     </span>
                   </td>
                   <td className="px-4 py-3 text-sm text-fern-600">

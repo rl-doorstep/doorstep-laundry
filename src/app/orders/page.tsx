@@ -30,7 +30,7 @@ export default async function OrdersPage() {
           Orders
         </h1>
         <p className="text-sm text-fern-600 mb-6">
-          One row per order. Status is &quot;In progress&quot; when any load has started; &quot;Ready for delivery&quot; when all loads are folded.
+          One row per order. Order status matches the Wash page.
         </p>
         <OrdersTable initialOrders={orders} />
       </main>

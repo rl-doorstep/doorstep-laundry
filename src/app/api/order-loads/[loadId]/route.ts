@@ -59,6 +59,48 @@ export async function PATCH(
   const updated = await prisma.orderLoad.update({
     where: { id: loadId },
     data,
+    include: { order: true },
   });
+
+  // Sync order status from load statuses: in_progress when any load is washing/drying/folding,
+  // ready_for_delivery when all loads are ready_for_delivery
+  const orderId = load.orderId;
+  const allLoads = await prisma.orderLoad.findMany({
+    where: { orderId },
+    select: { status: true },
+  });
+  const anyInProgress = allLoads.some((l) =>
+    ["washing", "drying", "folding"].includes(l.status)
+  );
+  const allReady = allLoads.length > 0 && allLoads.every((l) => l.status === "ready_for_delivery");
+
+  const currentOrderStatus = updated.order.status;
+  type OrderStatus = import("@prisma/client").OrderStatus;
+  let newOrderStatus: OrderStatus | null = null;
+  if (allReady && currentOrderStatus !== "delivered" && currentOrderStatus !== "cancelled") {
+    newOrderStatus = "ready_for_delivery";
+  } else if (
+    anyInProgress &&
+    (currentOrderStatus === "scheduled" || currentOrderStatus === "picked_up")
+  ) {
+    newOrderStatus = "in_progress";
+  }
+
+  if (newOrderStatus) {
+    await prisma.order.update({
+      where: { id: orderId },
+      data: { status: newOrderStatus },
+    });
+    await prisma.orderStatusHistory.create({
+      data: {
+        orderId,
+        status: newOrderStatus,
+        note: newOrderStatus === "ready_for_delivery"
+          ? "All loads folded (ready for delivery)"
+          : "Wash started (load status updated)",
+      },
+    });
+  }
+
   return NextResponse.json(updated);
 }
