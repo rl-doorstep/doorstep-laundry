@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import Link from "next/link";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { getTimeSlotById } from "@/lib/slots";
 
 export default async function DashboardPage() {
   const session = await getServerSession(authOptions);
@@ -77,8 +78,11 @@ export default async function DashboardPage() {
                         {order.orderNumber}
                       </span>
                       <p className="text-sm text-fern-500 mt-1">
-                        Pickup {new Date(order.pickupDate).toLocaleDateString()} · Delivery{" "}
+                        Pickup {new Date(order.pickupDate).toLocaleDateString()}
+                        {order.pickupTimeSlot && ` ${getTimeSlotById(order.pickupTimeSlot)?.label ?? order.pickupTimeSlot}`}
+                        {" · Delivery "}
                         {new Date(order.deliveryDate).toLocaleDateString()}
+                        {order.deliveryTimeSlot && ` ${getTimeSlotById(order.deliveryTimeSlot)?.label ?? order.deliveryTimeSlot}`}
                       </p>
                     </div>
                     <span

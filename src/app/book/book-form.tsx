@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Address } from "@prisma/client";
+import { getTimeSlots } from "@/lib/slots";
 
 export function BookForm({
   addresses,
@@ -27,6 +28,9 @@ export function BookForm({
   const [deliveryDate, setDeliveryDate] = useState("");
   const [pickupAddressId, setPickupAddressId] = useState(addresses[0]?.id ?? "");
   const [deliveryAddressId, setDeliveryAddressId] = useState(addresses[0]?.id ?? "");
+  const timeSlots = getTimeSlots();
+  const [pickupTimeSlot, setPickupTimeSlot] = useState(timeSlots[0]?.id ?? "");
+  const [deliveryTimeSlot, setDeliveryTimeSlot] = useState(timeSlots[0]?.id ?? "");
   const [notes, setNotes] = useState("");
   const [totalCents, setTotalCents] = useState(defaultTotalCents);
 
@@ -127,6 +131,8 @@ export function BookForm({
           deliveryAddressId: finalDeliveryId,
           pickupDate: new Date(pickupDate).toISOString().slice(0, 10),
           deliveryDate: new Date(deliveryDate).toISOString().slice(0, 10),
+          pickupTimeSlot: pickupTimeSlot || undefined,
+          deliveryTimeSlot: deliveryTimeSlot || undefined,
           notes: notes || undefined,
           totalCents,
         }),
@@ -309,6 +315,59 @@ export function BookForm({
               onChange={(e) => setDeliveryDate(e.target.value)}
               className={`mt-1 ${inputClass}`}
             />
+          </div>
+        </div>
+
+        <div>
+          <h2 className="text-lg font-medium text-fern-900 mb-3">
+            Time windows
+          </h2>
+          <p className="text-sm text-fern-600 mb-3">
+            Choose when we should pick up and deliver your laundry.
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className={labelClass + " mb-2 block"}>
+                Pickup window
+              </label>
+              <div className="flex flex-wrap gap-2">
+                {timeSlots.map((slot) => (
+                  <button
+                    key={slot.id}
+                    type="button"
+                    onClick={() => setPickupTimeSlot(slot.id)}
+                    className={`rounded-xl border-2 px-4 py-2.5 text-sm font-medium transition-colors ${
+                      pickupTimeSlot === slot.id
+                        ? "border-fern-500 bg-fern-50 text-fern-800"
+                        : "border-fern-200 bg-white text-fern-700 hover:border-fern-300 hover:bg-fern-50/50"
+                    }`}
+                  >
+                    {slot.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <label className={labelClass + " mb-2 block"}>
+                Delivery window
+              </label>
+              <div className="flex flex-wrap gap-2">
+                {timeSlots.map((slot) => (
+                  <button
+                    key={slot.id}
+                    type="button"
+                    onClick={() => setDeliveryTimeSlot(slot.id)}
+                    className={`rounded-xl border-2 px-4 py-2.5 text-sm font-medium transition-colors ${
+                      deliveryTimeSlot === slot.id
+                        ? "border-fern-500 bg-fern-50 text-fern-800"
+                        : "border-fern-200 bg-white text-fern-700 hover:border-fern-300 hover:bg-fern-50/50"
+                    }`}
+                  >
+                    {slot.label}
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
 

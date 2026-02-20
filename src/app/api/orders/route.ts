@@ -79,6 +79,8 @@ export async function POST(request: Request) {
       deliveryAddressId,
       pickupDate,
       deliveryDate,
+      pickupTimeSlot,
+      deliveryTimeSlot,
       notes,
       totalCents,
     } = body as {
@@ -86,6 +88,8 @@ export async function POST(request: Request) {
       deliveryAddressId?: string;
       pickupDate?: string;
       deliveryDate?: string;
+      pickupTimeSlot?: string;
+      deliveryTimeSlot?: string;
       notes?: string;
       totalCents?: number;
     };
@@ -124,6 +128,8 @@ export async function POST(request: Request) {
         deliveryAddressId,
         pickupDate: pickup,
         deliveryDate: delivery,
+        pickupTimeSlot: pickupTimeSlot ?? null,
+        deliveryTimeSlot: deliveryTimeSlot ?? null,
         notes: notes ?? null,
         totalCents,
         status: "draft",

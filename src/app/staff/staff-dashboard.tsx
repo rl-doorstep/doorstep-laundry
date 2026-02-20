@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { getTimeSlotById } from "@/lib/slots";
 
 const STATUS_LABEL: Record<string, string> = {
   draft: "Draft",
@@ -29,6 +30,8 @@ type OrderRow = {
   status: string;
   pickupDate: Date | string;
   deliveryDate: Date | string;
+  pickupTimeSlot: string | null;
+  deliveryTimeSlot: string | null;
   customer: { name: string | null; email: string; phone: string | null };
   pickupAddress: { street: string; city: string; state: string; zip: string };
   deliveryAddress: { street: string; city: string; state: string; zip: string };
@@ -142,7 +145,10 @@ export function StaffDashboard({
                 Status
               </th>
               <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-fern-500">
-                Pickup / Delivery
+                Time windows
+              </th>
+              <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-fern-500">
+                Pickup / Delivery date
               </th>
               <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-fern-500">
                 Update
@@ -152,7 +158,7 @@ export function StaffDashboard({
           <tbody className="divide-y divide-fern-200">
             {orders.length === 0 ? (
               <tr>
-                <td colSpan={6} className="px-4 py-10 text-center text-fern-500">
+                <td colSpan={7} className="px-4 py-10 text-center text-fern-500">
                   No orders for this date/filter.
                 </td>
               </tr>
@@ -176,6 +182,10 @@ export function StaffDashboard({
                     <span className="rounded-full px-2.5 py-1 text-xs font-medium bg-fern-100 text-fern-700">
                       {STATUS_LABEL[order.status] ?? order.status}
                     </span>
+                  </td>
+                  <td className="px-4 py-3 text-sm text-fern-600">
+                    {order.pickupTimeSlot ? getTimeSlotById(order.pickupTimeSlot)?.label ?? order.pickupTimeSlot : "—"} /{" "}
+                    {order.deliveryTimeSlot ? getTimeSlotById(order.deliveryTimeSlot)?.label ?? order.deliveryTimeSlot : "—"}
                   </td>
                   <td className="px-4 py-3 text-sm text-fern-600">
                     {new Date(order.pickupDate as string).toLocaleDateString()} /{" "}

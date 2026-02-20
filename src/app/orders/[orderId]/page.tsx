@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import Link from "next/link";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { getTimeSlotById } from "@/lib/slots";
 import { PayButton } from "./pay-button";
 
 const statusLabel: Record<string, string> = {
@@ -76,7 +77,13 @@ export default async function OrderDetailPage({
             <div>
               <dt className="text-fern-500">Pickup</dt>
               <dd className="text-fern-900 mt-0.5">
-                {new Date(order.pickupDate).toLocaleDateString()} –{" "}
+                {new Date(order.pickupDate).toLocaleDateString()}
+                {order.pickupTimeSlot && (
+                  <span className="text-fern-600">
+                    {" "}({getTimeSlotById(order.pickupTimeSlot)?.label ?? order.pickupTimeSlot})
+                  </span>
+                )}
+                {" – "}
                 {order.pickupAddress.street}, {order.pickupAddress.city},{" "}
                 {order.pickupAddress.state} {order.pickupAddress.zip}
               </dd>
@@ -84,7 +91,13 @@ export default async function OrderDetailPage({
             <div>
               <dt className="text-fern-500">Delivery</dt>
               <dd className="text-fern-900 mt-0.5">
-                {new Date(order.deliveryDate).toLocaleDateString()} –{" "}
+                {new Date(order.deliveryDate).toLocaleDateString()}
+                {order.deliveryTimeSlot && (
+                  <span className="text-fern-600">
+                    {" "}({getTimeSlotById(order.deliveryTimeSlot)?.label ?? order.deliveryTimeSlot})
+                  </span>
+                )}
+                {" – "}
                 {order.deliveryAddress.street}, {order.deliveryAddress.city},{" "}
                 {order.deliveryAddress.state} {order.deliveryAddress.zip}
               </dd>

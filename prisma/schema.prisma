@@ -67,6 +67,8 @@ model Order {
   status             OrderStatus @default(draft)
   pickupDate         DateTime    @map("pickup_date") @db.Date
   deliveryDate      DateTime    @map("delivery_date") @db.Date
+  pickupTimeSlot    String?     @map("pickup_time_slot")
+  deliveryTimeSlot  String?     @map("delivery_time_slot")
   notes              String?
   totalCents         Int         @map("total_cents")
   stripePaymentId    String?     @map("stripe_payment_id")
