@@ -57,20 +57,24 @@ export default async function OrderDetailPage({
         <div className="rounded-2xl border border-fern-200/80 bg-white p-6 shadow-sm">
           <div className="flex justify-between items-start mb-4">
             <span className="text-fern-500">Status</span>
-            <div className="flex items-center gap-3 flex-wrap">
+            <div className="flex items-center gap-2 flex-wrap">
               {order.status === "draft" && !order.stripePaymentId && (
-                <PayButton orderId={order.id} />
+                <PayButton orderId={order.id} variant="icon" />
               )}
               {order.status === "draft" && (
                 <Link
                   href={`/orders/${order.id}/edit`}
-                  className="rounded-lg border border-fern-200 bg-white px-4 py-2 text-sm font-medium text-fern-700 hover:bg-fern-50 transition-colors"
+                  className="rounded-lg border border-fern-200 bg-white p-2 text-fern-700 hover:bg-fern-50 transition-colors inline-flex items-center justify-center"
+                  aria-label="Edit order"
+                  title="Edit order"
                 >
-                  Edit
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                  </svg>
                 </Link>
               )}
               {order.status === "draft" && (
-                <DeleteDraftOrderButton orderId={order.id} variant="button" />
+                <DeleteDraftOrderButton orderId={order.id} variant="icon" />
               )}
               <span
                 className={`rounded-full px-2.5 py-1 text-xs font-medium ${
