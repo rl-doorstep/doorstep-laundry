@@ -5,6 +5,7 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { getTimeSlotById } from "@/lib/slots";
 import { AppHeader } from "@/components/app-header";
+import { DeleteDraftOrderButton } from "@/components/delete-draft-order-button";
 import { PayButton } from "./pay-button";
 
 const statusLabel: Record<string, string> = {
@@ -59,6 +60,9 @@ export default async function OrderDetailPage({
             <div className="flex items-center gap-3">
               {order.status === "draft" && !order.stripePaymentId && (
                 <PayButton orderId={order.id} />
+              )}
+              {order.status === "draft" && (
+                <DeleteDraftOrderButton orderId={order.id} variant="button" />
               )}
               <span
                 className={`rounded-full px-2.5 py-1 text-xs font-medium ${
