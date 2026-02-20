@@ -11,7 +11,7 @@ export default async function DashboardPage() {
   if (!session?.user) redirect("/login");
   const userId = (session.user as { id: string }).id;
   const role = (session.user as { role: string }).role;
-  if (role === "staff" || role === "admin") redirect("/staff");
+  if (role === "staff" || role === "admin") redirect("/wash");
 
   const orders = await prisma.order.findMany({
     where: { customerId: userId },

@@ -54,7 +54,7 @@ type OrderRow = {
   orderLoads: OrderLoadRow[];
 };
 
-export function StaffDashboard({
+export function WashDashboard({
   initialOrders,
   initialFilter = "due_today",
 }: {

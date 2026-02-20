@@ -67,11 +67,11 @@ Next.js app for a doorstep laundry pickup and delivery service. Customers can si
 
 - **Public:** `/`, `/login`, `/signup`
 - **Customer:** `/dashboard`, `/book`, `/orders/[id]`, `/account`
-- **Staff/Admin:** `/staff` (today’s loads, update status)
+- **Staff/Admin:** `/wash` (today’s loads, update status)
 - **API:** `/api/orders`, `/api/orders/[id]`, `/api/orders/[id]/status`, `/api/checkout`, `/api/webhooks/stripe`, `/api/addresses`, `/api/account`
 
 ## Security
 
-- All order and staff routes require auth; `/staff` and status updates require staff or admin.
+- All order and staff routes require auth; `/wash` and status updates require staff or admin.
 - Customer data is scoped by `customer_id`; staff see only what’s needed for operations.
 - No secrets in the repo; use `.env` and Vercel env vars.

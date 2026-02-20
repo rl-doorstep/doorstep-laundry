@@ -6,6 +6,6 @@ export default async function WelcomePage() {
   const session = await getServerSession(authOptions);
   if (!session) redirect("/login");
   const role = (session.user as { role?: string }).role;
-  if (role === "staff" || role === "admin") redirect("/staff");
+  if (role === "staff" || role === "admin") redirect("/wash");
   redirect("/dashboard");
 }

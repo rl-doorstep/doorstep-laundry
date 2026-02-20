@@ -10,7 +10,7 @@ export default async function BookPage() {
   if (!session?.user) redirect("/login");
   const userId = (session.user as { id: string }).id;
   const role = (session.user as { role: string }).role;
-  if (role === "staff" || role === "admin") redirect("/staff");
+  if (role === "staff" || role === "admin") redirect("/wash");
 
   const addresses = await prisma.address.findMany({
     where: { userId },

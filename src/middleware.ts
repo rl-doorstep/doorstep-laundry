@@ -2,7 +2,7 @@ import { getToken } from "next-auth/jwt";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-const staffPaths = ["/staff"];
+const washPaths = ["/wash"];
 const staffApiPattern = /^\/api\/orders\/[^/]+\/status$/;
 const customerPaths = ["/dashboard", "/book", "/account", "/welcome"];
 const orderPathPattern = /^\/orders\/[^/]+$/;
@@ -15,13 +15,13 @@ export async function middleware(request: NextRequest) {
     secret: process.env.NEXTAUTH_SECRET,
   });
 
-  const isStaffRoute = staffPaths.some((p) => pathname === p || pathname.startsWith(p + "/"));
+  const isWashRoute = washPaths.some((p) => pathname === p || pathname.startsWith(p + "/"));
   const isStaffApi = staffApiPattern.test(pathname);
   const isCustomerRoute =
     customerPaths.some((p) => pathname === p || pathname.startsWith(p + "/")) ||
     orderPathPattern.test(pathname);
 
-  if (isStaffRoute || isStaffApi) {
+  if (isWashRoute || isStaffApi) {
     if (!token) {
       const login = new URL("/login", request.url);
       login.searchParams.set("callbackUrl", pathname);
@@ -52,7 +52,7 @@ export const config = {
     "/book/:path*",
     "/orders/:path*",
     "/account/:path*",
-    "/staff/:path*",
+    "/wash/:path*",
     "/welcome",
     "/api/orders/:path*/status",
   ],

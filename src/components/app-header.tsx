@@ -30,14 +30,14 @@ export function AppHeader() {
   const role = (session?.user as { role?: string } | undefined)?.role ?? "customer";
   const isStaffOrAdmin = role === "staff" || role === "admin";
   const navLinks = isStaffOrAdmin
-    ? allNavLinks.filter((l) => l.href !== "/book")
+    ? [{ href: "/wash", label: "Wash" }]
     : allNavLinks;
 
   const [menuOpen, setMenuOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
 
   const isActive = (href: string) =>
-    pathname === href || (href === "/dashboard" && pathname === "/staff");
+    pathname === href || (href === "/dashboard" && pathname === "/wash");
 
   useEffect(() => {
     if (!accountOpen) return;

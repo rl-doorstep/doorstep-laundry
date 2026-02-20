@@ -3,9 +3,9 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { AppHeader } from "@/components/app-header";
-import { StaffDashboard } from "./staff-dashboard";
+import { WashDashboard } from "./wash-dashboard";
 
-export default async function StaffPage() {
+export default async function WashPage() {
   const session = await getServerSession(authOptions);
   if (!session?.user) redirect("/login");
   const role = (session.user as { role: string }).role;
@@ -66,9 +66,9 @@ export default async function StaffPage() {
       <AppHeader />
       <main className="mx-auto max-w-6xl px-4 py-8">
         <h1 className="text-xl font-semibold text-fern-900 mb-6">
-          Staff – Orders
+          Wash – Orders
         </h1>
-        <StaffDashboard initialOrders={orders} initialFilter="due_today" />
+        <WashDashboard initialOrders={orders} initialFilter="due_today" />
       </main>
     </div>
   );
