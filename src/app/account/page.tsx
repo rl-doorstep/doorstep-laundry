@@ -11,7 +11,6 @@ export default async function AccountPage() {
   if (!session?.user) redirect("/login");
   const userId = (session.user as { id: string }).id;
   const role = (session.user as { role: string }).role;
-  if (role === "staff" || role === "admin") redirect("/staff");
 
   const [user, addresses, ordersUsingAddresses] = await Promise.all([
     prisma.user.findUnique({
@@ -45,6 +44,12 @@ export default async function AccountPage() {
           <h2 className="text-lg font-medium text-fern-900 mb-4">
             Profile
           </h2>
+          {(role === "staff" || role === "admin") && (
+            <p className="mb-4 text-sm text-fern-700">
+              <span className="font-medium">Account type:</span>{" "}
+              {role === "admin" ? "Admin" : "Staff"}
+            </p>
+          )}
           <AccountForm
             name={user?.name ?? ""}
             email={user?.email ?? ""}

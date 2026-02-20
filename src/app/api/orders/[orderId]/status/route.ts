@@ -58,19 +58,30 @@ export async function POST(
     );
   }
 
-  await prisma.$transaction([
-    prisma.order.update({
-      where: { id: orderId },
-      data: { status: newStatus },
-    }),
-    prisma.orderStatusHistory.create({
-      data: {
-        orderId,
-        status: newStatus,
-        note: typeof note === "string" ? note : undefined,
-      },
-    }),
-  ]);
+  await prisma.order.update({
+    where: { id: orderId },
+    data: { status: newStatus },
+  });
+  await prisma.orderStatusHistory.create({
+    data: {
+      orderId,
+      status: newStatus,
+      note: typeof note === "string" ? note : undefined,
+    },
+  });
+
+  if (newStatus === "scheduled" || newStatus === "picked_up") {
+    const existingLoads = await prisma.orderLoad.count({
+      where: { orderId },
+    });
+    if (existingLoads < order.numberOfLoads) {
+      for (let n = existingLoads + 1; n <= order.numberOfLoads; n++) {
+        await prisma.orderLoad.create({
+          data: { orderId, loadNumber: n, status: "washing" },
+        });
+      }
+    }
+  }
 
   const eventMap: Partial<Record<OrderStatus, import("@/lib/notify").NotifyEvent>> = {
     scheduled: "pickup_scheduled",

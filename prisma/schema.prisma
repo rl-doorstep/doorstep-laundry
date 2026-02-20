@@ -26,6 +26,13 @@ enum OrderStatus {
   cancelled
 }
 
+enum LoadStatus {
+  washing
+  drying
+  folding
+  ready_for_delivery
+}
+
 model User {
   id            String    @id @default(cuid())
   email         String    @unique
@@ -81,9 +88,25 @@ model Order {
   deliveryAddress  Address  @relation("DeliveryAddress", fields: [deliveryAddressId], references: [id])
   statusHistory    OrderStatusHistory[]
   staffAssignments StaffAssignment[]
+  orderLoads       OrderLoad[]
 
   @@index([status, pickupDate])
   @@index([customerId, createdAt])
+}
+
+model OrderLoad {
+  id         String     @id @default(cuid())
+  orderId    String     @map("order_id")
+  loadNumber Int        @map("load_number")
+  status     LoadStatus @default(washing)
+  location   String?    @map("location")
+  createdAt  DateTime   @default(now()) @map("created_at")
+  updatedAt  DateTime   @updatedAt @map("updated_at")
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@unique([orderId, loadNumber])
+  @@index([orderId])
 }
 
 model OrderStatusHistory {

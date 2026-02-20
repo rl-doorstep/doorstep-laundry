@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import React, { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { getTimeSlotById } from "@/lib/slots";
 
@@ -14,6 +14,13 @@ const STATUS_LABEL: Record<string, string> = {
   cancelled: "Cancelled",
 };
 
+const LOAD_STATUS_LABEL: Record<string, string> = {
+  washing: "Washing",
+  drying: "Drying",
+  folding: "Folding",
+  ready_for_delivery: "Ready for delivery",
+};
+
 const NEXT_STATUS: Record<string, string[]> = {
   draft: ["scheduled", "cancelled"],
   scheduled: ["picked_up", "cancelled"],
@@ -24,10 +31,18 @@ const NEXT_STATUS: Record<string, string[]> = {
   cancelled: [],
 };
 
+type OrderLoadRow = {
+  id: string;
+  loadNumber: number;
+  status: string;
+  location: string | null;
+};
+
 type OrderRow = {
   id: string;
   orderNumber: string;
   status: string;
+  numberOfLoads: number;
   pickupDate: Date | string;
   deliveryDate: Date | string;
   pickupTimeSlot: string | null;
@@ -35,32 +50,45 @@ type OrderRow = {
   customer: { name: string | null; email: string; phone: string | null };
   pickupAddress: { street: string; city: string; state: string; zip: string };
   deliveryAddress: { street: string; city: string; state: string; zip: string };
+  orderLoads: OrderLoadRow[];
 };
 
 export function StaffDashboard({
   initialOrders,
+  initialFilter = "due_today",
 }: {
   initialOrders: OrderRow[];
+  initialFilter?: "due_today" | "all";
 }) {
   const router = useRouter();
   const [, startTransition] = useTransition();
-  const [pickupDate, setPickupDate] = useState(() => {
-    const d = new Date();
-    return d.toISOString().slice(0, 10);
-  });
+  const [filter, setFilter] = useState<"due_today" | "all">(initialFilter);
   const [statusFilter, setStatusFilter] = useState("");
   const [orders, setOrders] = useState(initialOrders);
   const [loading, setLoading] = useState(false);
+  const [updatingLoadId, setUpdatingLoadId] = useState<string | null>(null);
 
   async function fetchOrders() {
     setLoading(true);
     const params = new URLSearchParams();
-    if (pickupDate) params.set("pickupDate", pickupDate);
+    params.set("filter", filter);
     if (statusFilter) params.set("status", statusFilter);
     const res = await fetch(`/api/orders?${params}`);
     const data = await res.json().catch(() => []);
     setOrders(Array.isArray(data) ? data : []);
     setLoading(false);
+  }
+
+  function setFilterAndFetch(value: "due_today" | "all") {
+    setFilter(value);
+    setLoading(true);
+    const params = new URLSearchParams();
+    params.set("filter", value);
+    if (statusFilter) params.set("status", statusFilter);
+    fetch(`/api/orders?${params}`)
+      .then((res) => res.json().catch(() => []))
+      .then((data) => setOrders(Array.isArray(data) ? data : []))
+      .finally(() => setLoading(false));
   }
 
   async function updateStatus(orderId: string, status: string, note?: string) {
@@ -77,33 +105,80 @@ export function StaffDashboard({
     startTransition(() => {
       router.refresh();
       setOrders((prev) =>
-        prev.map((o) =>
-          o.id === orderId ? { ...o, status } : o
-        )
+        prev.map((o) => (o.id === orderId ? { ...o, status } : o))
       );
     });
   }
 
+  async function updateLoad(
+    loadId: string,
+    updates: { status?: string; location?: string }
+  ) {
+    setUpdatingLoadId(loadId);
+    try {
+      const res = await fetch(`/api/order-loads/${loadId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(updates),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        alert(err.error ?? "Failed to update load");
+        return;
+      }
+      const updated = await res.json();
+      setOrders((prev) =>
+        prev.map((o) => ({
+          ...o,
+          orderLoads: o.orderLoads.map((l) =>
+            l.id === loadId
+              ? {
+                  ...l,
+                  status: updated.status ?? l.status,
+                  location: updated.location !== undefined ? updated.location : l.location,
+                }
+              : l
+          ),
+        }))
+      );
+    } finally {
+      setUpdatingLoadId(null);
+    }
+  }
+
   const inputClass =
-    "mt-1 rounded-lg border border-fern-200 bg-white px-3 py-2 text-fern-900 focus:border-fern-500 focus:outline-none focus:ring-2 focus:ring-fern-500/20";
+    "rounded-lg border border-fern-200 bg-white px-2 py-1.5 text-sm text-fern-900 focus:border-fern-500 focus:outline-none focus:ring-2 focus:ring-fern-500/20";
 
   return (
     <div className="space-y-5">
-      <div className="flex flex-wrap gap-4 items-end rounded-2xl border border-fern-200/80 bg-white p-4 shadow-sm">
-        <div>
-          <label className="block text-sm font-medium text-fern-700">
-            Pickup date
-          </label>
-          <input
-            type="date"
-            value={pickupDate}
-            onChange={(e) => setPickupDate(e.target.value)}
-            className={inputClass}
-          />
+      <div className="flex flex-wrap gap-4 items-center rounded-2xl border border-fern-200/80 bg-white p-4 shadow-sm">
+        <div className="flex rounded-lg border border-fern-200 p-0.5 bg-fern-50">
+          <button
+            type="button"
+            onClick={() => setFilterAndFetch("due_today")}
+            className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+              filter === "due_today"
+                ? "bg-white text-fern-900 shadow-sm"
+                : "text-fern-600 hover:text-fern-900"
+            }`}
+          >
+            Due today
+          </button>
+          <button
+            type="button"
+            onClick={() => setFilterAndFetch("all")}
+            className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+              filter === "all"
+                ? "bg-white text-fern-900 shadow-sm"
+                : "text-fern-600 hover:text-fern-900"
+            }`}
+          >
+            All orders
+          </button>
         </div>
         <div>
-          <label className="block text-sm font-medium text-fern-700">
-            Status
+          <label className="block text-sm font-medium text-fern-700 mb-1">
+            Order status
           </label>
           <select
             value={statusFilter}
@@ -124,7 +199,7 @@ export function StaffDashboard({
           disabled={loading}
           className="rounded-lg bg-fern-500 text-white px-4 py-2 text-sm font-medium hover:bg-fern-600 disabled:opacity-50 transition-colors"
         >
-          {loading ? "Loading…" : "Apply filters"}
+          {loading ? "Loading…" : "Apply"}
         </button>
       </div>
 
@@ -142,16 +217,16 @@ export function StaffDashboard({
                 Pickup address
               </th>
               <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-fern-500">
-                Status
+                Order status
               </th>
               <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-fern-500">
-                Time windows
+                Loads (status + location)
               </th>
               <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-fern-500">
-                Pickup / Delivery date
+                Time / Dates
               </th>
               <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-fern-500">
-                Update
+                Update order
               </th>
             </tr>
           </thead>
@@ -159,42 +234,121 @@ export function StaffDashboard({
             {orders.length === 0 ? (
               <tr>
                 <td colSpan={7} className="px-4 py-10 text-center text-fern-500">
-                  No orders for this date/filter.
+                  No orders for this filter.
                 </td>
               </tr>
             ) : (
               orders.map((order) => (
                 <tr key={order.id} className="hover:bg-fern-50/50 transition-colors">
-                  <td className="px-4 py-3 font-mono text-sm text-fern-900">
+                  <td className="px-4 py-3 font-mono text-sm text-fern-900 align-top">
                     {order.orderNumber}
                   </td>
-                  <td className="px-4 py-3 text-sm">
-                    <div className="font-medium text-fern-900">{order.customer.name ?? order.customer.email}</div>
+                  <td className="px-4 py-3 text-sm align-top">
+                    <div className="font-medium text-fern-900">
+                      {order.customer.name ?? order.customer.email}
+                    </div>
                     <div className="text-fern-500 text-xs">
                       {order.customer.phone ?? order.customer.email}
                     </div>
                   </td>
-                  <td className="px-4 py-3 text-sm text-fern-600">
+                  <td className="px-4 py-3 text-sm text-fern-600 align-top">
                     {order.pickupAddress.street}, {order.pickupAddress.city},{" "}
                     {order.pickupAddress.state} {order.pickupAddress.zip}
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-4 py-3 align-top">
                     <span className="rounded-full px-2.5 py-1 text-xs font-medium bg-fern-100 text-fern-700">
                       {STATUS_LABEL[order.status] ?? order.status}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-sm text-fern-600">
-                    {order.pickupTimeSlot ? getTimeSlotById(order.pickupTimeSlot)?.label ?? order.pickupTimeSlot : "—"} /{" "}
-                    {order.deliveryTimeSlot ? getTimeSlotById(order.deliveryTimeSlot)?.label ?? order.deliveryTimeSlot : "—"}
+                  <td className="px-4 py-3 align-top">
+                    <div className="space-y-2">
+                      {(order.orderLoads ?? []).map((load) => (
+                        <div
+                          key={load.id}
+                          className="flex flex-wrap items-center gap-2 text-sm"
+                        >
+                          <span className="font-medium text-fern-700 shrink-0">
+                            Load {load.loadNumber}:
+                          </span>
+                          <select
+                            value={load.status}
+                            onChange={(e) =>
+                              updateLoad(load.id, {
+                                status: e.target.value,
+                              })
+                            }
+                            disabled={updatingLoadId === load.id}
+                            className={inputClass}
+                          >
+                            {Object.entries(LOAD_STATUS_LABEL).map(([v, l]) => (
+                              <option key={v} value={v}>
+                                {l}
+                              </option>
+                            ))}
+                          </select>
+                          <input
+                            type="text"
+                            placeholder="e.g. Washer 2, Shelf 1"
+                            value={load.location ?? ""}
+                            onChange={(e) =>
+                              setOrders((prev) =>
+                                prev.map((o) =>
+                                  o.id === order.id
+                                    ? {
+                                        ...o,
+                                        orderLoads: o.orderLoads.map((l) =>
+                                          l.id === load.id
+                                            ? {
+                                                ...l,
+                                                location:
+                                                  e.target.value || null,
+                                              }
+                                            : l
+                                        ),
+                                      }
+                                    : o
+                                )
+                              )
+                            }
+                            onBlur={(e) => {
+                              const v = e.target.value.trim();
+                              if (v !== (load.location ?? "")) {
+                                updateLoad(load.id, {
+                                  location: v || "",
+                                });
+                              }
+                            }}
+                            disabled={updatingLoadId === load.id}
+                            className={`${inputClass} min-w-[120px]`}
+                          />
+                        </div>
+                      ))}
+                      {(!order.orderLoads || order.orderLoads.length === 0) && (
+                        <span className="text-fern-400 text-sm">—</span>
+                      )}
+                    </div>
                   </td>
-                  <td className="px-4 py-3 text-sm text-fern-600">
-                    {new Date(order.pickupDate as string).toLocaleDateString()} /{" "}
-                    {new Date(order.deliveryDate as string).toLocaleDateString()}
+                  <td className="px-4 py-3 text-sm text-fern-600 align-top">
+                    <div>
+                      {order.pickupTimeSlot
+                        ? getTimeSlotById(order.pickupTimeSlot)?.label ??
+                          order.pickupTimeSlot
+                        : "—"}{" "}
+                      /{" "}
+                      {order.deliveryTimeSlot
+                        ? getTimeSlotById(order.deliveryTimeSlot)?.label ??
+                          order.deliveryTimeSlot
+                        : "—"}
+                    </div>
+                    <div className="text-fern-500 text-xs mt-0.5">
+                      {new Date(order.pickupDate as string).toLocaleDateString()} /{" "}
+                      {new Date(order.deliveryDate as string).toLocaleDateString()}
+                    </div>
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-4 py-3 align-top">
                     {NEXT_STATUS[order.status]?.length ? (
                       <select
-                        className="rounded-lg border border-fern-200 bg-white px-2 py-1.5 text-sm text-fern-900 focus:border-fern-500 focus:outline-none focus:ring-2 focus:ring-fern-500/20"
+                        className={`${inputClass} w-full max-w-[160px]`}
                         onChange={(e) => {
                           const v = e.target.value;
                           if (v) updateStatus(order.id, v);

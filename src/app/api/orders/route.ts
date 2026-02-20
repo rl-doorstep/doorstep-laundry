@@ -19,9 +19,14 @@ export async function GET(request: Request) {
   const status = searchParams.get("status");
 
   if (role === "staff" || role === "admin") {
-    const where: { pickupDate?: { gte: Date; lte: Date }; status?: OrderStatus } = {};
-    if (pickupDate) {
-      const d = new Date(pickupDate);
+    const where: {
+      pickupDate?: { gte: Date; lte: Date };
+      status?: OrderStatus | { notIn: OrderStatus[] };
+    } = { status: { notIn: ["draft", "cancelled"] } };
+    const filter = searchParams.get("filter");
+    const useDueToday = filter === "due_today" || (pickupDate && filter !== "all");
+    if (useDueToday || pickupDate) {
+      const d = pickupDate ? new Date(pickupDate) : new Date();
       const start = new Date(d);
       start.setHours(0, 0, 0, 0);
       const end = new Date(d);
@@ -36,8 +41,41 @@ export async function GET(request: Request) {
         customer: { select: { id: true, name: true, email: true, phone: true } },
         pickupAddress: true,
         deliveryAddress: true,
+        orderLoads: { orderBy: { loadNumber: "asc" } },
       },
     });
+    const orderIdsNeedingLoads = orders
+      .filter(
+        (o) =>
+          o.status !== "draft" &&
+          o.status !== "cancelled" &&
+          o.orderLoads.length < o.numberOfLoads
+      )
+      .map((o) => ({ id: o.id, numberOfLoads: o.numberOfLoads }));
+    for (const { id: orderId, numberOfLoads } of orderIdsNeedingLoads) {
+      const existing = orders.find((o) => o.id === orderId)!.orderLoads;
+      const existingNumbers = new Set(existing.map((l) => l.loadNumber));
+      for (let n = 1; n <= numberOfLoads; n++) {
+        if (!existingNumbers.has(n)) {
+          await prisma.orderLoad.create({
+            data: { orderId, loadNumber: n, status: "washing" },
+          });
+        }
+      }
+    }
+    if (orderIdsNeedingLoads.length > 0) {
+      const refreshed = await prisma.order.findMany({
+        where: { id: { in: orders.map((o) => o.id) } },
+        orderBy: { pickupDate: "asc" },
+        include: {
+          customer: { select: { id: true, name: true, email: true, phone: true } },
+          pickupAddress: true,
+          deliveryAddress: true,
+          orderLoads: { orderBy: { loadNumber: "asc" } },
+        },
+      });
+      return NextResponse.json(refreshed);
+    }
     return NextResponse.json(orders);
   }
 
