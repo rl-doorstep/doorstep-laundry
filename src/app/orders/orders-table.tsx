@@ -54,6 +54,7 @@ function locationsSummary(order: OrderRow): string {
 }
 
 type OrderDetail = OrderRow & {
+  notes?: string | null;
   statusHistory?: {
     id: string;
     status: string;

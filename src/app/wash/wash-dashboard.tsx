@@ -274,8 +274,8 @@ export function WashDashboard({
           </thead>
           <tbody className="divide-y divide-fern-200">
             {(() => {
-              const rows: { order: OrderRow; load: OrderLoadRow | null }[] = orders.flatMap(
-                (order) => {
+              const rows = orders.flatMap(
+                (order): { order: OrderRow; load: OrderLoadRow | null }[] => {
                   const loads = order.orderLoads ?? [];
                   if (loads.length === 0) {
                     return [{ order, load: null }];
