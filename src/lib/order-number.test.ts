@@ -35,6 +35,8 @@ describe("order number", () => {
   });
 
   it("pads sequence number to 4 digits", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-02-19T12:00:00Z"));
     mockUpsert.mockResolvedValueOnce({ datePrefix: "20260219", lastNumber: 42 });
     mockTransaction.mockImplementationOnce(
       async (
@@ -43,6 +45,7 @@ describe("order number", () => {
     );
     const { generateOrderNumber } = await import("./order-number");
     const result = await generateOrderNumber();
+    vi.useRealTimers();
     expect(result).toBe("LOAD-20260219-0042");
   });
 });
