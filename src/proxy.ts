@@ -12,7 +12,7 @@ const staffApiPattern = /^\/api\/orders\/[^/]+\/status$/;
 const customerPaths = ["/dashboard", "/book", "/account", "/welcome"];
 const orderPathPattern = /^\/orders\/[^/]+$/;
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   const token = await getToken({
