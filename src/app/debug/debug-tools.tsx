@@ -76,7 +76,12 @@ export function DebugTools() {
       });
       const data = await res.json().catch(() => ({}));
       if (res.ok && Array.isArray(data.addresses)) {
-        setRouteResult("Optimized order:\n" + data.addresses.map((a: string, i: number) => `${i + 1}. ${a}`).join("\n"));
+        if (data.optimized === true) {
+          setRouteResult("Optimized order (via Google Directions API):\n" + data.addresses.map((a: string, i: number) => `${i + 1}. ${a}`).join("\n"));
+        } else {
+          const note = data.note ? `\n\n${data.note}` : "";
+          setRouteResult("Order unchanged (Google did not return a new order):\n" + data.addresses.map((a: string, i: number) => `${i + 1}. ${a}`).join("\n") + note);
+        }
       } else {
         setRouteResult(`Error: ${data.error ?? res.statusText}`);
       }

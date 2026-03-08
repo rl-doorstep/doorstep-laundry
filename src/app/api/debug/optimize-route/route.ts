@@ -4,8 +4,11 @@ import { authOptions } from "@/lib/auth";
 
 /**
  * POST: Test route optimization with raw addresses. Admin only.
- * Body: { addresses: string[] } - e.g. ["123 Main St, City, ST 12345", ...]
- * Returns { addresses: string[] } in optimized order, or error if no API key.
+ * Uses Google Routes API (Compute Routes) with optimizeWaypointOrder for an organized stop order.
+ * Body: { addresses: string[] }
+ * Returns { addresses: string[] } in optimized order.
+ * @see https://developers.google.com/maps/documentation/routes/opt-way
+ * @see https://developers.google.com/maps/documentation/routes/compute_route_directions
  */
 export async function POST(request: Request) {
   const session = await getServerSession(authOptions);
@@ -41,43 +44,78 @@ export async function POST(request: Request) {
     );
   }
 
-  const origin = encodeURIComponent(addresses[0]);
-  const destination = encodeURIComponent(addresses[addresses.length - 1]);
-  const waypoints =
-    addresses.length <= 2
-      ? ""
-      : "optimize:true|" + addresses.slice(1, -1).map((a) => encodeURIComponent(a)).join("|");
+  // Format addresses for geocoding (city, state USA). Routes API accepts address strings.
+  function formatAddress(addr: string): string {
+    const s = addr.trim();
+    if (!s) return s;
+    if (s.includes(", ")) return s.endsWith("USA") ? s : s + " USA";
+    const parts = s.split(/\s+/);
+    if (parts.length >= 2) {
+      const last = parts[parts.length - 1];
+      if (last.length === 2 && /^[A-Za-z]{2}$/.test(last)) {
+        const state = parts.pop()!;
+        const city = parts.join(" ");
+        return city + ", " + state + " USA";
+      }
+    }
+    return s + " USA";
+  }
 
-  const url =
-    "https://maps.googleapis.com/maps/api/directions/json?" +
-    `origin=${origin}&destination=${destination}&key=${key}` +
-    (waypoints ? `&waypoints=${waypoints}` : "");
+  const formatted = addresses.map(formatAddress);
+  const origin = formatted[0];
+  const destination = formatted[formatted.length - 1];
+  const intermediates = formatted.length > 2 ? formatted.slice(1, -1) : [];
+
+  const requestBody = {
+    origin: { address: origin },
+    destination: { address: destination },
+    ...(intermediates.length > 0
+      ? {
+          intermediates: intermediates.map((address) => ({ address })),
+          optimizeWaypointOrder: true,
+        }
+      : {}),
+    travelMode: "DRIVE",
+    routingPreference: "TRAFFIC_UNAWARE",
+  };
 
   let res: Response;
   try {
-    res = await fetch(url);
+    console.log("[debug/optimize-route] Calling Google Routes API (computeRoutes with optimizeWaypointOrder)");
+    res = await fetch("https://routes.googleapis.com/directions/v2:computeRoutes", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Goog-Api-Key": key,
+        "X-Goog-FieldMask": "routes.optimizedIntermediateWaypointIndex",
+      },
+      body: JSON.stringify(requestBody),
+    });
   } catch (e) {
-    console.error("Directions API error:", e);
-    return NextResponse.json({ error: "Directions request failed" }, { status: 502 });
+    console.error("Routes API error:", e);
+    return NextResponse.json({ error: "Routes request failed" }, { status: 502 });
   }
 
   const data = await res.json().catch(() => ({}));
-  if (data.status !== "OK" || !data.routes?.[0]) {
-    return NextResponse.json(
-      { error: data.error_message ?? "No route returned" },
-      { status: 502 }
-    );
-  }
+  const order = data.routes?.[0]?.optimizedIntermediateWaypointIndex;
+  console.log("[debug/optimize-route] Routes API response:", order != null ? `optimizedIntermediateWaypointIndex=${JSON.stringify(order)}` : "error or no route");
 
-  const route = data.routes[0];
-  const waypointOrder: number[] = route.waypoint_order ?? [];
   if (addresses.length <= 2) {
     return NextResponse.json({ addresses, optimized: true });
   }
 
+  if (!Array.isArray(order) || order.length !== intermediates.length) {
+    const msg = data.error?.message ?? data.error_message ?? "No optimized order returned";
+    return NextResponse.json({
+      addresses,
+      optimized: false,
+      note: `Routes API did not return an optimized order. ${msg} Ensure Routes API is enabled and GOOGLE_MAPS_API_KEY has access.`,
+    });
+  }
+
   const optimized = [
     addresses[0],
-    ...waypointOrder.map((i: number) => addresses[i + 1]),
+    ...order.map((i: number) => addresses[i + 1]),
     addresses[addresses.length - 1],
   ];
 

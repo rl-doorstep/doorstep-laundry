@@ -8,9 +8,10 @@ function formatAddress(a: { street: string; city: string; state: string; zip: st
 }
 
 /**
- * POST: Return order IDs in optimized route order using Google Directions API.
+ * POST: Return order IDs in optimized route order using Google Routes API (Compute Routes).
  * Body: { orderIds: string[] }
  * If GOOGLE_MAPS_API_KEY is missing, returns orderIds unchanged.
+ * @see https://developers.google.com/maps/documentation/routes/opt-way
  */
 export async function POST(request: Request) {
   const session = await getServerSession(authOptions);
@@ -53,52 +54,63 @@ export async function POST(request: Request) {
   }
 
   const idToAddress = new Map(
-    orders.map((o) => [o.id, formatAddress(o.deliveryAddress)])
+    orders.map((o: (typeof orders)[0]) => [o.id, formatAddress(o.deliveryAddress)])
   );
 
-  const addresses = orderIds.map((id) => idToAddress.get(id)!).filter(Boolean);
+  const addresses = orderIds
+    .map((id) => idToAddress.get(id))
+    .filter((a): a is string => Boolean(a));
   if (addresses.length === 0) {
     return NextResponse.json({ orderIds });
   }
 
-  const origin = encodeURIComponent(addresses[0]);
-  const destination = encodeURIComponent(addresses[addresses.length - 1]);
-  const waypoints =
-    addresses.length <= 2
-      ? ""
-      : "optimize:true|" + addresses.slice(1, -1).map((a) => encodeURIComponent(a)).join("|");
-
-  const url =
-    "https://maps.googleapis.com/maps/api/directions/json?" +
-    `origin=${origin}&destination=${destination}&key=${key}` +
-    (waypoints ? `&waypoints=${waypoints}` : "");
-
-  let res: Response;
-  try {
-    res = await fetch(url);
-  } catch (e) {
-    console.error("Directions API error:", e);
-    return NextResponse.json({ orderIds, optimized: false, note: "Directions request failed." });
-  }
-
-  const data = await res.json().catch(() => ({}));
-  if (data.status !== "OK" || !data.routes?.[0]) {
-    return NextResponse.json({
-      orderIds,
-      optimized: false,
-      note: data.error_message || "No route returned.",
-    });
-  }
-
-  const route = data.routes[0];
-  const waypointOrder: number[] = route.waypoint_order ?? [];
   if (orderIds.length <= 2) {
     return NextResponse.json({ orderIds, optimized: true });
   }
 
+  const withRegion = (a: string) => (a.trim().endsWith("USA") ? a : a.trim() + " USA");
+  const origin = withRegion(addresses[0]!);
+  const destination = withRegion(addresses[addresses.length - 1]!);
+  const intermediates = addresses.slice(1, -1).map(withRegion);
+
+  const requestBody = {
+    origin: { address: origin },
+    destination: { address: destination },
+    intermediates: intermediates.map((address) => ({ address })),
+    optimizeWaypointOrder: true,
+    travelMode: "DRIVE",
+    routingPreference: "TRAFFIC_UNAWARE",
+  };
+
+  let res: Response;
+  try {
+    res = await fetch("https://routes.googleapis.com/directions/v2:computeRoutes", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Goog-Api-Key": key,
+        "X-Goog-FieldMask": "routes.optimizedIntermediateWaypointIndex",
+      },
+      body: JSON.stringify(requestBody),
+    });
+  } catch (e) {
+    console.error("Routes API error:", e);
+    return NextResponse.json({ orderIds, optimized: false, note: "Routes request failed." });
+  }
+
+  const data = await res.json().catch(() => ({}));
+  const order = data.routes?.[0]?.optimizedIntermediateWaypointIndex;
+  if (!Array.isArray(order) || order.length !== intermediates.length) {
+    return NextResponse.json({
+      orderIds,
+      optimized: false,
+      note: data.error?.message ?? data.error_message ?? "No optimized order returned.",
+    });
+  }
+
   const optimized: string[] = [
     orderIds[0],
-    ...waypointOrder.map((i) => orderIds[i + 1]),
+    ...order.map((i: number) => orderIds[i + 1]),
     orderIds[orderIds.length - 1],
   ];
 
