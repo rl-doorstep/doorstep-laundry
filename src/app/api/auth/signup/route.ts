@@ -44,7 +44,12 @@ export async function POST(request: Request) {
   } catch (e) {
     const err = e as { code?: string; message?: string };
     console.error("Signup error:", err.code ?? err.message ?? e);
-    if (err.code === "P1001" || err.code === "P1017" || err.code === "P1002") {
+    if (
+      err.code === "P1001" ||
+      err.code === "P1017" ||
+      err.code === "P1002" ||
+      err.code === "P1018"
+    ) {
       return NextResponse.json(
         { error: "Service unavailable. Please try again later." },
         { status: 503 }
