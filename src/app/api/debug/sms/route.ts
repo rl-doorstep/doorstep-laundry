@@ -18,10 +18,17 @@ export async function POST(request: Request) {
 
   const sid = process.env.TWILIO_ACCOUNT_SID;
   const token = process.env.TWILIO_AUTH_TOKEN;
+  const messagingServiceSid = process.env.TWILIO_MESSAGING_SERVICE_SID;
   const from = process.env.TWILIO_PHONE_NUMBER;
-  if (!sid || !token || !from) {
+  if (!sid || !token) {
     return NextResponse.json(
-      { error: "Twilio not configured (TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_PHONE_NUMBER)" },
+      { error: "Twilio not configured (TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)" },
+      { status: 503 }
+    );
+  }
+  if (!messagingServiceSid && !from) {
+    return NextResponse.json(
+      { error: "Twilio not configured: set TWILIO_MESSAGING_SERVICE_SID or TWILIO_PHONE_NUMBER" },
       { status: 503 }
     );
   }
@@ -41,11 +48,11 @@ export async function POST(request: Request) {
 
   try {
     const client = Twilio(sid, token);
-    const result = await client.messages.create({
-      body: message,
-      from,
-      to,
-    });
+    const result = await client.messages.create(
+      messagingServiceSid
+        ? { body: message, messagingServiceSid, to }
+        : { body: message, from: from!, to }
+    );
     return NextResponse.json({ ok: true, sid: result.sid });
   } catch (e: unknown) {
     const err = e as { message?: string; code?: number; status?: number; moreInfo?: string };

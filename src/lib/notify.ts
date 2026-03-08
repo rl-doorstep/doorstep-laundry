@@ -113,17 +113,31 @@ export async function sendOrderNotification(
   const result = { sms: false, email: false };
   const fromEmail = process.env.RESEND_FROM_EMAIL ?? "notifications@example.com";
 
-  if (process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN && process.env.TWILIO_PHONE_NUMBER && order.customer.phone) {
+  const twilioSid = process.env.TWILIO_ACCOUNT_SID;
+  const twilioToken = process.env.TWILIO_AUTH_TOKEN;
+  const twilioMessagingServiceSid = process.env.TWILIO_MESSAGING_SERVICE_SID;
+  const twilioFrom = process.env.TWILIO_PHONE_NUMBER;
+  const canSendSms =
+    twilioSid &&
+    twilioToken &&
+    (twilioMessagingServiceSid || twilioFrom) &&
+    order.customer.phone;
+  if (canSendSms) {
     try {
-      const client = Twilio(
-        process.env.TWILIO_ACCOUNT_SID,
-        process.env.TWILIO_AUTH_TOKEN
+      const client = Twilio(twilioSid, twilioToken);
+      await client.messages.create(
+        twilioMessagingServiceSid
+          ? {
+              body: `[${order.orderNumber}] ${smsText}`,
+              messagingServiceSid: twilioMessagingServiceSid,
+              to: order.customer.phone,
+            }
+          : {
+              body: `[${order.orderNumber}] ${smsText}`,
+              from: twilioFrom!,
+              to: order.customer.phone,
+            }
       );
-      await client.messages.create({
-        body: `[${order.orderNumber}] ${smsText}`,
-        from: process.env.TWILIO_PHONE_NUMBER,
-        to: order.customer.phone,
-      });
       result.sms = true;
     } catch (e) {
       console.error("Twilio SMS error:", e);
