@@ -38,7 +38,7 @@ export default async function DashboardPage() {
               href="/book"
               className="mt-5 inline-block rounded-lg bg-fern-500 text-white px-5 py-2.5 text-sm font-medium hover:bg-fern-600 transition-colors"
             >
-              Book your first pickup
+              Book a pickup
             </Link>
           </div>
         ) : (
