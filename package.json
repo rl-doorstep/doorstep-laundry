@@ -11,6 +11,8 @@
     "test:watch": "vitest",
     "postinstall": "prisma generate",
     "db:migrate": "prisma migrate dev",
+    "db:migrate:deploy": "node -r dotenv/config ./node_modules/.bin/prisma migrate deploy",
+    "db:migrate:resolve-rolled-back": "node -r dotenv/config ./node_modules/.bin/prisma migrate resolve --rolled-back",
     "db:seed": "prisma db seed",
     "db:push": "prisma db push"
   },
@@ -27,6 +29,7 @@
     "twilio": "^5.12.2"
   },
   "devDependencies": {
+    "dotenv": "^16.4.5",
     "@tailwindcss/postcss": "^4",
     "@types/bcryptjs": "^2.4.6",
     "@types/node": "^20",

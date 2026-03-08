@@ -3,6 +3,13 @@ import * as bcrypt from "bcryptjs";
 import { prisma } from "@/lib/db";
 
 export async function POST(request: Request) {
+  if (!process.env.DATABASE_URL) {
+    console.error("Signup: DATABASE_URL is not set (check Vercel env vars)");
+    return NextResponse.json(
+      { error: "Service unavailable. Please try again later." },
+      { status: 503 }
+    );
+  }
   try {
     const body = await request.json();
     const { email, password, name } = body as {
@@ -35,7 +42,14 @@ export async function POST(request: Request) {
     });
     return NextResponse.json({ ok: true });
   } catch (e) {
-    console.error("Signup error:", e);
+    const err = e as { code?: string; message?: string };
+    console.error("Signup error:", err.code ?? err.message ?? e);
+    if (err.code === "P1001" || err.code === "P1017" || err.code === "P1002") {
+      return NextResponse.json(
+        { error: "Service unavailable. Please try again later." },
+        { status: 503 }
+      );
+    }
     return NextResponse.json(
       { error: "Something went wrong" },
       { status: 500 }
