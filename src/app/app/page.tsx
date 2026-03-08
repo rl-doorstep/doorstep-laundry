@@ -1,7 +1,33 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { AppHeader } from "@/components/app-header";
+
+export const metadata: Metadata = {
+  title: "Doorstep Laundry – Laundry Pickup & Delivery in Las Cruces, NM",
+  description:
+    "Laundry pickup and delivery in Las Cruces, New Mexico. Schedule a pickup—we wash, fold, and deliver to your door. No trips to the laundromat.",
+  keywords: [
+    "laundry pickup Las Cruces",
+    "laundry delivery Las Cruces NM",
+    "wash and fold Las Cruces",
+    "laundry service Las Cruces New Mexico",
+    "Doorstep Laundry",
+  ],
+  openGraph: {
+    title: "Doorstep Laundry – Laundry Pickup & Delivery in Las Cruces, NM",
+    description:
+      "Laundry pickup and delivery in Las Cruces, NM. We wash, fold, and deliver to your door.",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Doorstep Laundry – Las Cruces, NM",
+    description: "Laundry pickup and delivery in Las Cruces, NM. Wash, fold, delivered.",
+  },
+  robots: "index, follow",
+};
 
 export default async function AppHomePage() {
   const session = await getServerSession(authOptions);
@@ -16,10 +42,10 @@ export default async function AppHomePage() {
             <Link
               href="/app"
               className="flex items-center gap-2 text-fern-900 hover:opacity-90 transition-opacity"
-              aria-label="Doorstep Laundry – Home"
+              aria-label="Doorstep Laundry – Laundry service Las Cruces NM"
             >
               <img src="/doorstep/doorstep-logo-icon.svg" alt="" className="h-9 w-auto" />
-              <img src="/doorstep/doorstep-logo-wordmark.svg" alt="Doorstep" className="h-7 w-auto hidden sm:block" />
+              <img src="/doorstep/doorstep-logo-wordmark.svg" alt="Doorstep Laundry Las Cruces" className="h-7 w-auto hidden sm:block" />
               <span className="text-lg font-semibold text-fern-800 sm:hidden">Doorstep Laundry</span>
             </Link>
             <nav className="flex items-center gap-4">
@@ -45,7 +71,7 @@ export default async function AppHomePage() {
           <div className="flex justify-center mb-10">
             <img
               src="/doorstep/doorstep-laundry-logo-v3.svg"
-              alt="Doorstep Laundry"
+              alt="Doorstep Laundry – laundry pickup and delivery in Las Cruces, NM"
               className="h-24 w-auto sm:h-28"
             />
           </div>
@@ -53,8 +79,7 @@ export default async function AppHomePage() {
             Laundry pickup and delivery, at your door
           </h1>
           <p className="mt-6 text-lg text-fern-600 max-w-2xl mx-auto">
-            Schedule a pickup, we wash and fold, then deliver back to you. No
-            hassle, no trips to the laundromat.
+            Schedule a pickup in Las Cruces or the surrounding area—we wash and fold, then deliver back to you. No hassle, no trips to the laundromat.
           </p>
           <div className="mt-10 flex flex-wrap justify-center gap-4">
             {session ? (
@@ -161,10 +186,10 @@ export default async function AppHomePage() {
         <div className="mx-auto max-w-5xl px-4 flex flex-col items-center gap-3 text-sm text-fern-500">
           <img
             src="/doorstep/doorstep-logo-subtext.svg"
-            alt="Doorstep Laundry – wash · fold · delivered"
+            alt="Doorstep Laundry Las Cruces – wash · fold · delivered"
             className="h-12 w-auto opacity-80"
           />
-          <span>Doorstep Laundry Service</span>
+          <span>Doorstep Laundry Service · Las Cruces, NM</span>
         </div>
       </footer>
     </div>
