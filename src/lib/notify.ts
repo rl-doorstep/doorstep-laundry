@@ -123,6 +123,7 @@ export async function sendOrderNotification(
     (twilioMessagingServiceSid || twilioFrom) &&
     order.customer.phone;
   if (canSendSms) {
+    const toPhone = order.customer.phone!;
     try {
       const client = Twilio(twilioSid, twilioToken);
       await client.messages.create(
@@ -130,12 +131,12 @@ export async function sendOrderNotification(
           ? {
               body: `[${order.orderNumber}] ${smsText}`,
               messagingServiceSid: twilioMessagingServiceSid,
-              to: order.customer.phone,
+              to: toPhone,
             }
           : {
               body: `[${order.orderNumber}] ${smsText}`,
               from: twilioFrom!,
-              to: order.customer.phone,
+              to: toPhone,
             }
       );
       result.sms = true;
