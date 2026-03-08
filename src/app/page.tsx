@@ -1,3 +1,30 @@
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Doorstep Laundry – Laundry Pickup & Delivery in Las Cruces, NM | Coming Soon",
+  description:
+    "Doorstep Laundry is coming to Las Cruces, New Mexico. Pickup and delivery laundry service—we wash, fold, and bring it back to your door. No trips to the laundromat.",
+  keywords: [
+    "laundry pickup Las Cruces",
+    "laundry delivery Las Cruces NM",
+    "wash and fold Las Cruces",
+    "laundry service Las Cruces New Mexico",
+    "Doorstep Laundry",
+  ],
+  openGraph: {
+    title: "Doorstep Laundry – Laundry Pickup & Delivery in Las Cruces, NM",
+    description:
+      "Laundry pickup and delivery in Las Cruces, New Mexico. We wash, fold, and deliver. Coming soon.",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Doorstep Laundry – Las Cruces, NM | Coming Soon",
+    description: "Laundry pickup and delivery in Las Cruces, NM. Wash, fold, delivered. Coming soon.",
+  },
+  robots: "index, follow",
+};
+
 export default function ComingSoonPage() {
   return (
     <div className="min-h-screen bg-fern-50 flex flex-col items-center justify-center px-4">
@@ -5,7 +32,7 @@ export default function ComingSoonPage() {
         <div className="flex justify-center mb-8">
           <img
             src="/doorstep/doorstep-laundry-logo-v3.svg"
-            alt="Doorstep Laundry"
+            alt="Doorstep Laundry – laundry pickup and delivery in Las Cruces, NM"
             className="h-20 w-auto sm:h-24"
           />
         </div>
@@ -13,10 +40,13 @@ export default function ComingSoonPage() {
           Something fresh is on the way
         </h1>
         <p className="mt-4 text-lg text-fern-600">
-          Laundry pickup and delivery, at your door. We&apos;re getting ready to launch.
+          Laundry pickup and delivery in Las Cruces, NM—at your door. We&apos;re getting ready to launch.
         </p>
         <p className="mt-2 text-sm text-fern-500">
           Check back soon.
+        </p>
+        <p className="mt-8 text-sm text-fern-400" aria-hidden="true">
+          Laundry service · wash and fold · pickup and delivery
         </p>
       </div>
       <footer className="mt-16 text-sm text-fern-400">
