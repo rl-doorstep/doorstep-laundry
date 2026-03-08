@@ -1,6 +1,7 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { signIn } from "next-auth/react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import Link from "next/link";
 
@@ -10,6 +11,8 @@ const labelClass = "block text-sm font-medium text-fern-700";
 
 export function SignupForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const callbackUrl = searchParams.get("callbackUrl") ?? "/welcome";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
@@ -110,6 +113,25 @@ export function SignupForm() {
             {loading ? "Creating account…" : "Sign up"}
           </button>
         </form>
+        {process.env.NEXT_PUBLIC_GOOGLE_ENABLED === "true" && (
+          <div className="relative my-4">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-fern-200" />
+            </div>
+            <div className="relative flex justify-center text-sm">
+              <span className="bg-white px-2 text-fern-500">Or</span>
+            </div>
+          </div>
+        )}
+        {process.env.NEXT_PUBLIC_GOOGLE_ENABLED === "true" && (
+          <button
+            type="button"
+            onClick={() => signIn("google", { callbackUrl })}
+            className="w-full rounded-lg border border-fern-200 bg-white py-2 px-4 font-medium text-fern-700 hover:bg-fern-50 transition-colors"
+          >
+            Sign up with Google
+          </button>
+        )}
         <p className="text-center text-sm text-fern-600">
           Already have an account?{" "}
           <Link href="/login" className="font-medium text-fern-600 hover:text-fern-700">
