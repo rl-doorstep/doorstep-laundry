@@ -90,7 +90,7 @@ export async function POST(
             orderId,
             loadNumber: n,
             loadCode: `${orderWithNumber.orderNumber}-L${n}`,
-            status: "washing",
+            status: "ready_for_pickup",
           },
         });
       }

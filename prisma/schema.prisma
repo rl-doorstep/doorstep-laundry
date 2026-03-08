@@ -28,10 +28,14 @@ enum OrderStatus {
 }
 
 enum LoadStatus {
+  ready_for_pickup
+  incoming
   washing
   drying
   folding
   ready_for_delivery
+  out_for_delivery
+  delivered
 }
 
 model User {
@@ -117,7 +121,7 @@ model OrderLoad {
   orderId    String     @map("order_id")
   loadNumber Int        @map("load_number")
   loadCode   String?    @unique @map("load_code")
-  status     LoadStatus @default(washing)
+  status     LoadStatus @default(ready_for_pickup)
   location   String?    @map("location")
   createdAt  DateTime   @default(now()) @map("created_at")
   updatedAt  DateTime   @updatedAt @map("updated_at")

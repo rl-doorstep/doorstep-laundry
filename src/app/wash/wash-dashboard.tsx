@@ -18,10 +18,14 @@ const STATUS_LABEL: Record<string, string> = {
 };
 
 const LOAD_STATUS_LABEL: Record<string, string> = {
+  ready_for_pickup: "Ready for pickup",
+  incoming: "Incoming",
   washing: "Washing",
   drying: "Drying",
   folding: "Folding",
   ready_for_delivery: "Ready for delivery",
+  out_for_delivery: "Out for delivery",
+  delivered: "Delivered",
 };
 
 const NEXT_STATUS: Record<string, string[]> = {

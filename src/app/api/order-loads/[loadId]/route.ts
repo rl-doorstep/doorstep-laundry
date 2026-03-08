@@ -5,10 +5,14 @@ import { prisma } from "@/lib/db";
 import type { LoadStatus } from "@prisma/client";
 
 const VALID_LOAD_STATUSES: LoadStatus[] = [
+  "ready_for_pickup",
+  "incoming",
   "washing",
   "drying",
   "folding",
   "ready_for_delivery",
+  "out_for_delivery",
+  "delivered",
 ];
 
 export async function PATCH(
@@ -62,7 +66,7 @@ export async function PATCH(
     include: { order: true },
   });
 
-  // Sync order status from load statuses: in_progress when any load is washing/drying/folding,
+  // Sync order status from load statuses: in_progress when any load is incoming/washing/drying/folding,
   // ready_for_delivery when all loads are ready_for_delivery
   const orderId = load.orderId;
   const allLoads = await prisma.orderLoad.findMany({
@@ -70,7 +74,7 @@ export async function PATCH(
     select: { status: true },
   });
   const anyInProgress = allLoads.some((l) =>
-    ["washing", "drying", "folding"].includes(l.status)
+    ["incoming", "washing", "drying", "folding"].includes(l.status)
   );
   const allReady = allLoads.length > 0 && allLoads.every((l) => l.status === "ready_for_delivery");
 

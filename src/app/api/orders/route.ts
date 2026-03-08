@@ -63,7 +63,7 @@ export async function GET(request: Request) {
               orderId,
               loadNumber: n,
               loadCode: `${order.orderNumber}-L${n}`,
-              status: "washing",
+              status: "ready_for_pickup",
             },
           });
         }
