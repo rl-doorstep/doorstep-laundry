@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { getTimeSlotById } from "@/lib/slots";
 
@@ -32,6 +33,7 @@ type OrderRow = {
   id: string;
   orderNumber: string;
   status: string;
+  stripePaymentId?: string | null;
   numberOfLoads: number;
   pickupDate: Date | string;
   deliveryDate: Date | string;
@@ -439,6 +441,20 @@ export function OrdersTable({
                                 <p className="text-fern-900 mt-0.5">{detail.notes}</p>
                               </div>
                             )}
+                            <div className="flex flex-wrap items-center gap-3 pt-2 border-t border-fern-200">
+                              <Link
+                                href={`/orders/${order.id}`}
+                                className="text-sm font-medium text-fern-700 hover:text-fern-900 underline"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                View order
+                              </Link>
+                              {order.status === "waiting_for_payment" && !order.stripePaymentId && (
+                                <span className="text-fern-600 text-sm">
+                                  — Pay or resend payment link on order page
+                                </span>
+                              )}
+                            </div>
                             {"totalCents" in detail && detail.totalCents != null && (
                               <div>
                                 <span className="text-fern-500">Total</span>

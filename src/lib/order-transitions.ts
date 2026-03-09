@@ -47,8 +47,8 @@ export type LoadRow = { status: string; location?: string | null; weightLbs?: nu
  * - picked_up → ready_for_wash when all loads have a location (shelf).
  * - ready_for_wash → in_progress when any load is washing.
  * - in_progress: any load in incoming, ready_for_wash, washing, drying, folding.
- * - in_progress → waiting_for_payment when all loads are cleaned, have location and weightLbs.
- * - all loads ready_for_delivery → ready_for_delivery.
+ * - in_progress → waiting_for_payment when all loads are "cleaned" and have weightLbs (load stays cleaned until payment).
+ * - ready_for_delivery: order only via Stripe webhook; loads set to ready_for_delivery there too.
  */
 export function getOrderStatusFromLoads(
   currentOrderStatus: OrderStatus,
@@ -68,17 +68,17 @@ export function getOrderStatusFromLoads(
   const allCleanedWithWeight =
     loads.length > 0 &&
     loads.every(
-      (l) =>
-        l.status === "cleaned" &&
-        (l.location ?? "").trim() !== "" &&
-        l.weightLbs != null &&
-        l.weightLbs > 0
+      (l) => l.status === "cleaned" && l.weightLbs != null && l.weightLbs > 0
     );
   const allReadyForDelivery = loads.every((l) => l.status === "ready_for_delivery");
 
+  if (currentOrderStatus === "waiting_for_payment") return null;
+  const canGoToPayment =
+    (currentOrderStatus === "in_progress" || currentOrderStatus === "ready_for_wash") &&
+    allCleanedWithWeight &&
+    canSet;
+  if (canGoToPayment) return "waiting_for_payment";
   if (allReadyForDelivery && canSet) return "ready_for_delivery";
-  if (allCleanedWithWeight && canSet && currentOrderStatus === "in_progress")
-    return "waiting_for_payment";
   if (currentOrderStatus === "ready_for_wash" && anyWashing && canSet) return "in_progress";
   if (currentOrderStatus === "picked_up") {
     if (allHaveLocation && canSet) return "ready_for_wash";

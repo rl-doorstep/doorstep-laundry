@@ -18,6 +18,9 @@ export default async function DashboardPage() {
     where: { customerId: userId },
     orderBy: { createdAt: "desc" },
     take: 50,
+    include: {
+      orderLoads: { orderBy: { loadNumber: "asc" }, select: { weightLbs: true } },
+    },
   });
 
   const orderList = orders as OrderListItemOrder[];

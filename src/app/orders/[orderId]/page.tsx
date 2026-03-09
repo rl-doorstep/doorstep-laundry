@@ -44,7 +44,9 @@ export default async function OrderDetailPage({
     },
   });
   if (!order) notFound();
-  if (order.customerId !== userId) redirect("/dashboard");
+  const role = (session.user as { role?: string }).role;
+  const canView = order.customerId === userId || role === "staff" || role === "admin";
+  if (!canView) redirect("/dashboard");
 
   let displayTotalCents = order.totalCents;
   if (order.status === "waiting_for_payment" && order.orderLoads?.length) {

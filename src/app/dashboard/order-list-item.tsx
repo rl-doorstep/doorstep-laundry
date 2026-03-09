@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { getTimeSlotById } from "@/lib/slots";
 import { DeleteDraftOrderButton } from "@/components/delete-draft-order-button";
 import { PayButton } from "@/app/orders/[orderId]/pay-button";
+import { ResendPaymentButton } from "@/app/orders/[orderId]/resend-payment-button";
 
 const statusLabel: Record<string, string> = {
   scheduled: "Scheduled",
@@ -23,10 +24,12 @@ export type OrderListItemOrder = {
   orderNumber: string;
   status: string;
   stripePaymentId?: string | null;
+  totalCents?: number | null;
   pickupDate: Date | string;
   deliveryDate: Date | string;
   pickupTimeSlot: string | null;
   deliveryTimeSlot: string | null;
+  orderLoads?: { weightLbs: number | null }[];
 };
 
 export function OrderListItem({ order }: { order: OrderListItemOrder }) {
@@ -52,6 +55,22 @@ export function OrderListItem({ order }: { order: OrderListItemOrder }) {
               {new Date(order.deliveryDate).toLocaleDateString()}
               {order.deliveryTimeSlot && ` ${getTimeSlotById(order.deliveryTimeSlot)?.label ?? order.deliveryTimeSlot}`}
             </p>
+            {order.status === "waiting_for_payment" && (order.totalCents != null || (order.orderLoads?.length ?? 0) > 0) && (
+              <p className="text-sm text-fern-700 mt-1">
+                {order.totalCents != null && order.totalCents > 0 && (
+                  <>Total: ${(Math.round(order.totalCents) / 100).toFixed(2)}</>
+                )}
+                {order.orderLoads?.length ? (
+                  <span className="text-fern-600">
+                    {order.totalCents != null && order.totalCents > 0 ? " · " : ""}
+                    {order.orderLoads
+                      .map((l) => (l.weightLbs != null ? `${l.weightLbs.toFixed(1)} lbs` : null))
+                      .filter(Boolean)
+                      .join(", ") || "—"}
+                  </span>
+                ) : null}
+              </p>
+            )}
           </div>
           <span
             className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-medium ${
@@ -67,7 +86,10 @@ export function OrderListItem({ order }: { order: OrderListItemOrder }) {
         </div>
       </Link>
       {showPay && (
-        <PayButton orderId={order.id} variant="icon" />
+        <>
+          <PayButton orderId={order.id} variant="icon" />
+          <ResendPaymentButton orderId={order.id} />
+        </>
       )}
       {isScheduled && (
         <DeleteDraftOrderButton

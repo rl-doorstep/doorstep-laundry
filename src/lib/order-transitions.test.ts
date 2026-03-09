@@ -102,12 +102,35 @@ describe("getOrderStatusFromLoads", () => {
     expect(getOrderStatusFromLoads("in_progress", loads)).toBeNull();
   });
 
-  it("in_progress + all loads ready_for_delivery → ready_for_delivery", () => {
+  it("in_progress + all loads cleaned with weight → waiting_for_payment", () => {
+    const loads: LoadRow[] = [
+      { status: "cleaned", location: "A1", weightLbs: 10 },
+      { status: "cleaned", location: "A2", weightLbs: 15 },
+    ];
+    expect(getOrderStatusFromLoads("in_progress", loads)).toBe("waiting_for_payment");
+  });
+
+  it("in_progress + all loads ready_for_delivery with weight → ready_for_delivery (loads only set on payment)", () => {
+    const loads: LoadRow[] = [
+      { status: "ready_for_delivery", location: "A1", weightLbs: 10 },
+      { status: "ready_for_delivery", location: "A2", weightLbs: 15 },
+    ];
+    expect(getOrderStatusFromLoads("in_progress", loads)).toBe("ready_for_delivery");
+  });
+
+  it("in_progress + all loads ready_for_delivery without weight → ready_for_delivery", () => {
     const loads: LoadRow[] = [
       { status: "ready_for_delivery", location: "A1" },
       { status: "ready_for_delivery", location: "A2" },
     ];
     expect(getOrderStatusFromLoads("in_progress", loads)).toBe("ready_for_delivery");
+  });
+
+  it("ready_for_wash + all loads cleaned with weight → waiting_for_payment", () => {
+    const loads: LoadRow[] = [
+      { status: "cleaned", location: null, weightLbs: 12 },
+    ];
+    expect(getOrderStatusFromLoads("ready_for_wash", loads)).toBe("waiting_for_payment");
   });
 
   it("empty loads → null", () => {
