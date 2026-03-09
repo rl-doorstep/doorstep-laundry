@@ -36,8 +36,8 @@ const LABEL_GRAY = rgb(0.45, 0.45, 0.45);
 const BORDER_GRAY = rgb(0.9, 0.9, 0.9);
 const BLACK = rgb(0.1, 0.1, 0.1);
 const PAID_STAMP_SIZE = 72;
-const LOGO_MAX_HEIGHT = 40;
-const LOGO_MAX_WIDTH = 120;
+const LOGO_MAX_HEIGHT = 80;
+const LOGO_MAX_WIDTH = 240;
 
 function formatAddress(addr: { street: string; city: string; state: string; zip: string }): string {
   return `${addr.street}, ${addr.city}, ${addr.state} ${addr.zip}`;
@@ -183,17 +183,14 @@ export async function generateReceiptPdf(
     y -= LINE_HEIGHT;
   }
 
-  // ----- Top right: DATE:, RECEIPT NO., CUSTOMER -----
+  // ----- Top right: DATE:, RECEIPT NO. (no CUSTOMER; Bill to has that) -----
   const rightCol = width - MARGIN - 140;
-  let yRight = height - MARGIN - LINE_HEIGHT * 1.5;
+  let yRight = height - MARGIN - LINE_HEIGHT * 4;
   page.drawText("DATE:", { x: rightCol, y: yRight, size: FONT_SIZE_SMALL, font: font, color: LABEL_GRAY });
   page.drawText(formatDate(order.createdAt), { x: rightCol + 28, y: yRight, size: FONT_SIZE_SMALL, font: font, color: BLACK });
   yRight -= LINE_HEIGHT;
   page.drawText("RECEIPT NO.:", { x: rightCol, y: yRight, size: FONT_SIZE_SMALL, font: font, color: LABEL_GRAY });
   page.drawText(order.orderNumber, { x: rightCol + 65, y: yRight, size: FONT_SIZE_SMALL, font: font, color: BLACK });
-  yRight -= LINE_HEIGHT;
-  page.drawText("CUSTOMER:", { x: rightCol, y: yRight, size: FONT_SIZE_SMALL, font: font, color: LABEL_GRAY });
-  page.drawText(order.customer.name ?? order.customer.email ?? "—", { x: rightCol + 55, y: yRight, size: FONT_SIZE_SMALL, font: font, color: BLACK });
 
   // ----- Bill to (payor): lower section, clearly separated -----
   y = Math.min(y, yRight) - LINE_HEIGHT * 4;
@@ -268,10 +265,12 @@ export async function generateReceiptPdf(
   // ----- Thank you -----
   page.drawText("Thank you for your business.", { x: MARGIN, y, size: FONT_SIZE_SMALL, font: font, color: LABEL_GRAY });
 
-  // ----- PAID stamp at 45° (drawn last so it overlays) -----
+  // ----- PAID stamp at 45° (drawn last so it overlays), centered on page -----
   const paidWidth = fontBold.widthOfTextAtSize("PAID", PAID_STAMP_SIZE);
-  const stampX = (width - paidWidth) / 2;
-  const stampY = height / 2 - PAID_STAMP_SIZE / 2;
+  const cos45 = Math.cos(Math.PI / 4);
+  const sin45 = Math.sin(Math.PI / 4);
+  const stampX = width / 2 - (cos45 * (paidWidth / 2) - sin45 * (PAID_STAMP_SIZE / 2));
+  const stampY = height / 2 - (sin45 * (paidWidth / 2) + cos45 * (PAID_STAMP_SIZE / 2));
   page.drawText("PAID", {
     x: stampX,
     y: stampY,
