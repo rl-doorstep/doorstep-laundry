@@ -218,18 +218,19 @@ export async function sendOrderNotification(
     try {
       const resend = new Resend(process.env.RESEND_API_KEY);
       const toEmail = order.customer.email.trim();
-      // Payment email: send simplest plain text only (same as admin test) for debugging
-      const isPayment = event === "ready_for_payment" && payload && "paymentUrl" in payload;
-      const text = isPayment
-        ? `Your laundry is ready. Pay here: ${(payload as ReadyForPaymentPayload).paymentUrl}`
-        : `Order ${order.orderNumber}: ${emailBody}`;
-      const subj = isPayment ? "Your laundry is ready – pay now" : subject;
-      const emailPayload = {
+      const isPayment = event === "ready_for_payment" && payload && "orderNumber" in payload && "paymentUrl" in payload;
+      const paymentPayload = isPayment ? (payload as ReadyForPaymentPayload) : null;
+      const emailPayload: { from: string; to: string; subject: string; text: string; html?: string } = {
         from: fromEmail,
         to: toEmail,
-        subject: subj,
-        text,
+        subject: paymentPayload ? "Your laundry is ready – pay now" : subject,
+        text: paymentPayload
+          ? `Your laundry is ready. Total $${(Math.round(paymentPayload.totalCents) / 100).toFixed(2)} (${paymentPayload.totalLbs} lbs). Pay here: ${paymentPayload.paymentUrl} Ref: ${paymentPayload.orderNumber}`
+          : `Order ${order.orderNumber}: ${emailBody}`,
       };
+      if (paymentPayload) {
+        emailPayload.html = getReadyForPaymentEmailHtml(paymentPayload);
+      }
       const sendResult = await resend.emails.send(emailPayload);
       if (sendResult.error) {
         const msg =
