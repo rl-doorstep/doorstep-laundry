@@ -418,7 +418,7 @@ export function WashDashboard({
                               const raw = weightDraft[load.id] ?? (load.weightLbs != null ? String(load.weightLbs) : "");
                               const v = parseFloat(raw);
                               if (raw !== "" && !Number.isNaN(v) && v >= 0) {
-                                updateLoad(load.id, { weightLbs: v });
+                                updateLoad(load.id, { weightLbs: v, status: "ready_for_delivery" });
                               }
                             }}
                             disabled={updatingLoadId === load.id}

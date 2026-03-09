@@ -54,6 +54,10 @@ export async function POST(request: Request) {
       status: "ready_for_delivery",
     },
   });
+  await prisma.orderLoad.updateMany({
+    where: { orderId },
+    data: { status: "ready_for_delivery" },
+  });
   await prisma.orderStatusHistory.create({
     data: {
       orderId,
