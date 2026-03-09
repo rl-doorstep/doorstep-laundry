@@ -49,12 +49,13 @@ export async function POST(request: Request) {
     );
   }
 
-  const { computeOrderTotalCents } = await import("@/lib/order-total");
-  const setting = await prisma.setting.findUnique({
-    where: { key: "price_per_pound_cents" },
-  });
+  const [setting, grtPercent] = await Promise.all([
+    prisma.setting.findUnique({ where: { key: "price_per_pound_cents" } }),
+    (await import("@/lib/settings")).getGrtPercent(),
+  ]);
   const pricePerPoundCents = setting ? parseInt(String(setting.value), 10) || 150 : 150;
-  const totalCents = computeOrderTotalCents(order.orderLoads, pricePerPoundCents);
+  const { computeOrderTotalWithTax } = await import("@/lib/order-total");
+  const { totalCents } = computeOrderTotalWithTax(order.orderLoads, pricePerPoundCents, grtPercent);
   if (totalCents <= 0) {
     return NextResponse.json(
       { error: "Order total has not been set; contact support" },

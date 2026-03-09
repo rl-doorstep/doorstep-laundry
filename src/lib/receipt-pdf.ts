@@ -4,7 +4,6 @@
  */
 
 import { PDFDocument, StandardFonts, rgb, degrees } from "pdf-lib";
-import { computeSubtotalAndTaxCents } from "./order-total";
 import type { CompanyInfo } from "./settings";
 
 export type ReceiptOrder = {
@@ -21,7 +20,12 @@ export type ReceiptOrder = {
   orderLoads: Array<{ loadNumber: number; weightLbs: number | null }>;
 };
 
-export type ReceiptOptions = { grtPercent: number; company: CompanyInfo };
+export type ReceiptOptions = {
+  /** Base price per pound in cents (e.g. 150 = $1.50). */
+  pricePerPoundCents: number;
+  grtPercent: number;
+  company: CompanyInfo;
+};
 
 const MARGIN = 50;
 const PAGE_WIDTH = 612;
@@ -124,13 +128,16 @@ export async function generateReceiptPdf(
   order: ReceiptOrder,
   options: ReceiptOptions
 ): Promise<Buffer> {
-  const { grtPercent, company } = options;
+  const { pricePerPoundCents, grtPercent, company } = options;
   const totalLbs = order.orderLoads.reduce(
     (sum, l) => sum + (Number(l.weightLbs) || 0),
     0
   );
-  const { subtotalCents, taxCents } = computeSubtotalAndTaxCents(order.totalCents, grtPercent);
-  const unitPricePerLbDollars = totalLbs > 0 ? (subtotalCents / 100) / totalLbs : 0;
+  // Compute from base price: subtotal = lbs × base, tax = subtotal × GRT%, total = subtotal + tax
+  const subtotalCents = Math.round(totalLbs * pricePerPoundCents);
+  const taxCents = Math.round(subtotalCents * (grtPercent / 100));
+  const totalCents = subtotalCents + taxCents;
+  const unitPricePerLbDollars = pricePerPoundCents / 100;
   const numLoads = order.orderLoads.length;
   const description = `Wash and fold delivery service - ${numLoads} load${numLoads === 1 ? "" : "s"}`;
 
@@ -249,7 +256,7 @@ export async function generateReceiptPdf(
   const sumLabelX = width - MARGIN - 130;
   const sumSubtotalText = `$ ${formatDollars(subtotalCents)}`;
   const sumTaxText = `$ ${formatDollars(taxCents)}`;
-  const sumTotalText = `$ ${formatDollars(order.totalCents)}`;
+  const sumTotalText = `$ ${formatDollars(totalCents)}`;
   page.drawText("SUBTOTAL", { x: sumLabelX, y, size: FONT_SIZE_SMALL, font: font, color: LABEL_GRAY });
   page.drawText(sumSubtotalText, { x: totalColRight - font.widthOfTextAtSize(sumSubtotalText, FONT_SIZE_SMALL), y, size: FONT_SIZE_SMALL, font: font, color: BLACK });
   y -= ROW_HEIGHT;

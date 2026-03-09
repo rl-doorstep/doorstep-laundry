@@ -1,26 +1,34 @@
 /**
- * Compute order total in cents from load weights and price per pound.
- * Total = sum(weightLbs) × pricePerPoundCents, rounded to nearest cent.
- * The stored rate is the inclusive rate (customer pays this per lb; includes GRT).
+ * Order totals: base price per pound (admin setting) + NMGRT added on top.
+ * subtotalCents = totalLbs × pricePerPoundCents (base)
+ * taxCents = round(subtotalCents × grtPercent / 100)
+ * totalCents = subtotalCents + taxCents
  */
 
 export type LoadWithWeight = { weightLbs?: number | null };
 
-export function computeOrderTotalCents(
+/**
+ * Compute subtotal (base), tax (NMGRT), and total from load weights and base price per pound.
+ * Use this when setting order.totalCents (weigh-in, checkout, resend payment).
+ */
+export function computeOrderTotalWithTax(
   loads: LoadWithWeight[],
-  pricePerPoundCents: number
-): number {
+  pricePerPoundCents: number,
+  grtPercent: number
+): { subtotalCents: number; taxCents: number; totalCents: number } {
   const totalLbs = loads.reduce(
     (sum, l) => sum + (Number(l.weightLbs) || 0),
     0
   );
-  return Math.round(totalLbs * pricePerPoundCents);
+  const subtotalCents = Math.round(totalLbs * pricePerPoundCents);
+  const taxCents = Math.round(subtotalCents * (grtPercent / 100));
+  const totalCents = subtotalCents + taxCents;
+  return { subtotalCents, taxCents, totalCents };
 }
 
 /**
- * Split inclusive total into subtotal (pre-tax) and tax using GRT percentage.
- * totalCents = what the customer pays (inclusive of NMGRT).
- * subtotalCents = totalCents / (1 + grtPercent/100), taxCents = totalCents - subtotalCents.
+ * Given stored totalCents (subtotal + tax), split back into subtotal and tax for receipt display.
+ * Used when we only have order.totalCents and need to show the breakdown.
  */
 export function computeSubtotalAndTaxCents(
   totalCents: number,

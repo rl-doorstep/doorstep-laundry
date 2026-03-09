@@ -1,7 +1,7 @@
 import { prisma } from "./db";
 import Twilio from "twilio";
 import { Resend } from "resend";
-import { getGrtPercent, getCompanyInfo } from "./settings";
+import { getGrtPercent, getCompanyInfo, getPricePerPoundCents } from "./settings";
 import { generateReceiptPdf } from "./receipt-pdf";
 
 export type NotifyEvent =
@@ -249,7 +249,11 @@ export async function sendOrderNotification(
       }
       if (event === "payment_received" && order.customer && "pickupAddress" in order && "deliveryAddress" in order && "orderLoads" in order) {
         try {
-          const [grtPercent, company] = await Promise.all([getGrtPercent(), getCompanyInfo()]);
+          const [pricePerPoundCents, grtPercent, company] = await Promise.all([
+            getPricePerPoundCents(),
+            getGrtPercent(),
+            getCompanyInfo(),
+          ]);
           const receiptOrder = {
             orderNumber: order.orderNumber,
             totalCents: order.totalCents,
@@ -267,7 +271,7 @@ export async function sendOrderNotification(
             deliveryAddress: order.deliveryAddress,
             orderLoads: order.orderLoads.map((l: { loadNumber: number; weightLbs: number | null }) => ({ loadNumber: l.loadNumber, weightLbs: l.weightLbs })),
           };
-          const pdfBuffer = await generateReceiptPdf(receiptOrder, { grtPercent, company });
+          const pdfBuffer = await generateReceiptPdf(receiptOrder, { pricePerPoundCents, grtPercent, company });
           emailPayload.attachments = [{ filename: `receipt-${order.orderNumber}.pdf`, content: pdfBuffer }];
         } catch (e) {
           console.error("[notify] Failed to generate receipt PDF for payment_received:", e);
