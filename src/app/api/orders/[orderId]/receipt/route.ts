@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { getGrtPercent, getCompanyInfo } from "@/lib/settings";
+import { getGrtPercent, getCompanyInfo, getPricePerPoundCents } from "@/lib/settings";
 import { generateReceiptPdf } from "@/lib/receipt-pdf";
 
 export async function GET(
@@ -41,7 +41,11 @@ export async function GET(
   }
 
   try {
-    const [grtPercent, company] = await Promise.all([getGrtPercent(), getCompanyInfo()]);
+    const [pricePerPoundCents, grtPercent, company] = await Promise.all([
+      getPricePerPoundCents(),
+      getGrtPercent(),
+      getCompanyInfo(),
+    ]);
     const receiptOrder = {
       orderNumber: order.orderNumber,
       totalCents: order.totalCents,
@@ -62,7 +66,7 @@ export async function GET(
         weightLbs: l.weightLbs,
       })),
     };
-    const pdfBuffer = await generateReceiptPdf(receiptOrder, { grtPercent, company });
+    const pdfBuffer = await generateReceiptPdf(receiptOrder, { pricePerPoundCents, grtPercent, company });
     const filename = `receipt-${order.orderNumber}.pdf`;
     return new NextResponse(new Uint8Array(pdfBuffer), {
       status: 200,

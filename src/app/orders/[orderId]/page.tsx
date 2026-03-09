@@ -51,12 +51,15 @@ export default async function OrderDetailPage({
 
   let displayTotalCents = order.totalCents;
   if (order.status === "waiting_for_payment" && order.orderLoads?.length) {
-    const { computeOrderTotalCents } = await import("@/lib/order-total");
-    const setting = await prisma.setting.findUnique({
-      where: { key: "price_per_pound_cents" },
-    });
+    const { computeOrderTotalWithTax } = await import("@/lib/order-total");
+    const { getGrtPercent } = await import("@/lib/settings");
+    const [setting, grtPercent] = await Promise.all([
+      prisma.setting.findUnique({ where: { key: "price_per_pound_cents" } }),
+      getGrtPercent(),
+    ]);
     const pricePerPoundCents = setting ? parseInt(String(setting.value), 10) || 150 : 150;
-    displayTotalCents = computeOrderTotalCents(order.orderLoads, pricePerPoundCents);
+    const { totalCents } = computeOrderTotalWithTax(order.orderLoads, pricePerPoundCents, grtPercent);
+    displayTotalCents = totalCents;
   }
 
   return (
