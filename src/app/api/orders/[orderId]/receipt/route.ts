@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { getGrtPercent } from "@/lib/settings";
+import { getGrtPercent, getCompanyInfo } from "@/lib/settings";
 import { generateReceiptPdf } from "@/lib/receipt-pdf";
 
 export async function GET(
@@ -20,7 +20,7 @@ export async function GET(
   const order = await prisma.order.findUnique({
     where: { id: orderId },
     include: {
-      customer: { select: { name: true, email: true } },
+      customer: { select: { name: true, email: true, phone: true } },
       pickupAddress: true,
       deliveryAddress: true,
       orderLoads: { orderBy: { loadNumber: "asc" } },
@@ -41,7 +41,7 @@ export async function GET(
   }
 
   try {
-    const grtPercent = await getGrtPercent();
+    const [grtPercent, company] = await Promise.all([getGrtPercent(), getCompanyInfo()]);
     const receiptOrder = {
       orderNumber: order.orderNumber,
       totalCents: order.totalCents,
@@ -53,6 +53,7 @@ export async function GET(
       customer: {
         name: order.customer?.name ?? null,
         email: order.customer?.email ?? "",
+        phone: order.customer?.phone ?? null,
       },
       pickupAddress: order.pickupAddress,
       deliveryAddress: order.deliveryAddress,
@@ -61,7 +62,7 @@ export async function GET(
         weightLbs: l.weightLbs,
       })),
     };
-    const pdfBuffer = await generateReceiptPdf(receiptOrder, { grtPercent });
+    const pdfBuffer = await generateReceiptPdf(receiptOrder, { grtPercent, company });
     const filename = `receipt-${order.orderNumber}.pdf`;
     return new NextResponse(new Uint8Array(pdfBuffer), {
       status: 200,

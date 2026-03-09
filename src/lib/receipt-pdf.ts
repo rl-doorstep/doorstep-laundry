@@ -1,12 +1,11 @@
 /**
  * Generate a PDF receipt for a paid order.
  * Used for download and as email attachment on payment_received.
- * Layout follows a standard receipt template: company info, receipt identifiers,
- * itemized table, and subtotal / NMGRT / total.
  */
 
-import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
+import { PDFDocument, StandardFonts, rgb, degrees } from "pdf-lib";
 import { computeSubtotalAndTaxCents } from "./order-total";
+import type { CompanyInfo } from "./settings";
 
 export type ReceiptOrder = {
   orderNumber: string;
@@ -16,16 +15,14 @@ export type ReceiptOrder = {
   deliveryDate: Date;
   pickupTimeSlot: string | null;
   deliveryTimeSlot: string | null;
-  customer: { name: string | null; email: string };
+  customer: { name: string | null; email: string; phone?: string | null };
   pickupAddress: { street: string; city: string; state: string; zip: string };
   deliveryAddress: { street: string; city: string; state: string; zip: string };
   orderLoads: Array<{ loadNumber: number; weightLbs: number | null }>;
 };
 
-/** GRT percentage (e.g. 8.39). Used to show subtotal and NMGRT on receipt. */
-export type ReceiptOptions = { grtPercent: number };
+export type ReceiptOptions = { grtPercent: number; company: CompanyInfo };
 
-const COMPANY_NAME = "Doorstep Laundry";
 const MARGIN = 50;
 const PAGE_WIDTH = 612;
 const PAGE_HEIGHT = 792;
@@ -38,6 +35,9 @@ const ROW_HEIGHT = 16;
 const LABEL_GRAY = rgb(0.45, 0.45, 0.45);
 const BORDER_GRAY = rgb(0.9, 0.9, 0.9);
 const BLACK = rgb(0.1, 0.1, 0.1);
+const PAID_STAMP_SIZE = 72;
+const LOGO_MAX_HEIGHT = 40;
+const LOGO_MAX_WIDTH = 120;
 
 function formatAddress(addr: { street: string; city: string; state: string; zip: string }): string {
   return `${addr.street}, ${addr.city}, ${addr.state} ${addr.zip}`;
@@ -51,28 +51,89 @@ function formatDollars(cents: number): string {
   return (Math.round(cents) / 100).toFixed(2);
 }
 
+async function fetchLogoImage(
+  doc: PDFDocument,
+  logoUrl: string
+): Promise<{
+  width: number;
+  height: number;
+  // Page type is permissive so we can pass PDFPage (its drawImage takes PDFImage, not unknown)
+  draw: (page: { drawImage: (img: import("pdf-lib").PDFImage, opts: { x: number; y: number; width: number; height: number }) => void }, x: number, y: number) => void;
+} | null> {
+  const base =
+    process.env.NEXTAUTH_URL && process.env.NEXTAUTH_URL.startsWith("http")
+      ? process.env.NEXTAUTH_URL
+      : process.env.VERCEL_URL
+        ? `https://${process.env.VERCEL_URL}`
+        : "http://localhost:3000";
+  const url = logoUrl.startsWith("http") ? logoUrl : `${base}${logoUrl}`;
+  let bytes: ArrayBuffer;
+  try {
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    bytes = await res.arrayBuffer();
+  } catch {
+    return null;
+  }
+  const u8 = new Uint8Array(bytes);
+  try {
+    const image = await doc.embedPng(u8);
+    const dims = image.scale(1);
+    const scale = Math.min(LOGO_MAX_WIDTH / dims.width, LOGO_MAX_HEIGHT / dims.height, 1);
+    const w = dims.width * scale;
+    const h = dims.height * scale;
+    return {
+      width: w,
+      height: h,
+      draw(page, x, y) {
+        page.drawImage(image, { x, y: y - h, width: w, height: h });
+      },
+    };
+  } catch {
+    try {
+      const image = await doc.embedJpg(u8);
+      const dims = image.scale(1);
+      const scale = Math.min(LOGO_MAX_WIDTH / dims.width, LOGO_MAX_HEIGHT / dims.height, 1);
+      const w = dims.width * scale;
+      const h = dims.height * scale;
+      return {
+        width: w,
+        height: h,
+        draw(page, x, y) {
+          page.drawImage(image, { x, y: y - h, width: w, height: h });
+        },
+      };
+    } catch {
+      return null;
+    }
+  }
+}
+
 export async function generateReceiptPdf(
   order: ReceiptOrder,
   options: ReceiptOptions
 ): Promise<Buffer> {
-  const { grtPercent } = options;
+  const { grtPercent, company } = options;
   const totalLbs = order.orderLoads.reduce(
     (sum, l) => sum + (Number(l.weightLbs) || 0),
     0
   );
   const { subtotalCents, taxCents } = computeSubtotalAndTaxCents(order.totalCents, grtPercent);
   const unitPricePerLbDollars = totalLbs > 0 ? (subtotalCents / 100) / totalLbs : 0;
+  const numLoads = order.orderLoads.length;
+  const description = `Wash and fold delivery service - ${numLoads} load${numLoads === 1 ? "" : "s"}`;
 
   const doc = await PDFDocument.create();
   const font = await doc.embedFont(StandardFonts.Helvetica);
   const fontBold = await doc.embedFont(StandardFonts.HelveticaBold);
   const page = doc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
-  const { width } = page.getSize();
-  let y = PAGE_HEIGHT - MARGIN;
+  const { width, height } = page.getSize();
+  let y = height - MARGIN;
 
-  // ----- Title -----
+  // ----- Title: "SALES RECEIPT" centered -----
+  const titleWidth = fontBold.widthOfTextAtSize("SALES RECEIPT", FONT_SIZE_TITLE);
   page.drawText("SALES RECEIPT", {
-    x: MARGIN,
+    x: (width - titleWidth) / 2,
     y,
     size: FONT_SIZE_TITLE,
     font: fontBold,
@@ -80,29 +141,58 @@ export async function generateReceiptPdf(
   });
   y -= LINE_HEIGHT * 1.5;
 
-  // ----- Two columns: Company (left), Receipt identifiers (right) -----
-  const rightCol = width - MARGIN - 140;
-  page.drawText(COMPANY_NAME, { x: MARGIN, y, size: FONT_SIZE, font: fontBold, color: BLACK });
-  page.drawText(formatDate(order.createdAt), { x: rightCol, y, size: FONT_SIZE_SMALL, font: font, color: LABEL_GRAY });
-  y -= LINE_HEIGHT;
-  page.drawText("RECEIPT NO.:", { x: rightCol, y, size: FONT_SIZE_SMALL, font: font, color: LABEL_GRAY });
-  page.drawText(order.orderNumber, { x: rightCol + 65, y, size: FONT_SIZE_SMALL, font: font, color: BLACK });
-  y -= LINE_HEIGHT;
-  page.drawText("CUSTOMER:", { x: rightCol, y, size: FONT_SIZE_SMALL, font: font, color: LABEL_GRAY });
-  page.drawText(order.customer.name ?? order.customer.email ?? "—", {
-    x: rightCol + 55,
-    y,
-    size: FONT_SIZE_SMALL,
-    font: font,
-    color: BLACK,
-  });
-  y -= LINE_HEIGHT * 2;
+  // ----- Top left: Logo or company name, then address, phone, email -----
+  const leftCol = MARGIN;
+  if (company.logoUrl) {
+    const logo = await fetchLogoImage(doc, company.logoUrl);
+    if (logo) {
+      logo.draw(page, leftCol, y);
+      y -= logo.height + LINE_HEIGHT;
+    } else {
+      page.drawText(company.name, { x: leftCol, y, size: FONT_SIZE, font: fontBold, color: BLACK });
+      y -= LINE_HEIGHT;
+    }
+  } else if (company.name) {
+    page.drawText(company.name, { x: leftCol, y, size: FONT_SIZE, font: fontBold, color: BLACK });
+    y -= LINE_HEIGHT;
+  }
+  if (company.address) {
+    page.drawText(company.address, { x: leftCol, y, size: FONT_SIZE_SMALL, font: font, color: BLACK });
+    y -= LINE_HEIGHT;
+  }
+  if (company.phone) {
+    page.drawText(company.phone, { x: leftCol, y, size: FONT_SIZE_SMALL, font: font, color: BLACK });
+    y -= LINE_HEIGHT;
+  }
+  if (company.email) {
+    page.drawText(company.email, { x: leftCol, y, size: FONT_SIZE_SMALL, font: font, color: BLACK });
+    y -= LINE_HEIGHT;
+  }
 
-  // ----- Recipient (delivery address) -----
-  page.drawText("ATTN: " + (order.customer.name ?? "Customer"), { x: MARGIN, y, size: FONT_SIZE_SMALL, font: font, color: BLACK });
-  y -= LINE_HEIGHT;
-  page.drawText(formatAddress(order.deliveryAddress), { x: MARGIN, y, size: FONT_SIZE_SMALL, font: font, color: BLACK });
-  y -= LINE_HEIGHT * 1.5;
+  // ----- Top right: DATE:, RECEIPT NO., CUSTOMER -----
+  const rightCol = width - MARGIN - 140;
+  let yRight = height - MARGIN - LINE_HEIGHT * 1.5;
+  page.drawText("DATE:", { x: rightCol, y: yRight, size: FONT_SIZE_SMALL, font: font, color: LABEL_GRAY });
+  page.drawText(formatDate(order.createdAt), { x: rightCol + 28, y: yRight, size: FONT_SIZE_SMALL, font: font, color: BLACK });
+  yRight -= LINE_HEIGHT;
+  page.drawText("RECEIPT NO.:", { x: rightCol, y: yRight, size: FONT_SIZE_SMALL, font: font, color: LABEL_GRAY });
+  page.drawText(order.orderNumber, { x: rightCol + 65, y: yRight, size: FONT_SIZE_SMALL, font: font, color: BLACK });
+  yRight -= LINE_HEIGHT;
+  page.drawText("CUSTOMER:", { x: rightCol, y: yRight, size: FONT_SIZE_SMALL, font: font, color: LABEL_GRAY });
+  page.drawText(order.customer.name ?? order.customer.email ?? "—", { x: rightCol + 55, y: yRight, size: FONT_SIZE_SMALL, font: font, color: BLACK });
+
+  // ----- Payor: Name, email, phone, delivery address (skip if empty) -----
+  y = Math.min(y, yRight) - LINE_HEIGHT * 1.5;
+  const payorLines: string[] = [];
+  if (order.customer.name?.trim()) payorLines.push(order.customer.name.trim());
+  if (order.customer.email?.trim()) payorLines.push(order.customer.email.trim());
+  if (order.customer.phone?.trim()) payorLines.push(order.customer.phone.trim());
+  payorLines.push(formatAddress(order.deliveryAddress));
+  for (const line of payorLines) {
+    page.drawText(line, { x: MARGIN, y, size: FONT_SIZE_SMALL, font: font, color: BLACK });
+    y -= LINE_HEIGHT;
+  }
+  y -= LINE_HEIGHT * 0.5;
 
   // ----- Horizontal line -----
   page.drawLine({
@@ -118,24 +208,25 @@ export async function generateReceiptPdf(
   const colDesc = MARGIN + 50;
   const colQty = width - MARGIN - 180;
   const colUnit = width - MARGIN - 120;
-  const colTotal = width - MARGIN - 55;
+  const totalColRight = width - MARGIN - 5;
 
   page.drawText("ITEM NO.", { x: colItem, y, size: FONT_SIZE_SMALL, font: fontBold, color: LABEL_GRAY });
   page.drawText("DESCRIPTION", { x: colDesc, y, size: FONT_SIZE_SMALL, font: fontBold, color: LABEL_GRAY });
   page.drawText("QTY", { x: colQty, y, size: FONT_SIZE_SMALL, font: fontBold, color: LABEL_GRAY });
   page.drawText("UNIT PRICE", { x: colUnit, y, size: FONT_SIZE_SMALL, font: fontBold, color: LABEL_GRAY });
-  page.drawText("TOTAL", { x: colTotal, y, size: FONT_SIZE_SMALL, font: fontBold, color: LABEL_GRAY });
+  page.drawText("TOTAL", { x: totalColRight - fontBold.widthOfTextAtSize("TOTAL", FONT_SIZE_SMALL), y, size: FONT_SIZE_SMALL, font: fontBold, color: LABEL_GRAY });
   y -= TABLE_HEADER_HEIGHT;
 
   for (const load of order.orderLoads) {
     const lbs = Number(load.weightLbs) || 0;
     const loadSubtotalCents = totalLbs > 0 ? Math.round((lbs / totalLbs) * subtotalCents) : 0;
     const unitPrice = totalLbs > 0 ? unitPricePerLbDollars : 0;
+    const totalText = `$ ${formatDollars(loadSubtotalCents)}`;
     page.drawText(String(load.loadNumber), { x: colItem, y, size: FONT_SIZE_SMALL, font: font, color: BLACK });
-    page.drawText("Laundry", { x: colDesc, y, size: FONT_SIZE_SMALL, font: font, color: BLACK });
+    page.drawText(description, { x: colDesc, y, size: FONT_SIZE_SMALL, font: font, color: BLACK });
     page.drawText(`${lbs.toFixed(1)} lbs`, { x: colQty, y, size: FONT_SIZE_SMALL, font: font, color: BLACK });
     page.drawText(`$ ${unitPrice.toFixed(2)}`, { x: colUnit, y, size: FONT_SIZE_SMALL, font: font, color: BLACK });
-    page.drawText(`$ ${formatDollars(loadSubtotalCents)}`, { x: colTotal, y, size: FONT_SIZE_SMALL, font: font, color: BLACK });
+    page.drawText(totalText, { x: totalColRight - font.widthOfTextAtSize(totalText, FONT_SIZE_SMALL), y, size: FONT_SIZE_SMALL, font: font, color: BLACK });
     y -= ROW_HEIGHT;
   }
 
@@ -143,35 +234,37 @@ export async function generateReceiptPdf(
 
   // ----- Summary: Subtotal, NMGRT, Total -----
   const sumLabelX = width - MARGIN - 130;
-  const sumValueX = colTotal;
+  const sumSubtotalText = `$ ${formatDollars(subtotalCents)}`;
+  const sumTaxText = `$ ${formatDollars(taxCents)}`;
+  const sumTotalText = `$ ${formatDollars(order.totalCents)}`;
   page.drawText("SUBTOTAL", { x: sumLabelX, y, size: FONT_SIZE_SMALL, font: font, color: LABEL_GRAY });
-  page.drawText(`$ ${formatDollars(subtotalCents)}`, { x: sumValueX, y, size: FONT_SIZE_SMALL, font: font, color: BLACK });
+  page.drawText(sumSubtotalText, { x: totalColRight - font.widthOfTextAtSize(sumSubtotalText, FONT_SIZE_SMALL), y, size: FONT_SIZE_SMALL, font: font, color: BLACK });
   y -= ROW_HEIGHT;
 
   page.drawText(`NMGRT (${grtPercent}%)`, { x: sumLabelX, y, size: FONT_SIZE_SMALL, font: font, color: LABEL_GRAY });
-  page.drawText(`$ ${formatDollars(taxCents)}`, { x: sumValueX, y, size: FONT_SIZE_SMALL, font: font, color: BLACK });
+  page.drawText(sumTaxText, { x: totalColRight - font.widthOfTextAtSize(sumTaxText, FONT_SIZE_SMALL), y, size: FONT_SIZE_SMALL, font: font, color: BLACK });
   y -= ROW_HEIGHT;
 
   page.drawText("TOTAL", { x: sumLabelX, y, size: FONT_SIZE_SMALL, font: fontBold, color: BLACK });
-  page.drawText(`$ ${formatDollars(order.totalCents)}`, { x: sumValueX, y, size: FONT_SIZE_SMALL, font: fontBold, color: BLACK });
+  page.drawText(sumTotalText, { x: totalColRight - fontBold.widthOfTextAtSize(sumTotalText, FONT_SIZE_SMALL), y, size: FONT_SIZE_SMALL, font: fontBold, color: BLACK });
   y -= ROW_HEIGHT * 1.5;
 
   // ----- Thank you -----
   page.drawText("Thank you for your business.", { x: MARGIN, y, size: FONT_SIZE_SMALL, font: font, color: LABEL_GRAY });
-  y -= LINE_HEIGHT * 2;
 
-  // ----- Optional stub area (small "SALES RECEIPT" strip) -----
-  page.drawLine({
-    start: { x: MARGIN, y },
-    end: { x: width - MARGIN, y },
-    thickness: 0.5,
-    color: BORDER_GRAY,
+  // ----- PAID stamp at 45° (drawn last so it overlays) -----
+  const paidWidth = fontBold.widthOfTextAtSize("PAID", PAID_STAMP_SIZE);
+  const stampX = (width - paidWidth) / 2;
+  const stampY = height / 2 - PAID_STAMP_SIZE / 2;
+  page.drawText("PAID", {
+    x: stampX,
+    y: stampY,
+    size: PAID_STAMP_SIZE,
+    font: fontBold,
+    color: rgb(0.85, 0.2, 0.2),
+    opacity: 0.4,
+    rotate: degrees(45),
   });
-  y -= LINE_HEIGHT;
-  page.drawText("SALES RECEIPT", { x: width - MARGIN - 70, y, size: FONT_SIZE_SMALL, font: fontBold, color: LABEL_GRAY });
-  page.drawText(`RECEIPT NO.: ${order.orderNumber}`, { x: MARGIN, y, size: FONT_SIZE_SMALL, font: font, color: LABEL_GRAY });
-  y -= LINE_HEIGHT;
-  page.drawText(`AMOUNT PAID: $ ${formatDollars(order.totalCents)}`, { x: MARGIN, y, size: FONT_SIZE_SMALL, font: font, color: BLACK });
 
   const pdfBytes = await doc.save();
   return Buffer.from(pdfBytes);
