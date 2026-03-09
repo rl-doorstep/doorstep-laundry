@@ -335,49 +335,65 @@ export function WashDashboard({
                   </td>
                   <td className="px-4 py-3">
                     {load ? (
-                      <select
-                        value={load.status}
-                        onChange={(e) =>
-                          updateLoad(load.id, { status: e.target.value })
-                        }
-                        disabled={updatingLoadId === load.id}
-                        className={inputClass}
-                      >
-                        {Object.entries(LOAD_STATUS_LABEL).map(([v, l]) => (
-                          <option key={v} value={v}>
-                            {l}
-                          </option>
-                        ))}
-                      </select>
+                      (() => {
+                        const orderPaid = ["ready_for_delivery", "out_for_delivery", "delivered"].includes(order.status);
+                        return orderPaid ? (
+                          <span className="text-fern-600 text-sm">
+                            {LOAD_STATUS_LABEL[load.status] ?? load.status}
+                          </span>
+                        ) : (
+                          <select
+                            value={load.status}
+                            onChange={(e) =>
+                              updateLoad(load.id, { status: e.target.value })
+                            }
+                            disabled={updatingLoadId === load.id}
+                            className={inputClass}
+                          >
+                            {Object.entries(LOAD_STATUS_LABEL).map(([v, l]) => (
+                              <option key={v} value={v}>
+                                {l}
+                              </option>
+                            ))}
+                          </select>
+                        );
+                      })()
                     ) : (
                       <span className="text-fern-400 text-sm">—</span>
                     )}
                   </td>
                   <td className="px-4 py-3">
                     {load ? (
-                      <select
-                        value={load.location ?? ""}
-                        onChange={(e) => {
-                          const v = e.target.value || null;
-                          setOrders((prev) =>
-                            prev.map((o) =>
-                              o.id === order.id
-                                ? {
-                                    ...o,
-                                    orderLoads: o.orderLoads.map((l) =>
-                                      l.id === load.id
-                                        ? { ...l, location: v }
-                                        : l
-                                    ),
-                                  }
-                                : o
-                            )
-                          );
-                          updateLoad(load.id, { location: v ?? "" });
-                        }}
-                        disabled={updatingLoadId === load.id}
-                        className={`${inputClass} min-w-[120px]`}
-                      >
+                      (() => {
+                        const orderPaid = ["ready_for_delivery", "out_for_delivery", "delivered"].includes(order.status);
+                        return orderPaid ? (
+                          <span className="text-fern-600 text-sm">
+                            {load.location ?? "—"}
+                          </span>
+                        ) : (
+                          <select
+                            value={load.location ?? ""}
+                            onChange={(e) => {
+                              const v = e.target.value || null;
+                              setOrders((prev) =>
+                                prev.map((o) =>
+                                  o.id === order.id
+                                    ? {
+                                        ...o,
+                                        orderLoads: o.orderLoads.map((l) =>
+                                          l.id === load.id
+                                            ? { ...l, location: v }
+                                            : l
+                                        ),
+                                      }
+                                    : o
+                                )
+                              );
+                              updateLoad(load.id, { location: v ?? "" });
+                            }}
+                            disabled={updatingLoadId === load.id}
+                            className={`${inputClass} min-w-[120px]`}
+                          >
                         <option value="">—</option>
                         {[
                           ...loadLocationNames,
@@ -391,13 +407,24 @@ export function WashDashboard({
                           </option>
                         ))}
                       </select>
+                        );
+                      })()
                     ) : (
                       <span className="text-fern-400 text-sm">—</span>
                     )}
                   </td>
                   <td className="px-4 py-3">
                     {load ? (
-                      load.status === "cleaned" ? (
+                      (() => {
+                        const orderPaid = ["ready_for_delivery", "out_for_delivery", "delivered"].includes(order.status);
+                        if (orderPaid) {
+                          return (
+                            <span className="text-fern-600 text-sm">
+                              {load.weightLbs != null ? `${load.weightLbs.toFixed(1)} lbs` : "—"}
+                            </span>
+                          );
+                        }
+                        return load.status === "cleaned" ? (
                         <div className="flex items-center gap-1.5">
                           <input
                             type="number"
@@ -431,7 +458,8 @@ export function WashDashboard({
                         <span className="text-fern-600 text-sm">
                           {load.weightLbs != null ? `${load.weightLbs.toFixed(1)} lbs` : "—"}
                         </span>
-                      )
+                      );
+                      })()
                     ) : (
                       <span className="text-fern-400 text-sm">—</span>
                     )}

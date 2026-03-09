@@ -47,6 +47,18 @@ export async function PATCH(
     return NextResponse.json({ error: "Load not found" }, { status: 404 });
   }
 
+  const orderStatus = load.order.status as string;
+  const orderPaid =
+    orderStatus === "ready_for_delivery" ||
+    orderStatus === "out_for_delivery" ||
+    orderStatus === "delivered";
+  if (orderPaid) {
+    return NextResponse.json(
+      { error: "Cannot change load after payment; update from the driver page." },
+      { status: 403 }
+    );
+  }
+
   const data: { status?: LoadStatus; location?: string | null; weightLbs?: number | null } = {};
   if (body.status != null) {
     const s = body.status as LoadStatus;
