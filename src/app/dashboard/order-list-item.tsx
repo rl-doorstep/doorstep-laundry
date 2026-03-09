@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { getTimeSlotById } from "@/lib/slots";
 import { DeleteDraftOrderButton } from "@/components/delete-draft-order-button";
 import { PayButton } from "@/app/orders/[orderId]/pay-button";
-import { ResendPaymentButton } from "@/app/orders/[orderId]/resend-payment-button";
 
 const statusLabel: Record<string, string> = {
   scheduled: "Scheduled",
@@ -86,10 +85,7 @@ export function OrderListItem({ order }: { order: OrderListItemOrder }) {
         </div>
       </Link>
       {showPay && (
-        <>
-          <PayButton orderId={order.id} variant="icon" />
-          <ResendPaymentButton orderId={order.id} />
-        </>
+        <PayButton orderId={order.id} variant="icon" />
       )}
       {isScheduled && (
         <DeleteDraftOrderButton
