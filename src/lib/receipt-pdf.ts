@@ -67,6 +67,7 @@ async function fetchLogoImage(
         ? `https://${process.env.VERCEL_URL}`
         : "http://localhost:3000";
   const url = logoUrl.startsWith("http") ? logoUrl : `${base}${logoUrl}`;
+  const isSvg = /\.svg$/i.test(logoUrl) || url.toLowerCase().includes(".svg");
   let bytes: ArrayBuffer;
   try {
     const res = await fetch(url);
@@ -75,7 +76,19 @@ async function fetchLogoImage(
   } catch {
     return null;
   }
-  const u8 = new Uint8Array(bytes);
+  let u8 = new Uint8Array(bytes);
+  if (isSvg) {
+    try {
+      const { Resvg } = await import("@resvg/resvg-js");
+      const svgText = new TextDecoder().decode(u8);
+      const resvg = new Resvg(svgText);
+      const pngData = resvg.render();
+      u8 = new Uint8Array(pngData.asPng());
+    } catch (e) {
+      console.error("[receipt-pdf] SVG to PNG conversion failed:", e);
+      return null;
+    }
+  }
   try {
     const image = await doc.embedPng(u8);
     const dims = image.scale(1);
@@ -157,8 +170,11 @@ export async function generateReceiptPdf(
     y -= LINE_HEIGHT;
   }
   if (company.address) {
-    page.drawText(company.address, { x: leftCol, y, size: FONT_SIZE_SMALL, font: font, color: BLACK });
-    y -= LINE_HEIGHT;
+    const addressLines = company.address.split(/\r?\n/).map((s) => s.trim()).filter(Boolean);
+    for (const line of addressLines) {
+      page.drawText(line, { x: leftCol, y, size: FONT_SIZE_SMALL, font: font, color: BLACK });
+      y -= LINE_HEIGHT;
+    }
   }
   if (company.phone) {
     page.drawText(company.phone, { x: leftCol, y, size: FONT_SIZE_SMALL, font: font, color: BLACK });
@@ -181,8 +197,10 @@ export async function generateReceiptPdf(
   page.drawText("CUSTOMER:", { x: rightCol, y: yRight, size: FONT_SIZE_SMALL, font: font, color: LABEL_GRAY });
   page.drawText(order.customer.name ?? order.customer.email ?? "—", { x: rightCol + 55, y: yRight, size: FONT_SIZE_SMALL, font: font, color: BLACK });
 
-  // ----- Payor: Name, email, phone, delivery address (skip if empty) -----
-  y = Math.min(y, yRight) - LINE_HEIGHT * 1.5;
+  // ----- Bill to (payor): lower section, clearly separated -----
+  y = Math.min(y, yRight) - LINE_HEIGHT * 4;
+  page.drawText("Bill to:", { x: MARGIN, y, size: FONT_SIZE_SMALL, font: fontBold, color: LABEL_GRAY });
+  y -= LINE_HEIGHT;
   const payorLines: string[] = [];
   if (order.customer.name?.trim()) payorLines.push(order.customer.name.trim());
   if (order.customer.email?.trim()) payorLines.push(order.customer.email.trim());
