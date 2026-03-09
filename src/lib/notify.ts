@@ -147,6 +147,10 @@ export async function sendOrderNotification(
     },
   });
   if (!order) return {};
+  if (!order.customer) {
+    console.error("[notify] Order has no customer relation:", orderId, order.orderNumber);
+    return {};
+  }
 
   const msg = eventMessages[event];
   if (!msg) return {};
@@ -170,6 +174,9 @@ export async function sendOrderNotification(
 
   const result = { sms: false, email: false };
   const fromEmail = process.env.RESEND_FROM_EMAIL ?? "notifications@example.com";
+  if (!process.env.RESEND_FROM_EMAIL && process.env.RESEND_API_KEY) {
+    console.warn("[notify] RESEND_FROM_EMAIL not set; using fallback (may fail if domain not verified in Resend)");
+  }
 
   const twilioSid = process.env.TWILIO_ACCOUNT_SID;
   const twilioToken = process.env.TWILIO_AUTH_TOKEN;
@@ -203,22 +210,41 @@ export async function sendOrderNotification(
     }
   }
 
-  if (process.env.RESEND_API_KEY && order.customer.email) {
+  if (!order.customer.email?.trim()) {
+    console.warn("[notify] Skipping email: no customer email for order", order.orderNumber);
+  } else if (!process.env.RESEND_API_KEY) {
+    console.warn("[notify] RESEND_API_KEY not set; skipping email for", order.orderNumber);
+  } else {
     try {
       const resend = new Resend(process.env.RESEND_API_KEY);
-      const emailPayload: { from: string; to: string; subject: string; text: string; html?: string } = {
+      const toEmail = order.customer.email.trim();
+      // Payment email: send simplest plain text only (same as admin test) for debugging
+      const isPayment = event === "ready_for_payment" && payload && "paymentUrl" in payload;
+      const text = isPayment
+        ? `Your laundry is ready. Pay here: ${(payload as ReadyForPaymentPayload).paymentUrl}`
+        : `Order ${order.orderNumber}: ${emailBody}`;
+      const subj = isPayment ? "Your laundry is ready – pay now" : subject;
+      const emailPayload = {
         from: fromEmail,
-        to: order.customer.email,
-        subject,
-        text: `Order ${order.orderNumber}: ${emailBody}`,
+        to: toEmail,
+        subject: subj,
+        text,
       };
-      if (event === "ready_for_payment" && payload && "orderNumber" in payload) {
-        emailPayload.html = getReadyForPaymentEmailHtml(payload);
+      const sendResult = await resend.emails.send(emailPayload);
+      if (sendResult.error) {
+        const msg =
+          typeof sendResult.error === "object" &&
+          sendResult.error !== null &&
+          "message" in sendResult.error
+            ? String((sendResult.error as { message: unknown }).message)
+            : String(sendResult.error);
+        console.error("[notify] Resend returned error:", msg, "order:", order.orderNumber, "to:", toEmail);
+        throw new Error(`Resend: ${msg}`);
       }
-      await resend.emails.send(emailPayload);
       result.email = true;
     } catch (e) {
-      console.error("Resend email error:", e);
+      console.error("[notify] Resend email exception:", e, "order:", order.orderNumber);
+      throw e;
     }
   }
 

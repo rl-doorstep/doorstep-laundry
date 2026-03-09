@@ -63,7 +63,7 @@ export async function POST(
   });
 
   const loads = order.orderLoads;
-  const totalLbs = loads.reduce((sum, l) => sum + (Number(l.weightLbs) || 0), 0);
+  const totalLbs = loads.reduce((sum: number, l: { weightLbs?: number | null }) => sum + (Number(l.weightLbs) || 0), 0);
   const baseUrl = process.env.NEXTAUTH_URL ?? "http://localhost:3000";
   let paymentUrl = `${baseUrl}/orders/${orderId}`;
   try {
@@ -97,13 +97,29 @@ export async function POST(
     );
   }
 
-  await sendOrderNotification(orderId, "ready_for_payment", {
-    orderNumber: order.orderNumber,
-    totalCents,
-    totalLbs,
-    perLoadLbs: loads.map((l: { weightLbs?: number | null }) => l.weightLbs ?? 0),
-    paymentUrl,
-  });
+  try {
+    const notifyResult = await sendOrderNotification(orderId, "ready_for_payment", {
+      orderNumber: order.orderNumber,
+      totalCents,
+      totalLbs,
+      perLoadLbs: loads.map((l: { weightLbs?: number | null }) => l.weightLbs ?? 0),
+      paymentUrl,
+    });
+    if (!notifyResult.email) {
+      console.error("[resend-payment-link] Email not sent for", order.orderNumber, "customer:", order.customer?.email);
+      return NextResponse.json(
+        { error: "Payment email could not be sent. Check customer email and Resend configuration." },
+        { status: 502 }
+      );
+    }
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "Notification failed";
+    console.error("[resend-payment-link]", msg, e);
+    return NextResponse.json(
+      { error: msg.startsWith("Resend:") ? msg.replace(/^Resend: /, "") : "Failed to send payment email" },
+      { status: 502 }
+    );
+  }
 
   return NextResponse.json({ ok: true });
 }

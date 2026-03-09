@@ -97,9 +97,12 @@ export async function PATCH(
     });
 
     if (newOrderStatus === "waiting_for_payment") {
-      await handleWaitingForPayment(orderId, session.user as { id: string }).catch((e) =>
-        console.error("handleWaitingForPayment:", e)
-      );
+      try {
+        await handleWaitingForPayment(orderId, session.user as { id: string });
+      } catch (e) {
+        console.error("[order-loads] Payment email failed:", e);
+        if (e instanceof Error) console.error("[order-loads] Payment email error message:", e.message);
+      }
     }
   }
 
@@ -125,7 +128,11 @@ async function handleWaitingForPayment(
     where: { id: orderId },
     include: { orderLoads: true, customer: { select: { email: true, phone: true } } },
   });
-  if (!order || order.status !== "waiting_for_payment") return;
+  if (!order || order.status !== "waiting_for_payment") {
+    if (!order) console.warn("[handleWaitingForPayment] Order not found:", orderId);
+    else if (order.status !== "waiting_for_payment") console.warn("[handleWaitingForPayment] Order not waiting_for_payment:", order.orderNumber, order.status);
+    return;
+  }
   const loads = order.orderLoads;
   const setting = await prisma.setting.findUnique({
     where: { key: "price_per_pound_cents" },
@@ -133,7 +140,13 @@ async function handleWaitingForPayment(
   const pricePerPoundCents = setting ? parseInt(String(setting.value), 10) || 150 : 150;
   const { computeOrderTotalCents } = await import("@/lib/order-total");
   const totalCents = computeOrderTotalCents(loads, pricePerPoundCents);
-  if (totalCents <= 0) return;
+  if (totalCents <= 0) {
+    console.warn("[handleWaitingForPayment] totalCents <= 0, skipping notification:", order.orderNumber);
+    return;
+  }
+  if (!order.customer.email) {
+    console.warn("[handleWaitingForPayment] No customer email, payment email will not be sent:", order.orderNumber);
+  }
   await prisma.order.update({
     where: { id: orderId },
     data: { totalCents },
@@ -165,15 +178,18 @@ async function handleWaitingForPayment(
     });
     if (session.url) paymentUrl = session.url;
   } catch (e) {
-    console.error("Stripe checkout session for notification:", e);
+    console.error("[handleWaitingForPayment] Stripe checkout session:", e);
   }
-  const totalLbs = loads.reduce((s, l) => s + (Number(l.weightLbs) || 0), 0);
+  const totalLbs = loads.reduce((s: number, l: { weightLbs?: number | null }) => s + (Number(l.weightLbs) || 0), 0);
   const { sendOrderNotification } = await import("@/lib/notify");
-  await sendOrderNotification(orderId, "ready_for_payment", {
+  const notifyResult = await sendOrderNotification(orderId, "ready_for_payment", {
     orderNumber: order.orderNumber,
     totalCents,
     totalLbs,
-    perLoadLbs: loads.map((l) => Number(l.weightLbs) || 0),
+    perLoadLbs: loads.map((l: { weightLbs?: number | null }) => Number(l.weightLbs) || 0),
     paymentUrl,
   });
+  if (!notifyResult.email) {
+    console.warn("[handleWaitingForPayment] Payment email not sent for", order.orderNumber, "sms:", notifyResult.sms);
+  }
 }
