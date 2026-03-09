@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import type { Address } from "@prisma/client";
-import { getTimeSlots } from "@/lib/slots";
+import { getTimeSlots, type TimeSlot } from "@/lib/slots";
 
 const PRICE_PER_LOAD_CENTS = 2500;
 const DAYS_AHEAD = 14;
@@ -84,6 +84,46 @@ export function BookForm({
   const pickupDateStr = pickupDate.toISOString().slice(0, 10);
   const deliveryDateStr = deliveryDate.toISOString().slice(0, 10);
 
+  // Earliest delivery: at least 24 hrs after pickup (next day or later)
+  const earliestDeliveryDate = new Date(pickupDate);
+  earliestDeliveryDate.setDate(earliestDeliveryDate.getDate() + 1);
+  earliestDeliveryDate.setHours(0, 0, 0, 0);
+
+  const now = new Date();
+  const isPickupToday =
+    pickupDate.getFullYear() === now.getFullYear() &&
+    pickupDate.getMonth() === now.getMonth() &&
+    pickupDate.getDate() === now.getDate();
+  const currentHourLocal = now.getHours() + now.getMinutes() / 60;
+
+  function isPickupSlotDisabled(slot: TimeSlot): boolean {
+    if (!isPickupToday) return false;
+    const cutoffHour = slot.startHour - 1;
+    return currentHourLocal >= cutoffHour;
+  }
+
+  const hasValidSlotForToday = timeSlots.some((slot) => currentHourLocal < slot.startHour - 1);
+
+  // Keep delivery at least 24h after pickup (e.g. when pickup date changes)
+  useEffect(() => {
+    if (deliveryDate < earliestDeliveryDate) {
+      setDeliveryDate(new Date(earliestDeliveryDate));
+    }
+  }, [pickupDateStr]);
+
+  // If today has no valid pickup slots, bump pickup to tomorrow
+  useEffect(() => {
+    const isPickupToday =
+      pickupDate.getFullYear() === today.getFullYear() &&
+      pickupDate.getMonth() === today.getMonth() &&
+      pickupDate.getDate() === today.getDate();
+    if (isPickupToday && !hasValidSlotForToday) {
+      const tomorrow = new Date(today);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      setPickupDate(tomorrow);
+    }
+  }, [hasValidSlotForToday, pickupDateStr]);
+
   const dayPickerDates = Array.from({ length: 7 }, (_, i) => {
     const d = new Date(today);
     d.setDate(d.getDate() + dayPickerStart + i);
@@ -98,8 +138,13 @@ export function BookForm({
   }
 
   function handleStep1Continue() {
-    if (deliveryDate < pickupDate) {
-      setError("Delivery date must be on or after pickup date.");
+    if (deliveryDate < earliestDeliveryDate) {
+      setError("Delivery must be at least 24 hours after pickup (next day or later).");
+      return;
+    }
+    const selectedPickupSlot = timeSlots.find((s) => s.id === pickupTimeSlot);
+    if (selectedPickupSlot && isPickupSlotDisabled(selectedPickupSlot)) {
+      setError("This pickup time has passed or is within 1 hour. Please choose another.");
       return;
     }
     setError("");
@@ -300,21 +345,27 @@ export function BookForm({
             {dayPickerDates.map((d) => {
               const isSelected = d.getTime() === pickupDate.getTime();
               const isPast = d < today;
+              const isToday = d.getTime() === today.getTime();
+              const todayUnavailable = isToday && !hasValidSlotForToday;
+              const disabled = isPast || todayUnavailable;
               return (
                 <button
                   key={d.toISOString().slice(0, 10)}
                   type="button"
                   onClick={() => {
-                    if (isPast) return;
+                    if (disabled) return;
                     const newPickup = new Date(d);
                     setPickupDate(newPickup);
-                    if (deliveryDate < newPickup) setDeliveryDate(new Date(newPickup));
+                    const minDelivery = new Date(newPickup);
+                    minDelivery.setDate(minDelivery.getDate() + 1);
+                    minDelivery.setHours(0, 0, 0, 0);
+                    if (deliveryDate < minDelivery) setDeliveryDate(minDelivery);
                   }}
-                  disabled={isPast}
+                  disabled={disabled}
                   className={`min-w-[4rem] rounded-lg border-2 py-2 px-3 text-sm font-medium transition-colors ${
                     isSelected
                       ? "border-fern-500 bg-fern-500 text-white"
-                      : isPast
+                      : disabled
                         ? "border-fern-100 bg-fern-50 text-fern-400 cursor-not-allowed"
                         : "border-fern-200 bg-white text-fern-800 hover:border-fern-300"
                   }`}
@@ -329,21 +380,30 @@ export function BookForm({
         {/* Pickup time */}
         <div className="mb-6">
           <p className="font-semibold text-fern-900 mb-2">Pickup time</p>
+          <p className="text-sm text-fern-500 mb-2">
+            Slots within 1 hour of their start are disabled for today.
+          </p>
           <div className="grid grid-cols-2 gap-2">
-            {timeSlots.map((slot) => (
-              <button
-                key={slot.id}
-                type="button"
-                onClick={() => setPickupTimeSlot(slot.id)}
-                className={`rounded-xl border-2 py-2.5 px-3 text-sm font-medium transition-colors ${
-                  pickupTimeSlot === slot.id
-                    ? "border-fern-500 bg-fern-50 text-fern-800"
-                    : "border-fern-200 bg-white text-fern-700 hover:border-fern-300"
-                }`}
-              >
-                {slot.label}
-              </button>
-            ))}
+            {timeSlots.map((slot) => {
+              const disabled = isPickupSlotDisabled(slot);
+              return (
+                <button
+                  key={slot.id}
+                  type="button"
+                  onClick={() => !disabled && setPickupTimeSlot(slot.id)}
+                  disabled={disabled}
+                  className={`rounded-xl border-2 py-2.5 px-3 text-sm font-medium transition-colors ${
+                    disabled
+                      ? "border-fern-100 bg-fern-50 text-fern-400 cursor-not-allowed"
+                      : pickupTimeSlot === slot.id
+                        ? "border-fern-500 bg-fern-50 text-fern-800"
+                        : "border-fern-200 bg-white text-fern-700 hover:border-fern-300"
+                  }`}
+                >
+                  {slot.label}
+                </button>
+              );
+            })}
           </div>
         </div>
 
@@ -351,23 +411,23 @@ export function BookForm({
         <div className="mb-6">
           <p className="font-semibold text-fern-900 mb-2">Delivery date</p>
           <p className="text-sm text-fern-500 mb-2">
-            {deliveryDate.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
+            At least 24 hours after pickup (next day or later). {deliveryDate.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
           </p>
           <div className="flex flex-wrap gap-2">
             {dayPickerDates.map((d) => {
               const isSelected = d.getTime() === deliveryDate.getTime();
               const isPast = d < today;
-              const beforePickup = d < pickupDate;
+              const beforeEarliest = d < earliestDeliveryDate;
               return (
                 <button
                   key={d.toISOString().slice(0, 10)}
                   type="button"
-                  onClick={() => !isPast && !beforePickup && setDeliveryDate(new Date(d))}
-                  disabled={isPast || beforePickup}
+                  onClick={() => !isPast && !beforeEarliest && setDeliveryDate(new Date(d))}
+                  disabled={isPast || beforeEarliest}
                   className={`min-w-[4rem] rounded-lg border-2 py-2 px-3 text-sm font-medium transition-colors ${
                     isSelected
                       ? "border-fern-500 bg-fern-500 text-white"
-                      : isPast || beforePickup
+                      : isPast || beforeEarliest
                         ? "border-fern-100 bg-fern-50 text-fern-400 cursor-not-allowed"
                         : "border-fern-200 bg-white text-fern-800 hover:border-fern-300"
                   }`}
