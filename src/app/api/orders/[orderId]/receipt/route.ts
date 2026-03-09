@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { getGrtPercent } from "@/lib/settings";
 import { generateReceiptPdf } from "@/lib/receipt-pdf";
 
 export async function GET(
@@ -40,6 +41,7 @@ export async function GET(
   }
 
   try {
+    const grtPercent = await getGrtPercent();
     const receiptOrder = {
       orderNumber: order.orderNumber,
       totalCents: order.totalCents,
@@ -59,7 +61,7 @@ export async function GET(
         weightLbs: l.weightLbs,
       })),
     };
-    const pdfBuffer = await generateReceiptPdf(receiptOrder);
+    const pdfBuffer = await generateReceiptPdf(receiptOrder, { grtPercent });
     const filename = `receipt-${order.orderNumber}.pdf`;
     return new NextResponse(new Uint8Array(pdfBuffer), {
       status: 200,
