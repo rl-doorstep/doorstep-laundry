@@ -77,8 +77,8 @@ const eventMessages: Record<
     body: "We've received your payment. Your order is confirmed.",
   },
   ready_for_payment: {
-    sms: "Your laundry is ready! Total {{total}}. Pay now: {{paymentUrl}} Ref: {{orderNumber}}",
-    subject: "Your laundry is ready – pay to complete",
+    sms: "Your laundry is ready! Total {{total}} ({{totalLbs}} lbs). Check your email for the payment link. Ref: {{orderNumber}}",
+    subject: "Your laundry is ready – one step to complete",
     body: "Your laundry is ready! Total: {{total}} ({{totalLbs}} lbs). Pay now: {{paymentUrl}} Transaction #{{orderNumber}}",
   },
 };
@@ -114,6 +114,25 @@ function interpolateReadyForPayment(
     .replace(/\{\{totalLbs\}\}/g, String(payload.totalLbs))
     .replace(/\{\{paymentUrl\}\}/g, payload.paymentUrl)
     .replace(/\{\{orderNumber\}\}/g, payload.orderNumber);
+}
+
+export function getReadyForPaymentEmailHtml(payload: ReadyForPaymentPayload): string {
+  const total = `$${(Math.round(payload.totalCents) / 100).toFixed(2)}`;
+  const url = payload.paymentUrl.replace(/"/g, "&quot;");
+  return `
+    <p style="margin:0 0 1em; font-family: sans-serif; font-size: 16px; line-height: 1.5; color: #1a1a1a;">
+      Hi,
+    </p>
+    <p style="margin:0 0 1em; font-family: sans-serif; font-size: 16px; line-height: 1.5; color: #1a1a1a;">
+      Your laundry is all set! We weighed <strong>${payload.totalLbs} lbs</strong> — your total is <strong>${total}</strong>.
+    </p>
+    <p style="margin:0 0 1em; font-family: sans-serif; font-size: 16px; line-height: 1.5; color: #1a1a1a;">
+      <a href="${url}" style="display: inline-block; padding: 12px 24px; background: #4a7c59; color: #fff; text-decoration: none; font-weight: 600; border-radius: 8px; font-size: 16px;">Pay now</a>
+    </p>
+    <p style="margin:0; font-family: sans-serif; font-size: 14px; line-height: 1.5; color: #666;">
+      Order reference: ${payload.orderNumber}
+    </p>
+  `.trim();
 }
 
 export async function sendOrderNotification(
@@ -187,12 +206,16 @@ export async function sendOrderNotification(
   if (process.env.RESEND_API_KEY && order.customer.email) {
     try {
       const resend = new Resend(process.env.RESEND_API_KEY);
-      await resend.emails.send({
+      const emailPayload: { from: string; to: string; subject: string; text: string; html?: string } = {
         from: fromEmail,
         to: order.customer.email,
         subject,
         text: `Order ${order.orderNumber}: ${emailBody}`,
-      });
+      };
+      if (event === "ready_for_payment" && payload && "orderNumber" in payload) {
+        emailPayload.html = getReadyForPaymentEmailHtml(payload);
+      }
+      await resend.emails.send(emailPayload);
       result.email = true;
     } catch (e) {
       console.error("Resend email error:", e);
