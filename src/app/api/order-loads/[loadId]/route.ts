@@ -146,12 +146,13 @@ async function handleWaitingForPayment(
     return;
   }
   const loads = order.orderLoads;
-  const setting = await prisma.setting.findUnique({
-    where: { key: "price_per_pound_cents" },
-  });
+  const [setting, grtPercent] = await Promise.all([
+    prisma.setting.findUnique({ where: { key: "price_per_pound_cents" } }),
+    (await import("@/lib/settings")).getGrtPercent(),
+  ]);
   const pricePerPoundCents = setting ? parseInt(String(setting.value), 10) || 150 : 150;
-  const { computeOrderTotalCents } = await import("@/lib/order-total");
-  const totalCents = computeOrderTotalCents(loads, pricePerPoundCents);
+  const { computeOrderTotalWithTax } = await import("@/lib/order-total");
+  const { subtotalCents, taxCents, totalCents } = computeOrderTotalWithTax(loads, pricePerPoundCents, grtPercent);
   if (totalCents <= 0) {
     console.warn("[handleWaitingForPayment] totalCents <= 0, skipping notification:", order.orderNumber);
     return;
@@ -176,10 +177,21 @@ async function handleWaitingForPayment(
           price_data: {
             currency: "usd",
             product_data: {
-              name: `Laundry order ${order.orderNumber}`,
-              description: `Pickup ${new Date(order.pickupDate).toLocaleDateString()}, delivery ${new Date(order.deliveryDate).toLocaleDateString()}`,
+              name: "Wash and fold delivery service",
+              description: `Order ${order.orderNumber} · Pickup ${new Date(order.pickupDate).toLocaleDateString()}, delivery ${new Date(order.deliveryDate).toLocaleDateString()}`,
             },
-            unit_amount: Math.round(totalCents),
+            unit_amount: subtotalCents,
+          },
+          quantity: 1,
+        },
+        {
+          price_data: {
+            currency: "usd",
+            product_data: {
+              name: `NMGRT (${grtPercent}%)`,
+              description: "New Mexico Gross Receipts Tax",
+            },
+            unit_amount: taxCents,
           },
           quantity: 1,
         },

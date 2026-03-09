@@ -55,7 +55,7 @@ export default async function AdminPage() {
             Price per pound
           </h2>
           <p className="text-sm text-fern-600 mb-6">
-            Global rate used when orders enter &quot;Waiting for payment&quot; (after loads are cleaned and weighed). This is the <strong>total rate per pound</strong> the customer pays (inclusive of NMGRT). Default $1.50/lb.
+            Base price per pound (before tax) when orders enter &quot;Waiting for payment&quot; (after loads are cleaned and weighed). NMGRT is added on top of this rate. Default $1.50/lb.
           </p>
           <AdminPricePerPound />
         </section>
@@ -65,7 +65,7 @@ export default async function AdminPage() {
             GRT (Gross Receipts Tax)
           </h2>
           <p className="text-sm text-fern-600 mb-6">
-            New Mexico Gross Receipts Tax percentage. The price per pound above is inclusive of this tax; receipts show the tax breakdown (subtotal, NMGRT, total). Default 8.39%.
+            New Mexico Gross Receipts Tax percentage, added on top of the base price per pound. Receipts show subtotal (base), NMGRT, and total. Default 8.39%.
           </p>
           <AdminGrtPercent />
         </section>

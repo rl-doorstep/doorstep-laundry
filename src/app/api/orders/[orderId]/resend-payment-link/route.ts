@@ -44,12 +44,13 @@ export async function POST(
     );
   }
 
-  const { computeOrderTotalCents } = await import("@/lib/order-total");
-  const setting = await prisma.setting.findUnique({
-    where: { key: "price_per_pound_cents" },
-  });
+  const [setting, grtPercent] = await Promise.all([
+    prisma.setting.findUnique({ where: { key: "price_per_pound_cents" } }),
+    (await import("@/lib/settings")).getGrtPercent(),
+  ]);
   const pricePerPoundCents = setting ? parseInt(String(setting.value), 10) || 150 : 150;
-  const totalCents = computeOrderTotalCents(order.orderLoads, pricePerPoundCents);
+  const { computeOrderTotalWithTax } = await import("@/lib/order-total");
+  const { subtotalCents, taxCents, totalCents } = computeOrderTotalWithTax(order.orderLoads, pricePerPoundCents, grtPercent);
   if (totalCents <= 0) {
     return NextResponse.json(
       { error: "Order total not set; contact support" },
@@ -76,10 +77,21 @@ export async function POST(
           price_data: {
             currency: "usd",
             product_data: {
-              name: `Laundry order ${order.orderNumber}`,
-              description: `Pickup ${new Date(order.pickupDate).toLocaleDateString()}, delivery ${new Date(order.deliveryDate).toLocaleDateString()}`,
+              name: "Wash and fold delivery service",
+              description: `Order ${order.orderNumber} · Pickup ${new Date(order.pickupDate).toLocaleDateString()}, delivery ${new Date(order.deliveryDate).toLocaleDateString()}`,
             },
-            unit_amount: totalCents,
+            unit_amount: subtotalCents,
+          },
+          quantity: 1,
+        },
+        {
+          price_data: {
+            currency: "usd",
+            product_data: {
+              name: `NMGRT (${grtPercent}%)`,
+              description: "New Mexico Gross Receipts Tax",
+            },
+            unit_amount: taxCents,
           },
           quantity: 1,
         },

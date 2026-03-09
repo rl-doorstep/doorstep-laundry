@@ -2,6 +2,8 @@ import { prisma } from "./db";
 
 const GRT_PERCENT_KEY = "grt_percent";
 const DEFAULT_GRT_PERCENT = 8.39;
+const PRICE_PER_POUND_KEY = "price_per_pound_cents";
+const DEFAULT_PRICE_PER_POUND_CENTS = 150;
 
 const COMPANY_KEYS = {
   name: "company_name",
@@ -18,6 +20,18 @@ export type CompanyInfo = {
   email: string;
   logoUrl: string;
 };
+
+/**
+ * Server-side only. Returns the base price per pound in cents (e.g. 150 = $1.50).
+ */
+export async function getPricePerPoundCents(): Promise<number> {
+  const row = await prisma.setting.findUnique({
+    where: { key: PRICE_PER_POUND_KEY },
+  });
+  if (!row) return DEFAULT_PRICE_PER_POUND_CENTS;
+  const value = parseInt(row.value, 10);
+  return Number.isFinite(value) && value >= 0 ? value : DEFAULT_PRICE_PER_POUND_CENTS;
+}
 
 /**
  * Server-side only. Returns the configured NMGRT percentage (e.g. 8.39).
