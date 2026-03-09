@@ -127,13 +127,13 @@ async function handleWaitingForPayment(
   });
   if (!order || order.status !== "waiting_for_payment") return;
   const loads = order.orderLoads;
-  const totalLbs = loads.reduce((sum: number, l: { weightLbs?: number | null }) => sum + (l.weightLbs ?? 0), 0);
-  if (totalLbs <= 0) return;
   const setting = await prisma.setting.findUnique({
     where: { key: "price_per_pound_cents" },
   });
-  const pricePerPoundCents = setting ? parseInt(setting.value, 10) || 150 : 150;
-  const totalCents = Math.round(totalLbs * pricePerPoundCents);
+  const pricePerPoundCents = setting ? parseInt(String(setting.value), 10) || 150 : 150;
+  const { computeOrderTotalCents } = await import("@/lib/order-total");
+  const totalCents = computeOrderTotalCents(loads, pricePerPoundCents);
+  if (totalCents <= 0) return;
   await prisma.order.update({
     where: { id: orderId },
     data: { totalCents },
@@ -154,7 +154,7 @@ async function handleWaitingForPayment(
               name: `Laundry order ${order.orderNumber}`,
               description: `Pickup ${new Date(order.pickupDate).toLocaleDateString()}, delivery ${new Date(order.deliveryDate).toLocaleDateString()}`,
             },
-            unit_amount: totalCents,
+            unit_amount: Math.round(totalCents),
           },
           quantity: 1,
         },
@@ -167,12 +167,13 @@ async function handleWaitingForPayment(
   } catch (e) {
     console.error("Stripe checkout session for notification:", e);
   }
+  const totalLbs = loads.reduce((s, l) => s + (Number(l.weightLbs) || 0), 0);
   const { sendOrderNotification } = await import("@/lib/notify");
   await sendOrderNotification(orderId, "ready_for_payment", {
     orderNumber: order.orderNumber,
     totalCents,
     totalLbs,
-    perLoadLbs: loads.map((l: { weightLbs?: number | null }) => l.weightLbs ?? 0),
+    perLoadLbs: loads.map((l) => Number(l.weightLbs) || 0),
     paymentUrl,
   });
 }

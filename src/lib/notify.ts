@@ -108,7 +108,7 @@ function interpolateReadyForPayment(
   template: string,
   payload: ReadyForPaymentPayload
 ): string {
-  const total = `$${(payload.totalCents / 100).toFixed(2)}`;
+  const total = `$${(Math.round(payload.totalCents) / 100).toFixed(2)}`;
   return template
     .replace(/\{\{total\}\}/g, total)
     .replace(/\{\{totalLbs\}\}/g, String(payload.totalLbs))

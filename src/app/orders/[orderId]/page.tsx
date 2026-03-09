@@ -46,6 +46,16 @@ export default async function OrderDetailPage({
   if (!order) notFound();
   if (order.customerId !== userId) redirect("/dashboard");
 
+  let displayTotalCents = order.totalCents;
+  if (order.status === "waiting_for_payment" && order.orderLoads?.length) {
+    const { computeOrderTotalCents } = await import("@/lib/order-total");
+    const setting = await prisma.setting.findUnique({
+      where: { key: "price_per_pound_cents" },
+    });
+    const pricePerPoundCents = setting ? parseInt(String(setting.value), 10) || 150 : 150;
+    displayTotalCents = computeOrderTotalCents(order.orderLoads, pricePerPoundCents);
+  }
+
   return (
     <div className="min-h-screen bg-fern-50">
       <AppHeader />
@@ -160,7 +170,7 @@ export default async function OrderDetailPage({
             )}
             <div>
               <dt className="text-fern-500">Total</dt>
-              <dd className="text-fern-900 mt-0.5 font-medium">${(order.totalCents / 100).toFixed(2)}</dd>
+              <dd className="text-fern-900 mt-0.5 font-medium">${(Math.round(displayTotalCents) / 100).toFixed(2)}</dd>
             </div>
           </dl>
         </div>

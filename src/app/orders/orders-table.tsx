@@ -336,7 +336,7 @@ export function OrdersTable({
                               <div>
                                 <span className="text-fern-500">Total</span>
                                 <p className="text-fern-900 mt-0.5 font-medium">
-                                  ${(Number(detail.totalCents) / 100).toFixed(2)}
+                                  ${(Math.round(Number(detail.totalCents)) / 100).toFixed(2)}
                                 </p>
                               </div>
                             )}

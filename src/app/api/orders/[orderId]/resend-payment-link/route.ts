@@ -43,18 +43,27 @@ export async function POST(
       { status: 400 }
     );
   }
-  if (order.totalCents <= 0) {
+
+  const { computeOrderTotalCents } = await import("@/lib/order-total");
+  const setting = await prisma.setting.findUnique({
+    where: { key: "price_per_pound_cents" },
+  });
+  const pricePerPoundCents = setting ? parseInt(String(setting.value), 10) || 150 : 150;
+  const totalCents = computeOrderTotalCents(order.orderLoads, pricePerPoundCents);
+  if (totalCents <= 0) {
     return NextResponse.json(
       { error: "Order total not set; contact support" },
       { status: 400 }
     );
   }
 
+  await prisma.order.update({
+    where: { id: orderId },
+    data: { totalCents },
+  });
+
   const loads = order.orderLoads;
-  const totalLbs = loads.reduce(
-    (sum: number, l: { weightLbs?: number | null }) => sum + (l.weightLbs ?? 0),
-    0
-  );
+  const totalLbs = loads.reduce((sum, l) => sum + (Number(l.weightLbs) || 0), 0);
   const baseUrl = process.env.NEXTAUTH_URL ?? "http://localhost:3000";
   let paymentUrl = `${baseUrl}/orders/${orderId}`;
   try {
@@ -70,7 +79,7 @@ export async function POST(
               name: `Laundry order ${order.orderNumber}`,
               description: `Pickup ${new Date(order.pickupDate).toLocaleDateString()}, delivery ${new Date(order.deliveryDate).toLocaleDateString()}`,
             },
-            unit_amount: order.totalCents,
+            unit_amount: totalCents,
           },
           quantity: 1,
         },
@@ -90,7 +99,7 @@ export async function POST(
 
   await sendOrderNotification(orderId, "ready_for_payment", {
     orderNumber: order.orderNumber,
-    totalCents: order.totalCents,
+    totalCents,
     totalLbs,
     perLoadLbs: loads.map((l: { weightLbs?: number | null }) => l.weightLbs ?? 0),
     paymentUrl,
