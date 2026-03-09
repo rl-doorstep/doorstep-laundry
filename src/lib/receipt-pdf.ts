@@ -138,8 +138,7 @@ export async function generateReceiptPdf(
   const taxCents = Math.round(subtotalCents * (grtPercent / 100));
   const totalCents = subtotalCents + taxCents;
   const unitPricePerLbDollars = pricePerPoundCents / 100;
-  const numLoads = order.orderLoads.length;
-  const description = `Wash and fold delivery service - ${numLoads} load${numLoads === 1 ? "" : "s"}`;
+  const description = "Wash and fold delivery service";
 
   const doc = await PDFDocument.create();
   const font = await doc.embedFont(StandardFonts.Helvetica);
