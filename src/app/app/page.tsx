@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import Image from "next/image";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { AppHeader } from "@/components/app-header";
@@ -44,8 +45,8 @@ export default async function AppHomePage() {
               className="flex items-center gap-2 text-fern-900 hover:opacity-90 transition-opacity"
               aria-label="Doorstep Laundry – Laundry service Las Cruces NM"
             >
-              <img src="/doorstep/doorstep-logo-icon.svg" alt="" className="h-9 w-auto" />
-              <img src="/doorstep/doorstep-logo-wordmark.svg" alt="Doorstep Laundry Las Cruces" className="h-7 w-auto hidden sm:block" />
+              <Image src="/doorstep/doorstep-logo-icon.svg" alt="" width={36} height={36} className="h-9 w-auto" unoptimized />
+              <Image src="/doorstep/doorstep-logo-wordmark.svg" alt="Doorstep Laundry Las Cruces" width={140} height={28} className="h-7 w-auto hidden sm:block" unoptimized />
               <span className="text-lg font-semibold text-fern-800 sm:hidden">Doorstep Laundry</span>
             </Link>
             <nav className="flex items-center gap-4">
@@ -69,10 +70,13 @@ export default async function AppHomePage() {
       <main>
         <section className="mx-auto max-w-5xl px-4 py-24 text-center">
           <div className="flex justify-center mb-10">
-            <img
+            <Image
               src="/doorstep/doorstep-laundry-logo-v3.svg"
               alt="Doorstep Laundry – laundry pickup and delivery in Las Cruces, NM"
+              width={280}
+              height={112}
               className="h-24 w-auto sm:h-28"
+              unoptimized
             />
           </div>
           <h1 className="text-4xl font-bold tracking-tight text-fern-900 sm:text-5xl">
@@ -184,10 +188,13 @@ export default async function AppHomePage() {
 
       <footer className="border-t border-fern-200/80 bg-white py-8">
         <div className="mx-auto max-w-5xl px-4 flex flex-col items-center gap-3 text-sm text-fern-500">
-          <img
+          <Image
             src="/doorstep/doorstep-logo-subtext.svg"
             alt="Doorstep Laundry Las Cruces – wash · fold · delivered"
+            width={200}
+            height={48}
             className="h-12 w-auto opacity-80"
+            unoptimized
           />
           <span>Doorstep Laundry Service · Las Cruces, NM</span>
         </div>

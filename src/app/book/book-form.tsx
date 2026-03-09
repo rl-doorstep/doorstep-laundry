@@ -127,20 +127,22 @@ export function BookForm({
 
   const hasValidSlotForToday = timeSlots.some((slot) => currentHourLocal < slot.startHour - 1);
 
-  // Keep loadOptions array length in sync with numberOfLoads
-  useEffect(() => {
-    setLoadOptions((prev) => {
-      const defaults = defaultLoadOptions ?? emptyLoadOptions;
-      if (prev.length === numberOfLoads) return prev;
-      if (prev.length < numberOfLoads) {
-        return [
-          ...prev,
-          ...Array.from({ length: numberOfLoads - prev.length }, () => ({ ...defaults })),
-        ];
-      }
-      return prev.slice(0, numberOfLoads);
-    });
-  }, [numberOfLoads, defaultLoadOptions]);
+  function resizeLoadOptionsForCount(prev: LoadOptionsInput[], count: number): LoadOptionsInput[] {
+    const defaults = defaultLoadOptions ?? emptyLoadOptions;
+    if (prev.length === count) return prev;
+    if (prev.length < count) {
+      return [
+        ...prev,
+        ...Array.from({ length: count - prev.length }, () => ({ ...defaults })),
+      ];
+    }
+    return prev.slice(0, count);
+  }
+
+  function setNumberOfLoadsAndResizeOptions(n: number) {
+    setNumberOfLoads(n);
+    setLoadOptions((prev) => resizeLoadOptionsForCount(prev, n));
+  }
 
   // Keep delivery at least 24h after pickup (e.g. when pickup date changes)
   useEffect(() => {
@@ -340,7 +342,7 @@ export function BookForm({
                 <span>Number of loads</span>
                 <select
                   value={numberOfLoads}
-                  onChange={(e) => setNumberOfLoads(Number(e.target.value))}
+                  onChange={(e) => setNumberOfLoadsAndResizeOptions(Number(e.target.value))}
                   className="rounded-lg border border-fern-200 bg-white px-2 py-1 text-fern-900"
                 >
                   {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
