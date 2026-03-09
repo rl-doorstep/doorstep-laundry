@@ -7,6 +7,7 @@ import { getTimeSlotById } from "@/lib/slots";
 import { AppHeader } from "@/components/app-header";
 import { DeleteDraftOrderButton } from "@/components/delete-draft-order-button";
 import { PayButton } from "./pay-button";
+import { ResendPaymentButton } from "./resend-payment-button";
 
 const statusLabel: Record<string, string> = {
   scheduled: "Scheduled",
@@ -65,7 +66,10 @@ export default async function OrderDetailPage({
             <span className="text-fern-500">Status</span>
             <div className="flex items-center gap-2 flex-wrap">
               {order.status === "waiting_for_payment" && !order.stripePaymentId && (
-                <PayButton orderId={order.id} variant="icon" />
+                <>
+                  <PayButton orderId={order.id} variant="icon" />
+                  <ResendPaymentButton orderId={order.id} />
+                </>
               )}
               {order.status === "scheduled" && (
                 <Link

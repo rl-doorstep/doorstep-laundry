@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { getTimeSlotById } from "@/lib/slots";
 import { DeleteDraftOrderButton } from "@/components/delete-draft-order-button";
+import { PayButton } from "@/app/orders/[orderId]/pay-button";
 
 const statusLabel: Record<string, string> = {
   scheduled: "Scheduled",
@@ -21,6 +22,7 @@ export type OrderListItemOrder = {
   id: string;
   orderNumber: string;
   status: string;
+  stripePaymentId?: string | null;
   pickupDate: Date | string;
   deliveryDate: Date | string;
   pickupTimeSlot: string | null;
@@ -30,6 +32,7 @@ export type OrderListItemOrder = {
 export function OrderListItem({ order }: { order: OrderListItemOrder }) {
   const router = useRouter();
   const isScheduled = order.status === "scheduled";
+  const showPay = order.status === "waiting_for_payment" && !order.stripePaymentId;
 
   return (
     <li className="flex gap-2 items-stretch">
@@ -63,6 +66,9 @@ export function OrderListItem({ order }: { order: OrderListItemOrder }) {
           </span>
         </div>
       </Link>
+      {showPay && (
+        <PayButton orderId={order.id} variant="icon" />
+      )}
       {isScheduled && (
         <DeleteDraftOrderButton
           orderId={order.id}
