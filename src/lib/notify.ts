@@ -1,6 +1,8 @@
 import { prisma } from "./db";
 import Twilio from "twilio";
 import { Resend } from "resend";
+import { getGrtPercent, getCompanyInfo } from "./settings";
+import { generateReceiptPdf } from "./receipt-pdf";
 
 export type NotifyEvent =
   | "order_created"
@@ -144,6 +146,13 @@ export async function sendOrderNotification(
     where: { id: orderId },
     include: {
       customer: { select: { email: true, name: true, phone: true } },
+      ...(event === "payment_received"
+        ? {
+            pickupAddress: true,
+            deliveryAddress: true,
+            orderLoads: { orderBy: { loadNumber: "asc" as const } },
+          }
+        : {}),
     },
   });
   if (!order) return {};
@@ -220,7 +229,14 @@ export async function sendOrderNotification(
       const toEmail = order.customer.email.trim();
       const isPayment = event === "ready_for_payment" && payload && "orderNumber" in payload && "paymentUrl" in payload;
       const paymentPayload = isPayment ? (payload as ReadyForPaymentPayload) : null;
-      const emailPayload: { from: string; to: string; subject: string; text: string; html?: string } = {
+      const emailPayload: {
+        from: string;
+        to: string;
+        subject: string;
+        text: string;
+        html?: string;
+        attachments?: { filename: string; content: Buffer }[];
+      } = {
         from: fromEmail,
         to: toEmail,
         subject: paymentPayload ? "Your laundry is ready – pay now" : subject,
@@ -230,6 +246,32 @@ export async function sendOrderNotification(
       };
       if (paymentPayload) {
         emailPayload.html = getReadyForPaymentEmailHtml(paymentPayload);
+      }
+      if (event === "payment_received" && order.customer && "pickupAddress" in order && "deliveryAddress" in order && "orderLoads" in order) {
+        try {
+          const [grtPercent, company] = await Promise.all([getGrtPercent(), getCompanyInfo()]);
+          const receiptOrder = {
+            orderNumber: order.orderNumber,
+            totalCents: order.totalCents,
+            createdAt: order.createdAt,
+            pickupDate: order.pickupDate,
+            deliveryDate: order.deliveryDate,
+            pickupTimeSlot: order.pickupTimeSlot,
+            deliveryTimeSlot: order.deliveryTimeSlot,
+            customer: {
+              name: order.customer.name ?? null,
+              email: order.customer.email ?? "",
+              phone: "phone" in order.customer ? order.customer.phone ?? null : null,
+            },
+            pickupAddress: order.pickupAddress,
+            deliveryAddress: order.deliveryAddress,
+            orderLoads: order.orderLoads.map((l: { loadNumber: number; weightLbs: number | null }) => ({ loadNumber: l.loadNumber, weightLbs: l.weightLbs })),
+          };
+          const pdfBuffer = await generateReceiptPdf(receiptOrder, { grtPercent, company });
+          emailPayload.attachments = [{ filename: `receipt-${order.orderNumber}.pdf`, content: pdfBuffer }];
+        } catch (e) {
+          console.error("[notify] Failed to generate receipt PDF for payment_received:", e);
+        }
       }
       const sendResult = await resend.emails.send(emailPayload);
       if (sendResult.error) {
