@@ -81,6 +81,7 @@ export function WashDashboard({
   const [orders, setOrders] = useState(initialOrders);
   const [loading, setLoading] = useState(false);
   const [updatingLoadId, setUpdatingLoadId] = useState<string | null>(null);
+  const [weightDraft, setWeightDraft] = useState<Record<string, string>>({});
   const [loadLocationNames, setLoadLocationNames] = useState<string[]>([]);
 
   useEffect(() => {
@@ -183,11 +184,17 @@ export function WashDashboard({
                   status: updated.status ?? l.status,
                   location: updated.location !== undefined ? updated.location : l.location,
                   loadCode: updated.loadCode !== undefined ? updated.loadCode : l.loadCode,
+                  weightLbs: updated.weightLbs !== undefined ? updated.weightLbs : l.weightLbs,
                 }
               : l
           ),
         }))
       );
+      setWeightDraft((prev) => {
+        const next = { ...prev };
+        delete next[loadId];
+        return next;
+      });
       fetchOrders(false);
     } finally {
       setUpdatingLoadId(null);
@@ -391,41 +398,35 @@ export function WashDashboard({
                   <td className="px-4 py-3">
                     {load ? (
                       load.status === "cleaned" ? (
-                        <input
-                          type="number"
-                          min="0"
-                          step="0.1"
-                          value={load.weightLbs ?? ""}
-                          onChange={(e) => {
-                            const v = e.target.value === "" ? undefined : parseFloat(e.target.value);
-                            setOrders((prev) =>
-                              prev.map((o) =>
-                                o.id === order.id
-                                  ? {
-                                      ...o,
-                                      orderLoads: o.orderLoads.map((l) =>
-                                        l.id === load.id
-                                          ? { ...l, weightLbs: v ?? null }
-                                          : l
-                                      ),
-                                    }
-                                  : o
-                              )
-                            );
-                            if (v !== undefined && !Number.isNaN(v)) {
-                              updateLoad(load.id, { weightLbs: v });
+                        <div className="flex items-center gap-1.5">
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.1"
+                            value={weightDraft[load.id] ?? (load.weightLbs != null ? String(load.weightLbs) : "")}
+                            onChange={(e) =>
+                              setWeightDraft((prev) => ({ ...prev, [load.id]: e.target.value }))
                             }
-                          }}
-                          onBlur={(e) => {
-                            const v = parseFloat((e.target as HTMLInputElement).value);
-                            if (!Number.isNaN(v) && v >= 0) {
-                              updateLoad(load.id, { weightLbs: v });
-                            }
-                          }}
-                          disabled={updatingLoadId === load.id}
-                          className={`${inputClass} w-20`}
-                          placeholder="0"
-                        />
+                            disabled={updatingLoadId === load.id}
+                            className={`${inputClass} w-20`}
+                            placeholder="0"
+                            aria-label={`Weight for load ${load.loadNumber} (lbs)`}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const raw = weightDraft[load.id] ?? (load.weightLbs != null ? String(load.weightLbs) : "");
+                              const v = parseFloat(raw);
+                              if (raw !== "" && !Number.isNaN(v) && v >= 0) {
+                                updateLoad(load.id, { weightLbs: v });
+                              }
+                            }}
+                            disabled={updatingLoadId === load.id}
+                            className="rounded-lg border border-fern-300 bg-fern-100 px-2 py-1.5 text-xs font-medium text-fern-800 hover:bg-fern-200 disabled:opacity-50"
+                          >
+                            Save
+                          </button>
+                        </div>
                       ) : (
                         <span className="text-fern-600 text-sm">
                           {load.weightLbs != null ? `${load.weightLbs.toFixed(1)} lbs` : "—"}

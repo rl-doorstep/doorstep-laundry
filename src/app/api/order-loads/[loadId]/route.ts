@@ -139,7 +139,34 @@ async function handleWaitingForPayment(
     data: { totalCents },
   });
   const baseUrl = process.env.NEXTAUTH_URL ?? "http://localhost:3000";
-  const paymentUrl = `${baseUrl}/orders/${orderId}`;
+  let paymentUrl = `${baseUrl}/orders/${orderId}`;
+  try {
+    const { getStripe } = await import("@/lib/stripe");
+    const stripe = getStripe();
+    const session = await stripe.checkout.sessions.create({
+      mode: "payment",
+      payment_method_types: ["card"],
+      line_items: [
+        {
+          price_data: {
+            currency: "usd",
+            product_data: {
+              name: `Laundry order ${order.orderNumber}`,
+              description: `Pickup ${new Date(order.pickupDate).toLocaleDateString()}, delivery ${new Date(order.deliveryDate).toLocaleDateString()}`,
+            },
+            unit_amount: totalCents,
+          },
+          quantity: 1,
+        },
+      ],
+      success_url: `${baseUrl}/orders/${orderId}?paid=1`,
+      cancel_url: `${baseUrl}/orders/${orderId}`,
+      metadata: { orderId, order_number: order.orderNumber },
+    });
+    if (session.url) paymentUrl = session.url;
+  } catch (e) {
+    console.error("Stripe checkout session for notification:", e);
+  }
   const { sendOrderNotification } = await import("@/lib/notify");
   await sendOrderNotification(orderId, "ready_for_payment", {
     orderNumber: order.orderNumber,
