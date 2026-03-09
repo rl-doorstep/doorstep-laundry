@@ -67,28 +67,39 @@ export async function PATCH(
     include: { order: true },
   });
 
-  // Sync order status from load statuses: in_progress when any load is incoming/washing/drying/folding,
-  // ready_for_delivery when all loads are ready_for_delivery
+  // Sync order status from load statuses:
+  // - ready_for_delivery when all loads are ready_for_delivery
+  // - picked_up when order is in_progress and all loads are out of washing
+  // - in_progress when any load is incoming/ready_for_wash/washing/drying/folding
   const orderId = load.orderId;
   const allLoads = await prisma.orderLoad.findMany({
     where: { orderId },
     select: { status: true },
   });
-  const anyInProgress = allLoads.some((l) =>
+  type LoadRow = { status: string };
+  const anyInProgress = allLoads.some((l: LoadRow) =>
     ["incoming", "ready_for_wash", "washing", "drying", "folding"].includes(l.status)
   );
-  const allReady = allLoads.length > 0 && allLoads.every((l) => l.status === "ready_for_delivery");
+  const allReady = allLoads.length > 0 && allLoads.every((l: LoadRow) => l.status === "ready_for_delivery");
+  const noLoadInWashing =
+    allLoads.length > 0 && !allLoads.some((l: LoadRow) => l.status === "washing");
 
   const currentOrderStatus = updated.order.status;
   type OrderStatus = import("@prisma/client").OrderStatus;
-  const canSetInProgress =
+  const canSetStatus =
     currentOrderStatus !== "out_for_delivery" &&
     currentOrderStatus !== "delivered" &&
     currentOrderStatus !== "cancelled";
   let newOrderStatus: OrderStatus | null = null;
-  if (allReady && canSetInProgress) {
+  if (allReady && canSetStatus) {
     newOrderStatus = "ready_for_delivery";
-  } else if (anyInProgress && canSetInProgress) {
+  } else if (
+    currentOrderStatus === "in_progress" &&
+    noLoadInWashing &&
+    canSetStatus
+  ) {
+    newOrderStatus = "picked_up";
+  } else if (anyInProgress && canSetStatus) {
     newOrderStatus = "in_progress";
   }
 
@@ -97,13 +108,17 @@ export async function PATCH(
       where: { id: orderId },
       data: { status: newOrderStatus },
     });
+    const note =
+      newOrderStatus === "ready_for_delivery"
+        ? "All loads folded (ready for delivery)"
+        : newOrderStatus === "picked_up"
+          ? "All loads moved out of washing"
+          : "Wash started (load status updated)";
     await prisma.orderStatusHistory.create({
       data: {
         orderId,
         status: newOrderStatus,
-        note: newOrderStatus === "ready_for_delivery"
-          ? "All loads folded (ready for delivery)"
-          : "Wash started (load status updated)",
+        note,
         changedById: (session.user as { id: string }).id,
       },
     });
