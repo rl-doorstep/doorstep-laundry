@@ -50,7 +50,7 @@ export async function POST(
   ]);
   const pricePerPoundCents = setting ? parseInt(String(setting.value), 10) || 150 : 150;
   const { computeOrderTotalWithTax } = await import("@/lib/order-total");
-  const { totalCents } = computeOrderTotalWithTax(order.orderLoads, pricePerPoundCents, grtPercent);
+  const { subtotalCents, taxCents, totalCents } = computeOrderTotalWithTax(order.orderLoads, pricePerPoundCents, grtPercent);
   if (totalCents <= 0) {
     return NextResponse.json(
       { error: "Order total not set; contact support" },
@@ -77,10 +77,21 @@ export async function POST(
           price_data: {
             currency: "usd",
             product_data: {
-              name: `Laundry order ${order.orderNumber}`,
-              description: `Pickup ${new Date(order.pickupDate).toLocaleDateString()}, delivery ${new Date(order.deliveryDate).toLocaleDateString()}`,
+              name: "Wash and fold delivery service",
+              description: `Order ${order.orderNumber} · Pickup ${new Date(order.pickupDate).toLocaleDateString()}, delivery ${new Date(order.deliveryDate).toLocaleDateString()}`,
             },
-            unit_amount: totalCents,
+            unit_amount: subtotalCents,
+          },
+          quantity: 1,
+        },
+        {
+          price_data: {
+            currency: "usd",
+            product_data: {
+              name: `NMGRT (${grtPercent}%)`,
+              description: "New Mexico Gross Receipts Tax",
+            },
+            unit_amount: taxCents,
           },
           quantity: 1,
         },
