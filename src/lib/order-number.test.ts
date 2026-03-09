@@ -28,10 +28,10 @@ beforeEach(() => {
 });
 
 describe("order number", () => {
-  it("generates LOAD-YYYYMMDD-XXXX format", async () => {
+  it("generates ORDER-YYYYMMDD-XXXX format", async () => {
     const { generateOrderNumber } = await import("./order-number");
     const result = await generateOrderNumber();
-    expect(result).toMatch(/^LOAD-\d{8}-\d{4}$/);
+    expect(result).toMatch(/^ORDER-\d{8}-\d{4}$/);
   });
 
   it("pads sequence number to 4 digits", async () => {
@@ -46,6 +46,6 @@ describe("order number", () => {
     const { generateOrderNumber } = await import("./order-number");
     const result = await generateOrderNumber();
     vi.useRealTimers();
-    expect(result).toBe("LOAD-20260219-0042");
+    expect(result).toBe("ORDER-20260219-0042");
   });
 });

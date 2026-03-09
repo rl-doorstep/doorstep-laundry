@@ -4,17 +4,9 @@ import { authOptions, isStaff } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { sendOrderNotification } from "@/lib/notify";
 import type { OrderStatus } from "@prisma/client";
+import { VALID_ORDER_TRANSITIONS } from "@/lib/order-transitions";
 
-const VALID_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
-  draft: ["scheduled", "cancelled"],
-  scheduled: ["picked_up", "cancelled"],
-  picked_up: ["in_progress"],
-  in_progress: ["ready_for_delivery", "out_for_delivery"],
-  ready_for_delivery: ["out_for_delivery"],
-  out_for_delivery: ["delivered"],
-  delivered: [],
-  cancelled: [],
-};
+const VALID_TRANSITIONS = VALID_ORDER_TRANSITIONS as Record<OrderStatus, OrderStatus[]>;
 
 export async function POST(
   request: Request,
@@ -72,7 +64,7 @@ export async function POST(
     },
   });
 
-  if (newStatus === "scheduled" || newStatus === "picked_up") {
+  if (newStatus === "picked_up") {
     const orderWithNumber = await prisma.order.findUnique({
       where: { id: orderId },
       select: { orderNumber: true },
@@ -90,7 +82,7 @@ export async function POST(
             orderId,
             loadNumber: n,
             loadCode: `${orderWithNumber.orderNumber}-L${n}`,
-            status: "washing",
+            status: "ready_for_pickup",
           },
         });
       }

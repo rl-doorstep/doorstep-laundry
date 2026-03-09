@@ -17,10 +17,11 @@ enum Role {
 }
 
 enum OrderStatus {
-  draft
   scheduled
   picked_up
+  ready_for_wash
   in_progress
+  waiting_for_payment
   ready_for_delivery
   out_for_delivery
   delivered
@@ -28,10 +29,16 @@ enum OrderStatus {
 }
 
 enum LoadStatus {
+  ready_for_pickup
+  incoming
+  ready_for_wash
   washing
   drying
   folding
+  cleaned
   ready_for_delivery
+  out_for_delivery
+  delivered
 }
 
 model User {
@@ -89,7 +96,7 @@ model Order {
   customerId         String      @map("customer_id")
   pickupAddressId    String      @map("pickup_address_id")
   deliveryAddressId String      @map("delivery_address_id")
-  status             OrderStatus @default(draft)
+  status             OrderStatus @default(scheduled)
   pickupDate         DateTime    @map("pickup_date") @db.Date
   deliveryDate      DateTime    @map("delivery_date") @db.Date
   pickupTimeSlot    String?     @map("pickup_time_slot")
@@ -117,8 +124,9 @@ model OrderLoad {
   orderId    String     @map("order_id")
   loadNumber Int        @map("load_number")
   loadCode   String?    @unique @map("load_code")
-  status     LoadStatus @default(washing)
+  status     LoadStatus @default(ready_for_pickup)
   location   String?    @map("location")
+  weightLbs  Float?     @map("weight_lbs")
   createdAt  DateTime   @default(now()) @map("created_at")
   updatedAt  DateTime   @updatedAt @map("updated_at")
 
@@ -155,6 +163,13 @@ model OrderSequence {
   datePrefix  String   @unique @map("date_prefix") // YYYYMMDD
   lastNumber  Int      @default(0) @map("last_number")
   updatedAt   DateTime @updatedAt @map("updated_at")
+}
+
+model Setting {
+  id        String   @id @default(cuid())
+  key       String   @unique @map("key")
+  value     String   @map("value")
+  updatedAt DateTime @updatedAt @map("updated_at")
 }
 
 model StaffAssignment {

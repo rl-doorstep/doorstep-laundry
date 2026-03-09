@@ -4,12 +4,14 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { getTimeSlotById } from "@/lib/slots";
 import { DeleteDraftOrderButton } from "@/components/delete-draft-order-button";
+import { PayButton } from "@/app/orders/[orderId]/pay-button";
 
 const statusLabel: Record<string, string> = {
-  draft: "Draft",
   scheduled: "Scheduled",
   picked_up: "Picked up",
+  ready_for_wash: "Ready for wash",
   in_progress: "In progress",
+  waiting_for_payment: "Waiting for payment",
   ready_for_delivery: "Ready for delivery",
   out_for_delivery: "Out for delivery",
   delivered: "Delivered",
@@ -20,15 +22,19 @@ export type OrderListItemOrder = {
   id: string;
   orderNumber: string;
   status: string;
+  stripePaymentId?: string | null;
+  totalCents?: number | null;
   pickupDate: Date | string;
   deliveryDate: Date | string;
   pickupTimeSlot: string | null;
   deliveryTimeSlot: string | null;
+  orderLoads?: { weightLbs: number | null }[];
 };
 
 export function OrderListItem({ order }: { order: OrderListItemOrder }) {
   const router = useRouter();
-  const isDraft = order.status === "draft";
+  const isScheduled = order.status === "scheduled";
+  const showPay = order.status === "waiting_for_payment" && !order.stripePaymentId;
 
   return (
     <li className="flex gap-2 items-stretch">
@@ -48,6 +54,22 @@ export function OrderListItem({ order }: { order: OrderListItemOrder }) {
               {new Date(order.deliveryDate).toLocaleDateString()}
               {order.deliveryTimeSlot && ` ${getTimeSlotById(order.deliveryTimeSlot)?.label ?? order.deliveryTimeSlot}`}
             </p>
+            {order.status === "waiting_for_payment" && (order.totalCents != null || (order.orderLoads?.length ?? 0) > 0) && (
+              <p className="text-sm text-fern-700 mt-1">
+                {order.totalCents != null && order.totalCents > 0 && (
+                  <>Total: ${(Math.round(order.totalCents) / 100).toFixed(2)}</>
+                )}
+                {order.orderLoads?.length ? (
+                  <span className="text-fern-600">
+                    {order.totalCents != null && order.totalCents > 0 ? " · " : ""}
+                    {order.orderLoads
+                      .map((l) => (l.weightLbs != null ? `${l.weightLbs.toFixed(1)} lbs` : null))
+                      .filter(Boolean)
+                      .join(", ") || "—"}
+                  </span>
+                ) : null}
+              </p>
+            )}
           </div>
           <span
             className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-medium ${
@@ -62,7 +84,10 @@ export function OrderListItem({ order }: { order: OrderListItemOrder }) {
           </span>
         </div>
       </Link>
-      {isDraft && (
+      {showPay && (
+        <PayButton orderId={order.id} variant="icon" />
+      )}
+      {isScheduled && (
         <DeleteDraftOrderButton
           orderId={order.id}
           variant="icon"

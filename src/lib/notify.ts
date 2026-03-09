@@ -11,11 +11,20 @@ export type NotifyEvent =
   | "out_for_delivery"
   | "delivery_update"
   | "delivered"
-  | "payment_received";
+  | "payment_received"
+  | "ready_for_payment";
 
 export type DeliveryUpdatePayload = {
   stopsAway?: number;
   etaMinutes?: number;
+};
+
+export type ReadyForPaymentPayload = {
+  orderNumber: string;
+  totalCents: number;
+  totalLbs: number;
+  perLoadLbs: number[];
+  paymentUrl: string;
 };
 
 const eventMessages: Record<
@@ -67,6 +76,11 @@ const eventMessages: Record<
     subject: "Payment received – Order confirmed",
     body: "We've received your payment. Your order is confirmed.",
   },
+  ready_for_payment: {
+    sms: "Your laundry is ready! Total {{total}} ({{totalLbs}} lbs). Check your email for the payment link. Ref: {{orderNumber}}",
+    subject: "Your laundry is ready – one step to complete",
+    body: "Your laundry is ready! Total: {{total}} ({{totalLbs}} lbs). Pay now: {{paymentUrl}} Transaction #{{orderNumber}}",
+  },
 };
 
 function interpolate(
@@ -90,10 +104,41 @@ function interpolate(
   return out;
 }
 
+function interpolateReadyForPayment(
+  template: string,
+  payload: ReadyForPaymentPayload
+): string {
+  const total = `$${(Math.round(payload.totalCents) / 100).toFixed(2)}`;
+  return template
+    .replace(/\{\{total\}\}/g, total)
+    .replace(/\{\{totalLbs\}\}/g, String(payload.totalLbs))
+    .replace(/\{\{paymentUrl\}\}/g, payload.paymentUrl)
+    .replace(/\{\{orderNumber\}\}/g, payload.orderNumber);
+}
+
+export function getReadyForPaymentEmailHtml(payload: ReadyForPaymentPayload): string {
+  const total = `$${(Math.round(payload.totalCents) / 100).toFixed(2)}`;
+  const url = payload.paymentUrl.replace(/"/g, "&quot;");
+  return `
+    <p style="margin:0 0 1em; font-family: sans-serif; font-size: 16px; line-height: 1.5; color: #1a1a1a;">
+      Hi,
+    </p>
+    <p style="margin:0 0 1em; font-family: sans-serif; font-size: 16px; line-height: 1.5; color: #1a1a1a;">
+      Your laundry is all set! We weighed <strong>${payload.totalLbs} lbs</strong> — your total is <strong>${total}</strong>.
+    </p>
+    <p style="margin:0 0 1em; font-family: sans-serif; font-size: 16px; line-height: 1.5; color: #1a1a1a;">
+      <a href="${url}" style="display: inline-block; padding: 12px 24px; background: #4a7c59; color: #fff; text-decoration: none; font-weight: 600; border-radius: 8px; font-size: 16px;">Pay now</a>
+    </p>
+    <p style="margin:0; font-family: sans-serif; font-size: 14px; line-height: 1.5; color: #666;">
+      Order reference: ${payload.orderNumber}
+    </p>
+  `.trim();
+}
+
 export async function sendOrderNotification(
   orderId: string,
   event: NotifyEvent,
-  payload?: DeliveryUpdatePayload
+  payload?: DeliveryUpdatePayload | ReadyForPaymentPayload
 ): Promise<{ sms?: boolean; email?: boolean }> {
   const order = await prisma.order.findUnique({
     where: { id: orderId },
@@ -102,16 +147,36 @@ export async function sendOrderNotification(
     },
   });
   if (!order) return {};
+  if (!order.customer) {
+    console.error("[notify] Order has no customer relation:", orderId, order.orderNumber);
+    return {};
+  }
 
   const msg = eventMessages[event];
   if (!msg) return {};
 
-  const smsText = event === "delivery_update" ? interpolate(msg.sms, payload) : msg.sms;
-  const emailBody = event === "delivery_update" ? interpolate(msg.body, payload) : msg.body;
-  const subject = event === "delivery_update" ? "Delivery update – Doorstep Laundry" : msg.subject;
+  let smsText: string;
+  let emailBody: string;
+  let subject: string;
+  if (event === "delivery_update" && payload && "stopsAway" in payload) {
+    smsText = interpolate(msg.sms, payload);
+    emailBody = interpolate(msg.body, payload);
+    subject = "Delivery update – Doorstep Laundry";
+  } else if (event === "ready_for_payment" && payload && "orderNumber" in payload) {
+    smsText = interpolateReadyForPayment(msg.sms, payload);
+    emailBody = interpolateReadyForPayment(msg.body, payload);
+    subject = msg.subject;
+  } else {
+    smsText = msg.sms;
+    emailBody = msg.body;
+    subject = msg.subject;
+  }
 
   const result = { sms: false, email: false };
   const fromEmail = process.env.RESEND_FROM_EMAIL ?? "notifications@example.com";
+  if (!process.env.RESEND_FROM_EMAIL && process.env.RESEND_API_KEY) {
+    console.warn("[notify] RESEND_FROM_EMAIL not set; using fallback (may fail if domain not verified in Resend)");
+  }
 
   const twilioSid = process.env.TWILIO_ACCOUNT_SID;
   const twilioToken = process.env.TWILIO_AUTH_TOKEN;
@@ -145,18 +210,42 @@ export async function sendOrderNotification(
     }
   }
 
-  if (process.env.RESEND_API_KEY && order.customer.email) {
+  if (!order.customer.email?.trim()) {
+    console.warn("[notify] Skipping email: no customer email for order", order.orderNumber);
+  } else if (!process.env.RESEND_API_KEY) {
+    console.warn("[notify] RESEND_API_KEY not set; skipping email for", order.orderNumber);
+  } else {
     try {
       const resend = new Resend(process.env.RESEND_API_KEY);
-      await resend.emails.send({
+      const toEmail = order.customer.email.trim();
+      const isPayment = event === "ready_for_payment" && payload && "orderNumber" in payload && "paymentUrl" in payload;
+      const paymentPayload = isPayment ? (payload as ReadyForPaymentPayload) : null;
+      const emailPayload: { from: string; to: string; subject: string; text: string; html?: string } = {
         from: fromEmail,
-        to: order.customer.email,
-        subject,
-        text: `Order ${order.orderNumber}: ${emailBody}`,
-      });
+        to: toEmail,
+        subject: paymentPayload ? "Your laundry is ready – pay now" : subject,
+        text: paymentPayload
+          ? `Your laundry is ready. Total $${(Math.round(paymentPayload.totalCents) / 100).toFixed(2)} (${paymentPayload.totalLbs} lbs). Pay here: ${paymentPayload.paymentUrl} Ref: ${paymentPayload.orderNumber}`
+          : `Order ${order.orderNumber}: ${emailBody}`,
+      };
+      if (paymentPayload) {
+        emailPayload.html = getReadyForPaymentEmailHtml(paymentPayload);
+      }
+      const sendResult = await resend.emails.send(emailPayload);
+      if (sendResult.error) {
+        const msg =
+          typeof sendResult.error === "object" &&
+          sendResult.error !== null &&
+          "message" in sendResult.error
+            ? String((sendResult.error as { message: unknown }).message)
+            : String(sendResult.error);
+        console.error("[notify] Resend returned error:", msg, "order:", order.orderNumber, "to:", toEmail);
+        throw new Error(`Resend: ${msg}`);
+      }
       result.email = true;
     } catch (e) {
-      console.error("Resend email error:", e);
+      console.error("[notify] Resend email exception:", e, "order:", order.orderNumber);
+      throw e;
     }
   }
 

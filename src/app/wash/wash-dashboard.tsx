@@ -1,16 +1,16 @@
 "use client";
 
-import React, { useState, useTransition, useEffect, useCallback } from "react";
-import { useRouter } from "next/navigation";
+import React, { useState, useEffect, useCallback } from "react";
 import { getTimeSlotById } from "@/lib/slots";
 
 const POLL_INTERVAL_MS = 15_000;
 
 const STATUS_LABEL: Record<string, string> = {
-  draft: "Draft",
   scheduled: "Scheduled",
   picked_up: "Picked up",
+  ready_for_wash: "Ready for wash",
   in_progress: "In progress",
+  waiting_for_payment: "Waiting for payment",
   ready_for_delivery: "Ready for delivery",
   out_for_delivery: "Out for delivery",
   delivered: "Delivered",
@@ -18,21 +18,16 @@ const STATUS_LABEL: Record<string, string> = {
 };
 
 const LOAD_STATUS_LABEL: Record<string, string> = {
+  ready_for_pickup: "Ready for pickup",
+  incoming: "Incoming",
+  ready_for_wash: "Ready for wash",
   washing: "Washing",
   drying: "Drying",
   folding: "Folding",
+  cleaned: "Cleaned",
   ready_for_delivery: "Ready for delivery",
-};
-
-const NEXT_STATUS: Record<string, string[]> = {
-  draft: ["scheduled", "cancelled"],
-  scheduled: ["picked_up", "cancelled"],
-  picked_up: ["in_progress"],
-  in_progress: ["ready_for_delivery", "out_for_delivery"],
-  ready_for_delivery: ["out_for_delivery"],
-  out_for_delivery: ["delivered"],
-  delivered: [],
-  cancelled: [],
+  out_for_delivery: "Out for delivery",
+  delivered: "Delivered",
 };
 
 type OrderLoadRow = {
@@ -41,6 +36,7 @@ type OrderLoadRow = {
   loadCode: string | null;
   status: string;
   location: string | null;
+  weightLbs?: number | null;
 };
 
 type OrderRow = {
@@ -65,13 +61,12 @@ export function WashDashboard({
   initialOrders: OrderRow[];
   initialFilter?: "due_today" | "all";
 }) {
-  const router = useRouter();
-  const [, startTransition] = useTransition();
   const [filter, setFilter] = useState<"due_today" | "all">(initialFilter);
   const [statusFilter, setStatusFilter] = useState("");
   const [orders, setOrders] = useState(initialOrders);
   const [loading, setLoading] = useState(false);
   const [updatingLoadId, setUpdatingLoadId] = useState<string | null>(null);
+  const [weightDraft, setWeightDraft] = useState<Record<string, string>>({});
   const [loadLocationNames, setLoadLocationNames] = useState<string[]>([]);
 
   useEffect(() => {
@@ -127,29 +122,9 @@ export function WashDashboard({
       .finally(() => setLoading(false));
   }
 
-  async function updateStatus(orderId: string, status: string, note?: string) {
-    const res = await fetch(`/api/orders/${orderId}/status`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status, note }),
-    });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      alert(err.error ?? "Failed to update status");
-      return;
-    }
-    startTransition(() => {
-      router.refresh();
-      setOrders((prev) =>
-        prev.map((o) => (o.id === orderId ? { ...o, status } : o))
-      );
-    });
-    fetchOrders(false);
-  }
-
   async function updateLoad(
     loadId: string,
-    updates: { status?: string; location?: string }
+    updates: { status?: string; location?: string; weightLbs?: number }
   ) {
     setUpdatingLoadId(loadId);
     try {
@@ -174,11 +149,17 @@ export function WashDashboard({
                   status: updated.status ?? l.status,
                   location: updated.location !== undefined ? updated.location : l.location,
                   loadCode: updated.loadCode !== undefined ? updated.loadCode : l.loadCode,
+                  weightLbs: updated.weightLbs !== undefined ? updated.weightLbs : l.weightLbs,
                 }
               : l
           ),
         }))
       );
+      setWeightDraft((prev) => {
+        const next = { ...prev };
+        delete next[loadId];
+        return next;
+      });
       fetchOrders(false);
     } finally {
       setUpdatingLoadId(null);
@@ -268,6 +249,9 @@ export function WashDashboard({
                 Location
               </th>
               <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-fern-500">
+                Weight (lbs)
+              </th>
+              <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-fern-500">
                 Time / Dates
               </th>
             </tr>
@@ -286,7 +270,7 @@ export function WashDashboard({
               if (rows.length === 0) {
                 return (
                   <tr>
-                    <td colSpan={6} className="px-4 py-10 text-center text-fern-500">
+                    <td colSpan={7} className="px-4 py-10 text-center text-fern-500">
                       No orders for this filter.
                     </td>
                   </tr>
@@ -316,49 +300,65 @@ export function WashDashboard({
                   </td>
                   <td className="px-4 py-3">
                     {load ? (
-                      <select
-                        value={load.status}
-                        onChange={(e) =>
-                          updateLoad(load.id, { status: e.target.value })
-                        }
-                        disabled={updatingLoadId === load.id}
-                        className={inputClass}
-                      >
-                        {Object.entries(LOAD_STATUS_LABEL).map(([v, l]) => (
-                          <option key={v} value={v}>
-                            {l}
-                          </option>
-                        ))}
-                      </select>
+                      (() => {
+                        const orderPaid = ["ready_for_delivery", "out_for_delivery", "delivered"].includes(order.status);
+                        return orderPaid ? (
+                          <span className="text-fern-600 text-sm">
+                            {LOAD_STATUS_LABEL[load.status] ?? load.status}
+                          </span>
+                        ) : (
+                          <select
+                            value={load.status}
+                            onChange={(e) =>
+                              updateLoad(load.id, { status: e.target.value })
+                            }
+                            disabled={updatingLoadId === load.id}
+                            className={inputClass}
+                          >
+                            {Object.entries(LOAD_STATUS_LABEL).map(([v, l]) => (
+                              <option key={v} value={v}>
+                                {l}
+                              </option>
+                            ))}
+                          </select>
+                        );
+                      })()
                     ) : (
                       <span className="text-fern-400 text-sm">—</span>
                     )}
                   </td>
                   <td className="px-4 py-3">
                     {load ? (
-                      <select
-                        value={load.location ?? ""}
-                        onChange={(e) => {
-                          const v = e.target.value || null;
-                          setOrders((prev) =>
-                            prev.map((o) =>
-                              o.id === order.id
-                                ? {
-                                    ...o,
-                                    orderLoads: o.orderLoads.map((l) =>
-                                      l.id === load.id
-                                        ? { ...l, location: v }
-                                        : l
-                                    ),
-                                  }
-                                : o
-                            )
-                          );
-                          updateLoad(load.id, { location: v ?? "" });
-                        }}
-                        disabled={updatingLoadId === load.id}
-                        className={`${inputClass} min-w-[120px]`}
-                      >
+                      (() => {
+                        const orderPaid = ["ready_for_delivery", "out_for_delivery", "delivered"].includes(order.status);
+                        return orderPaid ? (
+                          <span className="text-fern-600 text-sm">
+                            {load.location ?? "—"}
+                          </span>
+                        ) : (
+                          <select
+                            value={load.location ?? ""}
+                            onChange={(e) => {
+                              const v = e.target.value || null;
+                              setOrders((prev) =>
+                                prev.map((o) =>
+                                  o.id === order.id
+                                    ? {
+                                        ...o,
+                                        orderLoads: o.orderLoads.map((l) =>
+                                          l.id === load.id
+                                            ? { ...l, location: v }
+                                            : l
+                                        ),
+                                      }
+                                    : o
+                                )
+                              );
+                              updateLoad(load.id, { location: v ?? "" });
+                            }}
+                            disabled={updatingLoadId === load.id}
+                            className={`${inputClass} min-w-[120px]`}
+                          >
                         <option value="">—</option>
                         {[
                           ...loadLocationNames,
@@ -372,6 +372,59 @@ export function WashDashboard({
                           </option>
                         ))}
                       </select>
+                        );
+                      })()
+                    ) : (
+                      <span className="text-fern-400 text-sm">—</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-3">
+                    {load ? (
+                      (() => {
+                        const orderPaid = ["ready_for_delivery", "out_for_delivery", "delivered"].includes(order.status);
+                        if (orderPaid) {
+                          return (
+                            <span className="text-fern-600 text-sm">
+                              {load.weightLbs != null ? `${load.weightLbs.toFixed(1)} lbs` : "—"}
+                            </span>
+                          );
+                        }
+                        return load.status === "cleaned" ? (
+                        <div className="flex items-center gap-1.5">
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.1"
+                            value={weightDraft[load.id] ?? (load.weightLbs != null ? String(load.weightLbs) : "")}
+                            onChange={(e) =>
+                              setWeightDraft((prev) => ({ ...prev, [load.id]: e.target.value }))
+                            }
+                            disabled={updatingLoadId === load.id}
+                            className={`${inputClass} w-20`}
+                            placeholder="0"
+                            aria-label={`Weight for load ${load.loadNumber} (lbs)`}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const raw = weightDraft[load.id] ?? (load.weightLbs != null ? String(load.weightLbs) : "");
+                              const v = parseFloat(raw);
+                              if (raw !== "" && !Number.isNaN(v) && v >= 0) {
+                                updateLoad(load.id, { weightLbs: v });
+                              }
+                            }}
+                            disabled={updatingLoadId === load.id}
+                            className="rounded-lg border border-fern-300 bg-fern-100 px-2 py-1.5 text-xs font-medium text-fern-800 hover:bg-fern-200 disabled:opacity-50"
+                          >
+                            Save
+                          </button>
+                        </div>
+                      ) : (
+                        <span className="text-fern-600 text-sm">
+                          {load.weightLbs != null ? `${load.weightLbs.toFixed(1)} lbs` : "—"}
+                        </span>
+                      );
+                      })()
                     ) : (
                       <span className="text-fern-400 text-sm">—</span>
                     )}

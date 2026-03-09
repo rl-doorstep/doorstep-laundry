@@ -1,9 +1,9 @@
 import { prisma } from "./db";
 
-const PREFIX = "LOAD";
+const PREFIX = "ORDER";
 
 /**
- * Generate next order number for today: LOAD-YYYYMMDD-XXXX.
+ * Generate next order number for today: ORDER-YYYYMMDD-XXXX.
  * Uses OrderSequence table in a transaction to avoid collisions.
  */
 export async function generateOrderNumber(): Promise<string> {

@@ -7,12 +7,14 @@ import { getTimeSlotById } from "@/lib/slots";
 import { AppHeader } from "@/components/app-header";
 import { DeleteDraftOrderButton } from "@/components/delete-draft-order-button";
 import { PayButton } from "./pay-button";
+import { ResendPaymentButton } from "./resend-payment-button";
 
 const statusLabel: Record<string, string> = {
-  draft: "Draft",
   scheduled: "Scheduled",
   picked_up: "Picked up",
+  ready_for_wash: "Ready for wash",
   in_progress: "In progress",
+  waiting_for_payment: "Waiting for payment",
   ready_for_delivery: "Ready for delivery",
   out_for_delivery: "Out for delivery",
   delivered: "Delivered",
@@ -34,6 +36,7 @@ export default async function OrderDetailPage({
     include: {
       pickupAddress: true,
       deliveryAddress: true,
+      orderLoads: { orderBy: { loadNumber: "asc" } },
       statusHistory: {
         orderBy: { createdAt: "desc" },
         include: { changedBy: { select: { name: true, email: true } } },
@@ -41,7 +44,19 @@ export default async function OrderDetailPage({
     },
   });
   if (!order) notFound();
-  if (order.customerId !== userId) redirect("/dashboard");
+  const role = (session.user as { role?: string }).role;
+  const canView = order.customerId === userId || role === "staff" || role === "admin";
+  if (!canView) redirect("/dashboard");
+
+  let displayTotalCents = order.totalCents;
+  if (order.status === "waiting_for_payment" && order.orderLoads?.length) {
+    const { computeOrderTotalCents } = await import("@/lib/order-total");
+    const setting = await prisma.setting.findUnique({
+      where: { key: "price_per_pound_cents" },
+    });
+    const pricePerPoundCents = setting ? parseInt(String(setting.value), 10) || 150 : 150;
+    displayTotalCents = computeOrderTotalCents(order.orderLoads, pricePerPoundCents);
+  }
 
   return (
     <div className="min-h-screen bg-fern-50">
@@ -62,10 +77,13 @@ export default async function OrderDetailPage({
           <div className="flex justify-between items-start mb-4">
             <span className="text-fern-500">Status</span>
             <div className="flex items-center gap-2 flex-wrap">
-              {order.status === "draft" && !order.stripePaymentId && (
-                <PayButton orderId={order.id} variant="icon" />
+              {order.status === "waiting_for_payment" && !order.stripePaymentId && (
+                <>
+                  <PayButton orderId={order.id} variant="icon" />
+                  <ResendPaymentButton orderId={order.id} />
+                </>
               )}
-              {order.status === "draft" && (
+              {order.status === "scheduled" && (
                 <Link
                   href={`/orders/${order.id}/edit`}
                   className="rounded-lg border border-fern-200 bg-white p-2 text-fern-700 hover:bg-fern-50 transition-colors inline-flex items-center justify-center"
@@ -77,7 +95,7 @@ export default async function OrderDetailPage({
                   </svg>
                 </Link>
               )}
-              {order.status === "draft" && (
+              {order.status === "scheduled" && (
                 <DeleteDraftOrderButton orderId={order.id} variant="icon" />
               )}
               <span
@@ -132,9 +150,29 @@ export default async function OrderDetailPage({
               <dt className="text-fern-500">Loads</dt>
               <dd className="text-fern-900 mt-0.5 font-medium">{(order as { numberOfLoads?: number }).numberOfLoads ?? 1}</dd>
             </div>
+            {order.status === "waiting_for_payment" && order.orderLoads && order.orderLoads.length > 0 && (
+              <>
+                <div>
+                  <dt className="text-fern-500">Weight by load</dt>
+                  <dd className="text-fern-900 mt-0.5">
+                    <ul className="list-disc list-inside space-y-0.5">
+                      {order.orderLoads.map((load: { loadNumber: number; weightLbs?: number | null }) => (
+                        <li key={load.loadNumber}>
+                          Load {load.loadNumber}: {(load.weightLbs ?? 0).toFixed(1)} lbs
+                        </li>
+                      ))}
+                    </ul>
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-fern-500">Transaction number</dt>
+                  <dd className="text-fern-900 mt-0.5 font-mono">{order.orderNumber}</dd>
+                </div>
+              </>
+            )}
             <div>
               <dt className="text-fern-500">Total</dt>
-              <dd className="text-fern-900 mt-0.5 font-medium">${(order.totalCents / 100).toFixed(2)}</dd>
+              <dd className="text-fern-900 mt-0.5 font-medium">${(Math.round(displayTotalCents) / 100).toFixed(2)}</dd>
             </div>
           </dl>
         </div>
@@ -145,7 +183,7 @@ export default async function OrderDetailPage({
               Status history
             </h2>
             <ul className="space-y-3">
-              {order.statusHistory.map((h) => (
+              {order.statusHistory.map((h: { id: string; status: string; note: string | null; createdAt: Date; changedBy: { name: string | null; email: string } | null }) => (
                 <li key={h.id} className="flex flex-wrap gap-x-2 gap-y-0 text-sm items-baseline">
                   <span className="text-fern-500 shrink-0">
                     {new Date(h.createdAt).toLocaleString()}

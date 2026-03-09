@@ -22,7 +22,7 @@ export async function GET(request: Request) {
     const where: {
       pickupDate?: { gte: Date; lte: Date };
       status?: OrderStatus | { notIn: OrderStatus[] };
-    } = { status: { notIn: ["draft", "cancelled"] } };
+    } = { status: { notIn: ["cancelled"] } };
     const filter = searchParams.get("filter");
     const useDueToday = filter === "due_today" || (pickupDate && filter !== "all");
     if (useDueToday || pickupDate) {
@@ -47,7 +47,6 @@ export async function GET(request: Request) {
     const orderIdsNeedingLoads = orders
       .filter(
         (o) =>
-          o.status !== "draft" &&
           o.status !== "cancelled" &&
           o.orderLoads.length < o.numberOfLoads
       )
@@ -63,7 +62,7 @@ export async function GET(request: Request) {
               orderId,
               loadNumber: n,
               loadCode: `${order.orderNumber}-L${n}`,
-              status: "washing",
+              status: "ready_for_pickup",
             },
           });
         }
@@ -140,8 +139,8 @@ export async function POST(request: Request) {
       totalCents?: number;
     };
     const loads = numberOfLoads != null && numberOfLoads >= 1 ? numberOfLoads : 1;
-    const PRICE_PER_LOAD_CENTS = 2500;
-    const computedTotalCents = totalCents != null && totalCents >= 0 ? totalCents : loads * PRICE_PER_LOAD_CENTS;
+    // Total computed after weigh-in (post-weigh payment); use 0 until then
+    const computedTotalCents = totalCents != null && totalCents >= 0 ? totalCents : 0;
     if (
       !pickupAddressId ||
       !deliveryAddressId ||
@@ -180,7 +179,7 @@ export async function POST(request: Request) {
         notes: notes ?? null,
         numberOfLoads: loads,
         totalCents: computedTotalCents,
-        status: "draft",
+        status: "scheduled",
       },
       include: {
         pickupAddress: true,
@@ -190,7 +189,7 @@ export async function POST(request: Request) {
     await prisma.orderStatusHistory.create({
       data: {
         orderId: order.id,
-        status: "draft",
+        status: "scheduled",
         note: "Order created",
         changedById: (session.user as { id: string }).id,
       },

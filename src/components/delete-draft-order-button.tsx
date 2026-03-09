@@ -26,7 +26,7 @@ export function DeleteDraftOrderButton({
   async function handleClick(e: React.MouseEvent) {
     e.preventDefault();
     e.stopPropagation();
-    if (!confirm("Delete this draft order? This cannot be undone.")) return;
+    if (!confirm("Cancel this order? This cannot be undone.")) return;
     setDeleting(true);
     try {
       const res = await fetch(`/api/orders/${orderId}`, { method: "DELETE" });
@@ -50,8 +50,8 @@ export function DeleteDraftOrderButton({
         type="button"
         onClick={handleClick}
         disabled={deleting}
-        aria-label="Delete draft order"
-        title="Delete draft order"
+        aria-label="Cancel order"
+        title="Cancel order"
         className="shrink-0 rounded-lg border border-red-200 bg-white p-2 text-red-700 hover:bg-red-50 disabled:opacity-50 transition-colors"
       >
         <IconTrash />
@@ -66,7 +66,7 @@ export function DeleteDraftOrderButton({
       disabled={deleting}
       className="rounded-lg border border-red-200 bg-white px-4 py-2 text-sm font-medium text-red-700 hover:bg-red-50 disabled:opacity-50 transition-colors"
     >
-      {deleting ? "Deleting…" : "Delete draft"}
+      {deleting ? "Cancelling…" : "Cancel order"}
     </button>
   );
 }

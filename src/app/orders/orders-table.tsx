@@ -1,15 +1,20 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { getTimeSlotById } from "@/lib/slots";
+import { ResendPaymentButton } from "@/app/orders/[orderId]/resend-payment-button";
+
+type SortKey = "order" | "customer" | "status" | "loads" | "location" | "pickup";
+type SortDir = "asc" | "desc";
 
 const POLL_INTERVAL_MS = 15_000;
 
 const STATUS_LABEL: Record<string, string> = {
-  draft: "Draft",
   scheduled: "Scheduled",
   picked_up: "Picked up",
+  ready_for_wash: "Ready for wash",
   in_progress: "In progress",
+  waiting_for_payment: "Waiting for payment",
   ready_for_delivery: "Ready for delivery",
   out_for_delivery: "Out for delivery",
   delivered: "Delivered",
@@ -28,6 +33,7 @@ type OrderRow = {
   id: string;
   orderNumber: string;
   status: string;
+  stripePaymentId?: string | null;
   numberOfLoads: number;
   pickupDate: Date | string;
   deliveryDate: Date | string;
@@ -72,10 +78,64 @@ export function OrdersTable({
 }) {
   const [orders, setOrders] = useState(initialOrders);
   const [filter, setFilter] = useState<"due_today" | "all">("all");
+  const [sortBy, setSortBy] = useState<SortKey>("pickup");
+  const [sortDir, setSortDir] = useState<SortDir>("asc");
   const [loading, setLoading] = useState(false);
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
   const [expandedDetail, setExpandedDetail] = useState<OrderDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
+
+  const handleSort = useCallback((key: SortKey) => {
+    setSortBy((prev) => {
+      if (prev === key) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+      else setSortDir("asc");
+      return key;
+    });
+  }, []);
+
+  const sortedOrders = useMemo(() => {
+    const list = [...orders];
+    const cmp = (a: OrderRow, b: OrderRow): number => {
+      let va: string | number | Date;
+      let vb: string | number | Date;
+      switch (sortBy) {
+        case "order":
+          va = a.orderNumber;
+          vb = b.orderNumber;
+          break;
+        case "customer":
+          va = (a.customer.name ?? a.customer.email).toLowerCase();
+          vb = (b.customer.name ?? b.customer.email).toLowerCase();
+          break;
+        case "status":
+          va = a.status;
+          vb = b.status;
+          break;
+        case "loads":
+          va = loadsSummary(a);
+          vb = loadsSummary(b);
+          break;
+        case "location":
+          va = locationsSummary(a);
+          vb = locationsSummary(b);
+          break;
+        case "pickup":
+          va = new Date(a.pickupDate).getTime();
+          vb = new Date(b.pickupDate).getTime();
+          break;
+        default:
+          return 0;
+      }
+      if (va < vb) return -1;
+      if (va > vb) return 1;
+      return 0;
+    };
+    list.sort((a, b) => {
+      const n = cmp(a, b);
+      return sortDir === "asc" ? n : -n;
+    });
+    return list;
+  }, [orders, sortBy, sortDir]);
 
   const fetchOrders = useCallback(
     async (showLoading = false) => {
@@ -165,6 +225,14 @@ export function OrdersTable({
             All orders
           </button>
         </div>
+        <button
+          type="button"
+          onClick={() => setSortDir((d) => (d === "asc" ? "desc" : "asc"))}
+          className="px-4 py-2 text-sm font-medium text-fern-700 bg-white border border-fern-200 rounded-lg hover:bg-fern-50 hover:border-fern-300 transition-colors"
+          title={sortDir === "asc" ? "Switch to descending" : "Switch to ascending"}
+        >
+          Sort {sortDir === "asc" ? "↑" : "↓"} — click to reverse
+        </button>
         {loading && (
           <span className="text-sm text-fern-500">Loading…</span>
         )}
@@ -178,22 +246,64 @@ export function OrdersTable({
           <thead>
             <tr>
               <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-fern-500">
-                Order
+                <button
+                  type="button"
+                  onClick={() => handleSort("order")}
+                  className="inline-flex items-center gap-1 hover:text-fern-700 focus:outline-none focus:ring-2 focus:ring-fern-500/20 rounded"
+                >
+                  Order
+                  {sortBy === "order" && (sortDir === "asc" ? " ↑" : " ↓")}
+                </button>
               </th>
               <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-fern-500">
-                Customer
+                <button
+                  type="button"
+                  onClick={() => handleSort("customer")}
+                  className="inline-flex items-center gap-1 hover:text-fern-700 focus:outline-none focus:ring-2 focus:ring-fern-500/20 rounded"
+                >
+                  Customer
+                  {sortBy === "customer" && (sortDir === "asc" ? " ↑" : " ↓")}
+                </button>
               </th>
               <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-fern-500">
-                Status
+                <button
+                  type="button"
+                  onClick={() => handleSort("status")}
+                  className="inline-flex items-center gap-1 hover:text-fern-700 focus:outline-none focus:ring-2 focus:ring-fern-500/20 rounded"
+                >
+                  Status
+                  {sortBy === "status" && (sortDir === "asc" ? " ↑" : " ↓")}
+                </button>
               </th>
               <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-fern-500">
-                Loads
+                <button
+                  type="button"
+                  onClick={() => handleSort("loads")}
+                  className="inline-flex items-center gap-1 hover:text-fern-700 focus:outline-none focus:ring-2 focus:ring-fern-500/20 rounded"
+                >
+                  Loads
+                  {sortBy === "loads" && (sortDir === "asc" ? " ↑" : " ↓")}
+                </button>
               </th>
               <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-fern-500">
-                Location
+                <button
+                  type="button"
+                  onClick={() => handleSort("location")}
+                  className="inline-flex items-center gap-1 hover:text-fern-700 focus:outline-none focus:ring-2 focus:ring-fern-500/20 rounded"
+                >
+                  Location
+                  {sortBy === "location" && (sortDir === "asc" ? " ↑" : " ↓")}
+                </button>
               </th>
               <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-fern-500">
-                Pickup / Delivery
+                <button
+                  type="button"
+                  onClick={() => handleSort("pickup")}
+                  className="inline-flex items-center gap-1 hover:text-fern-700 focus:outline-none focus:ring-2 focus:ring-fern-500/20 rounded"
+                >
+                  Pickup / Delivery
+                  {sortBy === "pickup" && (sortDir === "asc" ? " ↑" : " ↓")}
+                </button>
               </th>
               <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-fern-500 w-10">
                 <span className="sr-only">Expand</span>
@@ -201,7 +311,7 @@ export function OrdersTable({
             </tr>
           </thead>
           <tbody className="divide-y divide-fern-200">
-            {orders.length === 0 ? (
+            {sortedOrders.length === 0 ? (
               <tr>
                 <td
                   colSpan={7}
@@ -211,7 +321,7 @@ export function OrdersTable({
                 </td>
               </tr>
             ) : (
-              orders.flatMap((order) => {
+              sortedOrders.flatMap((order) => {
                 const isExpanded = expandedOrderId === order.id;
                 const detail = isExpanded ? expandedDetail : null;
                 return [
@@ -331,11 +441,16 @@ export function OrdersTable({
                                 <p className="text-fern-900 mt-0.5">{detail.notes}</p>
                               </div>
                             )}
+                            {order.status === "waiting_for_payment" && !order.stripePaymentId && (
+                              <div className="flex flex-wrap items-center gap-3 pt-2 border-t border-fern-200" onClick={(e) => e.stopPropagation()}>
+                                <ResendPaymentButton orderId={order.id} />
+                              </div>
+                            )}
                             {"totalCents" in detail && detail.totalCents != null && (
                               <div>
                                 <span className="text-fern-500">Total</span>
                                 <p className="text-fern-900 mt-0.5 font-medium">
-                                  ${(Number(detail.totalCents) / 100).toFixed(2)}
+                                  ${(Math.round(Number(detail.totalCents)) / 100).toFixed(2)}
                                 </p>
                               </div>
                             )}

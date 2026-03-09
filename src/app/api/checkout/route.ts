@@ -28,6 +28,7 @@ export async function POST(request: Request) {
 
   const order = await prisma.order.findUnique({
     where: { id: orderId },
+    include: { orderLoads: true },
   });
   if (!order) {
     return NextResponse.json({ error: "Order not found" }, { status: 404 });
@@ -41,6 +42,30 @@ export async function POST(request: Request) {
       { status: 400 }
     );
   }
+  if (order.status !== "waiting_for_payment") {
+    return NextResponse.json(
+      { error: "Order is not ready for payment yet" },
+      { status: 400 }
+    );
+  }
+
+  const { computeOrderTotalCents } = await import("@/lib/order-total");
+  const setting = await prisma.setting.findUnique({
+    where: { key: "price_per_pound_cents" },
+  });
+  const pricePerPoundCents = setting ? parseInt(String(setting.value), 10) || 150 : 150;
+  const totalCents = computeOrderTotalCents(order.orderLoads, pricePerPoundCents);
+  if (totalCents <= 0) {
+    return NextResponse.json(
+      { error: "Order total has not been set; contact support" },
+      { status: 400 }
+    );
+  }
+
+  await prisma.order.update({
+    where: { id: orderId },
+    data: { totalCents },
+  });
 
   try {
     const stripe = getStripe();
@@ -56,13 +81,13 @@ export async function POST(request: Request) {
               name: `Laundry order ${order.orderNumber}`,
               description: `Pickup ${new Date(order.pickupDate).toLocaleDateString()}, delivery ${new Date(order.deliveryDate).toLocaleDateString()}`,
             },
-            unit_amount: order.totalCents,
+            unit_amount: totalCents,
           },
           quantity: 1,
         },
       ],
       success_url: `${baseUrl}/orders/${orderId}?paid=1`,
-      cancel_url: `${baseUrl}/book?cancelled=1`,
+      cancel_url: `${baseUrl}/orders/${orderId}`,
       metadata: {
         orderId,
         order_number: order.orderNumber,
