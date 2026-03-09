@@ -7,6 +7,7 @@ import type { LoadStatus } from "@prisma/client";
 const VALID_LOAD_STATUSES: LoadStatus[] = [
   "ready_for_pickup",
   "incoming",
+  "ready_for_wash",
   "washing",
   "drying",
   "folding",
@@ -74,7 +75,7 @@ export async function PATCH(
     select: { status: true },
   });
   const anyInProgress = allLoads.some((l) =>
-    ["incoming", "washing", "drying", "folding"].includes(l.status)
+    ["incoming", "ready_for_wash", "washing", "drying", "folding"].includes(l.status)
   );
   const allReady = allLoads.length > 0 && allLoads.every((l) => l.status === "ready_for_delivery");
 

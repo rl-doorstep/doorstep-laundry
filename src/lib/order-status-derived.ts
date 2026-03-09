@@ -8,6 +8,7 @@
 export type LoadStatus =
   | "ready_for_pickup"
   | "incoming"
+  | "ready_for_wash"
   | "washing"
   | "drying"
   | "folding"
@@ -24,7 +25,11 @@ export function getDerivedOrderStatus(
   if (allReady) return "ready_for_delivery";
   const anyStarted = loadStatuses.some(
     (s) =>
-      s === "incoming" || s === "washing" || s === "drying" || s === "folding"
+      s === "incoming" ||
+      s === "ready_for_wash" ||
+      s === "washing" ||
+      s === "drying" ||
+      s === "folding"
   );
   if (anyStarted) return "in_progress";
   return orderStatus;

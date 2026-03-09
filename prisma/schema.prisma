@@ -30,6 +30,7 @@ enum OrderStatus {
 enum LoadStatus {
   ready_for_pickup
   incoming
+  ready_for_wash
   washing
   drying
   folding

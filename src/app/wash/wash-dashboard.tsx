@@ -20,6 +20,7 @@ const STATUS_LABEL: Record<string, string> = {
 const LOAD_STATUS_LABEL: Record<string, string> = {
   ready_for_pickup: "Ready for pickup",
   incoming: "Incoming",
+  ready_for_wash: "Ready for wash",
   washing: "Washing",
   drying: "Drying",
   folding: "Folding",
