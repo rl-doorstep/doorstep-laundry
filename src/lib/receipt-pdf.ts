@@ -79,11 +79,9 @@ async function fetchLogoImage(
   let u8 = new Uint8Array(bytes);
   if (isSvg) {
     try {
-      const { Resvg } = await import("@resvg/resvg-js");
-      const svgText = new TextDecoder().decode(u8);
-      const resvg = new Resvg(svgText);
-      const pngData = resvg.render();
-      u8 = new Uint8Array(pngData.asPng());
+      const sharp = (await import("sharp")).default;
+      const pngBuffer = await sharp(Buffer.from(u8)).png().toBuffer();
+      u8 = new Uint8Array(pngBuffer);
     } catch (e) {
       console.error("[receipt-pdf] SVG to PNG conversion failed:", e);
       return null;
