@@ -21,7 +21,7 @@ export function AdminUserList() {
   const [updatingId, setUpdatingId] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch("/api/admin/users")
+    fetch("/api/admin/users?list=staff_only")
       .then((res) => res.json())
       .then((data) => {
         setUsers(Array.isArray(data) ? data : []);

@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { toOrderLoadOptions } from "@/lib/load-options";
+import type { LoadOptionsInput } from "@/lib/load-options";
 
 export async function GET(
   _request: Request,
@@ -51,6 +53,7 @@ export async function PATCH(
 
   const order = await prisma.order.findUnique({
     where: { id: orderId },
+    include: { orderLoads: { orderBy: { loadNumber: "asc" } } },
   });
   if (!order) {
     return NextResponse.json({ error: "Order not found" }, { status: 404 });
@@ -76,6 +79,7 @@ export async function PATCH(
       deliveryTimeSlot,
       notes,
       numberOfLoads,
+      loadOptions,
     } = body as {
       pickupAddressId?: string;
       deliveryAddressId?: string;
@@ -85,6 +89,7 @@ export async function PATCH(
       deliveryTimeSlot?: string;
       notes?: string;
       numberOfLoads?: number;
+      loadOptions?: LoadOptionsInput[];
     };
     const loads = numberOfLoads != null && numberOfLoads >= 1 ? numberOfLoads : order.numberOfLoads;
     // totalCents set at weigh-in (waiting_for_payment); leave existing until then
@@ -122,7 +127,34 @@ export async function PATCH(
         totalCents,
       },
     });
-    return NextResponse.json(updated);
+
+    const existingByNumber = new Map(order.orderLoads.map((l) => [l.loadNumber, l]));
+    for (let n = 1; n <= loads; n++) {
+      const opts = toOrderLoadOptions(loadOptions?.[n - 1]);
+      const existing = existingByNumber.get(n);
+      if (existing) {
+        await prisma.orderLoad.update({
+          where: { id: existing.id },
+          data: opts,
+        });
+      } else {
+        await prisma.orderLoad.create({
+          data: {
+            orderId: orderId,
+            loadNumber: n,
+            loadCode: `${order.orderNumber}-L${n}`,
+            status: "ready_for_pickup",
+            ...opts,
+          },
+        });
+      }
+    }
+
+    const withLoads = await prisma.order.findUnique({
+      where: { id: orderId },
+      include: { orderLoads: { orderBy: { loadNumber: "asc" } } },
+    });
+    return NextResponse.json(withLoads ?? updated);
   } catch (e) {
     console.error("Update order error:", e);
     return NextResponse.json(

@@ -4,9 +4,13 @@ import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import type { Address } from "@prisma/client";
 import { getTimeSlots, type TimeSlot } from "@/lib/slots";
+import type { LoadOptionsInput } from "@/lib/load-options";
+import { LOAD_OPTION_KEYS, LOAD_OPTION_LABELS } from "@/lib/load-options";
 
 const PRICE_PER_LOAD_CENTS = 2500;
 const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+const emptyLoadOptions: LoadOptionsInput = {};
 
 export type BookFormInitialOrder = {
   numberOfLoads: number;
@@ -17,17 +21,21 @@ export type BookFormInitialOrder = {
   pickupAddressId: string;
   deliveryAddressId: string;
   notes: string;
+  loadOptions?: LoadOptionsInput[];
 };
 
 export function BookForm({
   addresses,
   editOrderId,
   initialOrder,
+  defaultLoadOptions,
 }: {
   addresses: Address[];
   defaultTotalCents?: number;
   editOrderId?: string;
   initialOrder?: BookFormInitialOrder;
+  /** Customer default load options (for new orders); applied to each load when creating. */
+  defaultLoadOptions?: LoadOptionsInput | null;
 }) {
   const router = useRouter();
   const timeSlots = getTimeSlots();
@@ -39,6 +47,15 @@ export function BookForm({
 
   // Step 1 state
   const [numberOfLoads, setNumberOfLoads] = useState(initialOrder?.numberOfLoads ?? 1);
+
+  // Per-load options: array of length numberOfLoads, each element is LoadOptionsInput
+  const [loadOptions, setLoadOptions] = useState<LoadOptionsInput[]>(() => {
+    if (initialOrder?.loadOptions && initialOrder.loadOptions.length > 0) {
+      return initialOrder.loadOptions;
+    }
+    const defaults = defaultLoadOptions ?? emptyLoadOptions;
+    return [defaults];
+  });
   const [pickupDate, setPickupDate] = useState<Date>(() => {
     if (initialOrder?.pickupDate) {
       const d = new Date(initialOrder.pickupDate);
@@ -109,6 +126,21 @@ export function BookForm({
   }
 
   const hasValidSlotForToday = timeSlots.some((slot) => currentHourLocal < slot.startHour - 1);
+
+  // Keep loadOptions array length in sync with numberOfLoads
+  useEffect(() => {
+    setLoadOptions((prev) => {
+      const defaults = defaultLoadOptions ?? emptyLoadOptions;
+      if (prev.length === numberOfLoads) return prev;
+      if (prev.length < numberOfLoads) {
+        return [
+          ...prev,
+          ...Array.from({ length: numberOfLoads - prev.length }, () => ({ ...defaults })),
+        ];
+      }
+      return prev.slice(0, numberOfLoads);
+    });
+  }, [numberOfLoads, defaultLoadOptions]);
 
   // Keep delivery at least 24h after pickup (e.g. when pickup date changes)
   useEffect(() => {
@@ -256,6 +288,7 @@ export function BookForm({
         deliveryTimeSlot,
         notes: notes || undefined,
         numberOfLoads,
+        loadOptions: loadOptions.slice(0, numberOfLoads),
       };
       const url = editOrderId ? `/api/orders/${editOrderId}` : "/api/orders";
       const method = editOrderId ? "PATCH" : "POST";
@@ -319,6 +352,48 @@ export function BookForm({
                 ${((numberOfLoads * PRICE_PER_LOAD_CENTS) / 100).toFixed(0)} total
               </span>
             </div>
+          </div>
+        </div>
+
+        {/* Per-load options */}
+        <div className="mb-6">
+          <p className="font-semibold text-fern-900 mb-2">Options per load</p>
+          <p className="text-sm text-fern-500 mb-3">
+            Set wash preferences for each load (e.g. hot water, hypoallergenic).
+          </p>
+          <div className="space-y-4">
+            {Array.from({ length: numberOfLoads }, (_, i) => (
+              <div
+                key={i}
+                className="rounded-lg border border-fern-200 bg-fern-50/30 p-3"
+              >
+                <p className="text-sm font-medium text-fern-800 mb-2">Load {i + 1}</p>
+                <div className="flex flex-wrap gap-x-4 gap-y-1">
+                  {LOAD_OPTION_KEYS.map((key) => (
+                    <label
+                      key={key}
+                      className="flex items-center gap-1.5 text-sm text-fern-700 cursor-pointer"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={Boolean(loadOptions[i]?.[key])}
+                        onChange={(e) => {
+                          setLoadOptions((prev) => {
+                            const next = [...prev];
+                            const row = { ...(next[i] ?? {}) };
+                            row[key] = e.target.checked;
+                            next[i] = row;
+                            return next;
+                          });
+                        }}
+                        className="rounded border-fern-300 text-fern-600 focus:ring-fern-500"
+                      />
+                      {LOAD_OPTION_LABELS[key]}
+                    </label>
+                  ))}
+                </div>
+              </div>
+            ))}
           </div>
         </div>
 

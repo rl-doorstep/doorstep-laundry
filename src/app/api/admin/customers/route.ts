@@ -2,9 +2,8 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import type { Role } from "@prisma/client";
 
-/** GET: List users. Query param list=staff_only returns only staff and admin (for User roles section). */
+/** GET: Search customers by email or name (admin only). Query param q= search string; returns up to 20. */
 export async function GET(request: Request) {
   const session = await getServerSession(authOptions);
   if (!session?.user) {
@@ -16,22 +15,29 @@ export async function GET(request: Request) {
   }
 
   const { searchParams } = new URL(request.url);
-  const list = searchParams.get("list");
+  const q = searchParams.get("q")?.trim();
+  if (!q || q.length < 1) {
+    return NextResponse.json([]);
+  }
 
-  const where: { role?: { in: Role[] } } | undefined =
-    list === "staff_only"
-      ? { role: { in: ["staff", "admin"] as Role[] } }
-      : undefined;
-
-  const users = await prisma.user.findMany({
-    where,
-    orderBy: { createdAt: "desc" },
+  const customers = await prisma.user.findMany({
+    where: {
+      role: "customer",
+      OR: [
+        { email: { contains: q, mode: "insensitive" } },
+        { name: { contains: q, mode: "insensitive" } },
+      ],
+    },
+    orderBy: { email: "asc" },
+    take: 20,
     select: {
       id: true,
       email: true,
       name: true,
       role: true,
+      customPricePerPoundCents: true,
+      nmgrtExempt: true,
     },
   });
-  return NextResponse.json(users);
+  return NextResponse.json(customers);
 }

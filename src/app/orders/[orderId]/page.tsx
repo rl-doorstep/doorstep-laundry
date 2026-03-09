@@ -4,11 +4,13 @@ import Link from "next/link";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { getTimeSlotById } from "@/lib/slots";
+import { getEnabledLoadOptionLabels } from "@/lib/load-options";
 import { AppHeader } from "@/components/app-header";
 import { DeleteDraftOrderButton } from "@/components/delete-draft-order-button";
 import { PayButton } from "./pay-button";
 import { ResendPaymentButton } from "./resend-payment-button";
 import { ReceiptDownloadButton } from "@/components/receipt-download-button";
+import { OrderPricingAdmin } from "./order-pricing-admin";
 
 const statusLabel: Record<string, string> = {
   scheduled: "Scheduled",
@@ -38,6 +40,7 @@ export default async function OrderDetailPage({
       pickupAddress: true,
       deliveryAddress: true,
       orderLoads: { orderBy: { loadNumber: "asc" } },
+      customer: { select: { customPricePerPoundCents: true, nmgrtExempt: true } },
       statusHistory: {
         orderBy: { createdAt: "desc" },
         include: { changedBy: { select: { name: true, email: true } } },
@@ -51,14 +54,24 @@ export default async function OrderDetailPage({
 
   let displayTotalCents = order.totalCents;
   if (order.status === "waiting_for_payment" && order.orderLoads?.length) {
-    const { computeOrderTotalWithTax } = await import("@/lib/order-total");
+    const { getEffectivePricing, computeOrderTotalWithTax } = await import("@/lib/order-total");
     const { getGrtPercent } = await import("@/lib/settings");
     const [setting, grtPercent] = await Promise.all([
       prisma.setting.findUnique({ where: { key: "price_per_pound_cents" } }),
       getGrtPercent(),
     ]);
-    const pricePerPoundCents = setting ? parseInt(String(setting.value), 10) || 150 : 150;
-    const { totalCents } = computeOrderTotalWithTax(order.orderLoads, pricePerPoundCents, grtPercent);
+    const defaultPriceCents = setting ? parseInt(String(setting.value), 10) || 150 : 150;
+    const { pricePerPoundCents, nmgrtExempt } = getEffectivePricing(
+      order,
+      order.customer,
+      defaultPriceCents
+    );
+    const { totalCents } = computeOrderTotalWithTax(
+      order.orderLoads,
+      pricePerPoundCents,
+      grtPercent,
+      nmgrtExempt
+    );
     displayTotalCents = totalCents;
   }
 
@@ -157,25 +170,48 @@ export default async function OrderDetailPage({
               <dt className="text-fern-500">Loads</dt>
               <dd className="text-fern-900 mt-0.5 font-medium">{(order as { numberOfLoads?: number }).numberOfLoads ?? 1}</dd>
             </div>
-            {order.status === "waiting_for_payment" && order.orderLoads && order.orderLoads.length > 0 && (
-              <>
-                <div>
-                  <dt className="text-fern-500">Weight by load</dt>
-                  <dd className="text-fern-900 mt-0.5">
-                    <ul className="list-disc list-inside space-y-0.5">
-                      {order.orderLoads.map((load: { loadNumber: number; weightLbs?: number | null }) => (
+            {order.orderLoads && order.orderLoads.length > 0 && (
+              <div>
+                <dt className="text-fern-500">Load details</dt>
+                <dd className="text-fern-900 mt-0.5">
+                  <ul className="list-disc list-inside space-y-1">
+                    {order.orderLoads.map((load: {
+                      loadNumber: number;
+                      weightLbs?: number | null;
+                      hotWater?: boolean;
+                      bleach?: boolean;
+                      hypoallergenic?: boolean;
+                      fabricSoftener?: boolean;
+                      delicateCycle?: boolean;
+                      extraRinse?: boolean;
+                      scentFree?: boolean;
+                      coldWaterOnly?: boolean;
+                      hangDry?: boolean;
+                    }) => {
+                      const opts = getEnabledLoadOptionLabels(load);
+                      return (
                         <li key={load.loadNumber}>
-                          Load {load.loadNumber}: {(load.weightLbs ?? 0).toFixed(1)} lbs
+                          Load {load.loadNumber}
+                          {order.status === "waiting_for_payment" && (
+                            <>: {(load.weightLbs ?? 0).toFixed(1)} lbs</>
+                          )}
+                          {opts.length > 0 && (
+                            <span className="text-fern-600">
+                              {" "}({opts.join(", ")})
+                            </span>
+                          )}
                         </li>
-                      ))}
-                    </ul>
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-fern-500">Transaction number</dt>
-                  <dd className="text-fern-900 mt-0.5 font-mono">{order.orderNumber}</dd>
-                </div>
-              </>
+                      );
+                    })}
+                  </ul>
+                </dd>
+              </div>
+            )}
+            {order.status === "waiting_for_payment" && order.orderLoads && order.orderLoads.length > 0 && (
+              <div>
+                <dt className="text-fern-500">Transaction number</dt>
+                <dd className="text-fern-900 mt-0.5 font-mono">{order.orderNumber}</dd>
+              </div>
             )}
             <div>
               <dt className="text-fern-500">Total</dt>
@@ -183,6 +219,19 @@ export default async function OrderDetailPage({
             </div>
           </dl>
         </div>
+
+        {role === "admin" && order.status !== "cancelled" && (
+          <div className="rounded-2xl border border-fern-200/80 bg-white p-6 shadow-sm">
+            <h2 className="text-lg font-medium text-fern-900 mb-3">
+              Order pricing override (admin)
+            </h2>
+            <OrderPricingAdmin
+              orderId={order.id}
+              orderPricePerPoundCents={order.orderPricePerPoundCents}
+              nmgrtExempt={order.nmgrtExempt}
+            />
+          </div>
+        )}
 
         {order.statusHistory.length > 0 && (
           <div className="rounded-2xl border border-fern-200/80 bg-white p-6 shadow-sm">

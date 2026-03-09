@@ -42,15 +42,18 @@ enum LoadStatus {
 }
 
 model User {
-  id            String    @id @default(cuid())
-  email         String    @unique
-  name          String?
-  phone         String?
-  role          Role      @default(customer)
-  passwordHash  String?   @map("password_hash")
-  authProvider  String?   @map("auth_provider")
-  createdAt     DateTime  @default(now()) @map("created_at")
-  updatedAt     DateTime  @updatedAt @map("updated_at")
+  id                       String    @id @default(cuid())
+  email                    String    @unique
+  name                     String?
+  phone                    String?
+  role                     Role      @default(customer)
+  passwordHash             String?   @map("password_hash")
+  authProvider             String?   @map("auth_provider")
+  customPricePerPoundCents Int?      @map("custom_price_per_pound_cents")
+  nmgrtExempt              Boolean   @default(false) @map("nmgrt_exempt")
+  defaultLoadOptions        Json?     @map("default_load_options")
+  createdAt                DateTime  @default(now()) @map("created_at")
+  updatedAt                DateTime  @updatedAt @map("updated_at")
 
   addresses           Address[]
   orders              Order[]   @relation("CustomerOrders")
@@ -102,9 +105,11 @@ model Order {
   pickupTimeSlot    String?     @map("pickup_time_slot")
   deliveryTimeSlot  String?     @map("delivery_time_slot")
   notes              String?
-  numberOfLoads      Int         @default(1) @map("number_of_loads")
-  totalCents         Int         @map("total_cents")
-  stripePaymentId    String?     @map("stripe_payment_id")
+  numberOfLoads           Int         @default(1) @map("number_of_loads")
+  totalCents              Int         @map("total_cents")
+  orderPricePerPoundCents Int?        @map("order_price_per_pound_cents")
+  nmgrtExempt             Boolean?    @map("nmgrt_exempt")
+  stripePaymentId         String?     @map("stripe_payment_id")
   createdAt          DateTime    @default(now()) @map("created_at")
   updatedAt          DateTime    @updatedAt @map("updated_at")
 
@@ -120,15 +125,24 @@ model Order {
 }
 
 model OrderLoad {
-  id         String     @id @default(cuid())
-  orderId    String     @map("order_id")
-  loadNumber Int        @map("load_number")
-  loadCode   String?    @unique @map("load_code")
-  status     LoadStatus @default(ready_for_pickup)
-  location   String?    @map("location")
-  weightLbs  Float?     @map("weight_lbs")
-  createdAt  DateTime   @default(now()) @map("created_at")
-  updatedAt  DateTime   @updatedAt @map("updated_at")
+  id             String     @id @default(cuid())
+  orderId        String     @map("order_id")
+  loadNumber     Int        @map("load_number")
+  loadCode       String?    @unique @map("load_code")
+  status         LoadStatus @default(ready_for_pickup)
+  location       String?    @map("location")
+  weightLbs      Float?     @map("weight_lbs")
+  hotWater       Boolean    @default(false) @map("hot_water")
+  bleach         Boolean    @default(false) @map("bleach")
+  hypoallergenic Boolean    @default(false) @map("hypoallergenic")
+  fabricSoftener Boolean    @default(false) @map("fabric_softener")
+  delicateCycle  Boolean    @default(false) @map("delicate_cycle")
+  extraRinse     Boolean    @default(false) @map("extra_rinse")
+  scentFree      Boolean    @default(false) @map("scent_free")
+  coldWaterOnly  Boolean    @default(false) @map("cold_water_only")
+  hangDry        Boolean    @default(false) @map("hang_dry")
+  createdAt      DateTime   @default(now()) @map("created_at")
+  updatedAt      DateTime   @updatedAt @map("updated_at")
 
   order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
 

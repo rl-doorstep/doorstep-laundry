@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { generateOrderNumber } from "@/lib/order-number";
 import { sendOrderNotification } from "@/lib/notify";
+import { toOrderLoadOptions, type LoadOptionsInput } from "@/lib/load-options";
 import type { OrderStatus } from "@prisma/client";
 
 export async function GET(request: Request) {
@@ -127,6 +128,7 @@ export async function POST(request: Request) {
       notes,
       numberOfLoads,
       totalCents,
+      loadOptions,
     } = body as {
       pickupAddressId?: string;
       deliveryAddressId?: string;
@@ -137,6 +139,7 @@ export async function POST(request: Request) {
       notes?: string;
       numberOfLoads?: number;
       totalCents?: number;
+      loadOptions?: LoadOptionsInput[];
     };
     const loads = numberOfLoads != null && numberOfLoads >= 1 ? numberOfLoads : 1;
     // Total computed after weigh-in (post-weigh payment); use 0 until then
@@ -186,6 +189,20 @@ export async function POST(request: Request) {
         deliveryAddress: true,
       },
     });
+
+    for (let n = 1; n <= loads; n++) {
+      const opts = toOrderLoadOptions(loadOptions?.[n - 1]);
+      await prisma.orderLoad.create({
+        data: {
+          orderId: order.id,
+          loadNumber: n,
+          loadCode: `${order.orderNumber}-L${n}`,
+          status: "ready_for_pickup",
+          ...opts,
+        },
+      });
+    }
+
     await prisma.orderStatusHistory.create({
       data: {
         orderId: order.id,

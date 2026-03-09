@@ -20,7 +20,9 @@ export async function GET(
   const order = await prisma.order.findUnique({
     where: { id: orderId },
     include: {
-      customer: { select: { name: true, email: true, phone: true } },
+      customer: {
+        select: { name: true, email: true, phone: true, customPricePerPoundCents: true, nmgrtExempt: true },
+      },
       pickupAddress: true,
       deliveryAddress: true,
       orderLoads: { orderBy: { loadNumber: "asc" } },
@@ -41,11 +43,17 @@ export async function GET(
   }
 
   try {
-    const [pricePerPoundCents, grtPercent, company] = await Promise.all([
+    const [defaultPriceCents, grtPercent, company] = await Promise.all([
       getPricePerPoundCents(),
       getGrtPercent(),
       getCompanyInfo(),
     ]);
+    const { getEffectivePricing } = await import("@/lib/order-total");
+    const { pricePerPoundCents, nmgrtExempt } = getEffectivePricing(
+      order,
+      order.customer,
+      defaultPriceCents
+    );
     const receiptOrder = {
       orderNumber: order.orderNumber,
       totalCents: order.totalCents,
@@ -64,9 +72,23 @@ export async function GET(
       orderLoads: order.orderLoads.map((l) => ({
         loadNumber: l.loadNumber,
         weightLbs: l.weightLbs,
+        hotWater: l.hotWater,
+        bleach: l.bleach,
+        hypoallergenic: l.hypoallergenic,
+        fabricSoftener: l.fabricSoftener,
+        delicateCycle: l.delicateCycle,
+        extraRinse: l.extraRinse,
+        scentFree: l.scentFree,
+        coldWaterOnly: l.coldWaterOnly,
+        hangDry: l.hangDry,
       })),
     };
-    const pdfBuffer = await generateReceiptPdf(receiptOrder, { pricePerPoundCents, grtPercent, company });
+    const pdfBuffer = await generateReceiptPdf(receiptOrder, {
+      pricePerPoundCents,
+      grtPercent,
+      nmgrtExempt,
+      company,
+    });
     const filename = `receipt-${order.orderNumber}.pdf`;
     return new NextResponse(new Uint8Array(pdfBuffer), {
       status: 200,

@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import { getTimeSlotById } from "@/lib/slots";
+import { getEnabledLoadOptionLabels } from "@/lib/load-options";
 
 const POLL_INTERVAL_MS = 15_000;
 
@@ -37,6 +38,15 @@ type OrderLoadRow = {
   status: string;
   location: string | null;
   weightLbs?: number | null;
+  hotWater?: boolean;
+  bleach?: boolean;
+  hypoallergenic?: boolean;
+  fabricSoftener?: boolean;
+  delicateCycle?: boolean;
+  extraRinse?: boolean;
+  scentFree?: boolean;
+  coldWaterOnly?: boolean;
+  hangDry?: boolean;
 };
 
 type OrderRow = {
@@ -291,8 +301,13 @@ export function WashDashboard({
                   </td>
                   <td className="px-4 py-3 font-mono text-sm text-fern-800">
                     {load ? (
-                      <span title={`Load ID: ${load.loadCode ?? `${order.orderNumber}-L${load.loadNumber}`}`}>
-                        L{load.loadNumber}/{order.numberOfLoads}
+                      <span title={`Load ID: ${load.loadCode ?? `${order.orderNumber}-L${load.loadNumber}`}`} className="flex flex-col gap-0.5">
+                        <span>L{load.loadNumber}/{order.numberOfLoads}</span>
+                        {getEnabledLoadOptionLabels(load).length > 0 && (
+                          <span className="text-xs text-fern-500 font-normal">
+                            {getEnabledLoadOptionLabels(load).join(", ")}
+                          </span>
+                        )}
                       </span>
                     ) : (
                       <span className="text-fern-400">—</span>
