@@ -37,8 +37,6 @@ export async function GET(
   return NextResponse.json(order);
 }
 
-const PRICE_PER_LOAD_CENTS = 2500;
-
 export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ orderId: string }> }

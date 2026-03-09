@@ -1,7 +1,6 @@
 "use client";
 
-import React, { useState, useTransition, useEffect, useCallback } from "react";
-import { useRouter } from "next/navigation";
+import React, { useState, useEffect, useCallback } from "react";
 import { getTimeSlotById } from "@/lib/slots";
 
 const POLL_INTERVAL_MS = 15_000;
@@ -29,18 +28,6 @@ const LOAD_STATUS_LABEL: Record<string, string> = {
   ready_for_delivery: "Ready for delivery",
   out_for_delivery: "Out for delivery",
   delivered: "Delivered",
-};
-
-const NEXT_STATUS: Record<string, string[]> = {
-  scheduled: ["picked_up", "cancelled"],
-  picked_up: ["ready_for_wash", "in_progress", "cancelled"],
-  ready_for_wash: ["in_progress", "cancelled"],
-  in_progress: ["ready_for_delivery", "out_for_delivery", "cancelled"],
-  waiting_for_payment: [],
-  ready_for_delivery: ["out_for_delivery", "cancelled"],
-  out_for_delivery: ["delivered"],
-  delivered: [],
-  cancelled: [],
 };
 
 type OrderLoadRow = {
@@ -74,8 +61,6 @@ export function WashDashboard({
   initialOrders: OrderRow[];
   initialFilter?: "due_today" | "all";
 }) {
-  const router = useRouter();
-  const [, startTransition] = useTransition();
   const [filter, setFilter] = useState<"due_today" | "all">(initialFilter);
   const [statusFilter, setStatusFilter] = useState("");
   const [orders, setOrders] = useState(initialOrders);
@@ -135,26 +120,6 @@ export function WashDashboard({
       .then((res) => res.json().catch(() => []))
       .then((data) => setOrders(Array.isArray(data) ? data : []))
       .finally(() => setLoading(false));
-  }
-
-  async function updateStatus(orderId: string, status: string, note?: string) {
-    const res = await fetch(`/api/orders/${orderId}/status`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status, note }),
-    });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      alert(err.error ?? "Failed to update status");
-      return;
-    }
-    startTransition(() => {
-      router.refresh();
-      setOrders((prev) =>
-        prev.map((o) => (o.id === orderId ? { ...o, status } : o))
-      );
-    });
-    fetchOrders(false);
   }
 
   async function updateLoad(

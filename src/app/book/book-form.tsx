@@ -1,12 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import type { Address } from "@prisma/client";
 import { getTimeSlots, type TimeSlot } from "@/lib/slots";
 
-const PRICE_PER_LOAD_CENTS = 2500;
-const DAYS_AHEAD = 14;
 const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 export type BookFormInitialOrder = {
@@ -79,15 +77,22 @@ export function BookForm({
   const [deliveryAddressId, setDeliveryAddressId] = useState(initialOrder?.deliveryAddressId ?? addresses[0]?.id ?? "");
   const [notes, setNotes] = useState(initialOrder?.notes ?? "");
 
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
   const pickupDateStr = pickupDate.toISOString().slice(0, 10);
   const deliveryDateStr = deliveryDate.toISOString().slice(0, 10);
 
+  const today = useMemo(() => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    return d;
+  }, []); // stable for effect deps (session-scoped)
+
   // Earliest delivery: at least 24 hrs after pickup (next day or later)
-  const earliestDeliveryDate = new Date(pickupDate);
-  earliestDeliveryDate.setDate(earliestDeliveryDate.getDate() + 1);
-  earliestDeliveryDate.setHours(0, 0, 0, 0);
+  const earliestDeliveryDate = useMemo(() => {
+    const d = new Date(pickupDate);
+    d.setDate(d.getDate() + 1);
+    d.setHours(0, 0, 0, 0);
+    return d;
+  }, [pickupDate]);
 
   const now = new Date();
   const isPickupToday =
@@ -107,9 +112,10 @@ export function BookForm({
   // Keep delivery at least 24h after pickup (e.g. when pickup date changes)
   useEffect(() => {
     if (deliveryDate < earliestDeliveryDate) {
-      setDeliveryDate(new Date(earliestDeliveryDate));
+      const next = new Date(earliestDeliveryDate);
+      queueMicrotask(() => setDeliveryDate(next));
     }
-  }, [pickupDateStr]);
+  }, [pickupDateStr, deliveryDate, earliestDeliveryDate]);
 
   // If today has no valid pickup slots, bump pickup to tomorrow
   useEffect(() => {
@@ -120,9 +126,9 @@ export function BookForm({
     if (isPickupToday && !hasValidSlotForToday) {
       const tomorrow = new Date(today);
       tomorrow.setDate(tomorrow.getDate() + 1);
-      setPickupDate(tomorrow);
+      queueMicrotask(() => setPickupDate(tomorrow));
     }
-  }, [hasValidSlotForToday, pickupDateStr]);
+  }, [hasValidSlotForToday, pickupDateStr, pickupDate, today]);
 
   const dayPickerDates = Array.from({ length: 7 }, (_, i) => {
     const d = new Date(today);

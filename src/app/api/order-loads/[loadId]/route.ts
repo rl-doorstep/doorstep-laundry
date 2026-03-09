@@ -133,7 +133,7 @@ function getNoteForOrderStatusChange(status: string): string {
 
 async function handleWaitingForPayment(
   orderId: string,
-  _user: { id: string }
+  _user: { id: string } // eslint-disable-line @typescript-eslint/no-unused-vars
 ): Promise<void> {
   const { prisma } = await import("@/lib/db");
   const order = await prisma.order.findUnique({
