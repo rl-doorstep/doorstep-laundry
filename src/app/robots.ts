@@ -1,6 +1,10 @@
 import type { MetadataRoute } from "next";
 
 function getBaseUrl(): string {
+  const site = process.env.SITE_URL?.trim();
+  if (site && site.startsWith("http")) {
+    return site.replace(/\/$/, "");
+  }
   if (
     process.env.NEXTAUTH_URL &&
     process.env.NEXTAUTH_URL.startsWith("http")
