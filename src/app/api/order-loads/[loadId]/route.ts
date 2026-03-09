@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions, isStaff } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import type { LoadStatus } from "@prisma/client";
+import { getOrderStatusFromLoads } from "@/lib/order-transitions";
 
 const VALID_LOAD_STATUSES: LoadStatus[] = [
   "ready_for_pickup",
@@ -11,6 +12,7 @@ const VALID_LOAD_STATUSES: LoadStatus[] = [
   "washing",
   "drying",
   "folding",
+  "cleaned",
   "ready_for_delivery",
   "out_for_delivery",
   "delivered",
@@ -30,7 +32,7 @@ export async function PATCH(
   }
 
   const { loadId } = await params;
-  let body: { status?: string; location?: string };
+  let body: { status?: string; location?: string; weightLbs?: number };
   try {
     body = await request.json();
   } catch {
@@ -45,7 +47,7 @@ export async function PATCH(
     return NextResponse.json({ error: "Load not found" }, { status: 404 });
   }
 
-  const data: { status?: LoadStatus; location?: string | null } = {};
+  const data: { status?: LoadStatus; location?: string | null; weightLbs?: number | null } = {};
   if (body.status != null) {
     const s = body.status as LoadStatus;
     if (!VALID_LOAD_STATUSES.includes(s)) {
@@ -55,6 +57,10 @@ export async function PATCH(
   }
   if (body.location !== undefined) {
     data.location = body.location === "" || body.location == null ? null : String(body.location);
+  }
+  if (body.weightLbs !== undefined) {
+    const w = typeof body.weightLbs === "number" && body.weightLbs >= 0 ? body.weightLbs : null;
+    data.weightLbs = w;
   }
 
   if (Object.keys(data).length === 0) {
@@ -67,53 +73,20 @@ export async function PATCH(
     include: { order: true },
   });
 
-  // Sync order status from load statuses:
-  // - ready_for_delivery when all loads are ready_for_delivery
-  // - picked_up when order is in_progress and all loads are out of washing
-  // - in_progress when any load is incoming/ready_for_wash/washing/drying/folding
   const orderId = load.orderId;
   const allLoads = await prisma.orderLoad.findMany({
     where: { orderId },
-    select: { status: true },
+    select: { status: true, location: true, weightLbs: true },
   });
-  type LoadRow = { status: string };
-  const anyInProgress = allLoads.some((l: LoadRow) =>
-    ["incoming", "ready_for_wash", "washing", "drying", "folding"].includes(l.status)
-  );
-  const allReady = allLoads.length > 0 && allLoads.every((l: LoadRow) => l.status === "ready_for_delivery");
-  const noLoadInWashing =
-    allLoads.length > 0 && !allLoads.some((l: LoadRow) => l.status === "washing");
-
-  const currentOrderStatus = updated.order.status;
-  type OrderStatus = import("@prisma/client").OrderStatus;
-  const canSetStatus =
-    currentOrderStatus !== "out_for_delivery" &&
-    currentOrderStatus !== "delivered" &&
-    currentOrderStatus !== "cancelled";
-  let newOrderStatus: OrderStatus | null = null;
-  if (allReady && canSetStatus) {
-    newOrderStatus = "ready_for_delivery";
-  } else if (
-    currentOrderStatus === "in_progress" &&
-    noLoadInWashing &&
-    canSetStatus
-  ) {
-    newOrderStatus = "picked_up";
-  } else if (anyInProgress && canSetStatus) {
-    newOrderStatus = "in_progress";
-  }
+  const currentOrderStatus = updated.order.status as import("@/lib/order-transitions").OrderStatus;
+  const newOrderStatus = getOrderStatusFromLoads(currentOrderStatus, allLoads);
 
   if (newOrderStatus) {
     await prisma.order.update({
       where: { id: orderId },
       data: { status: newOrderStatus },
     });
-    const note =
-      newOrderStatus === "ready_for_delivery"
-        ? "All loads folded (ready for delivery)"
-        : newOrderStatus === "picked_up"
-          ? "All loads moved out of washing"
-          : "Wash started (load status updated)";
+    const note = getNoteForOrderStatusChange(newOrderStatus);
     await prisma.orderStatusHistory.create({
       data: {
         orderId,
@@ -122,7 +95,57 @@ export async function PATCH(
         changedById: (session.user as { id: string }).id,
       },
     });
+
+    if (newOrderStatus === "waiting_for_payment") {
+      await handleWaitingForPayment(orderId, session.user as { id: string }).catch((e) =>
+        console.error("handleWaitingForPayment:", e)
+      );
+    }
   }
 
   return NextResponse.json(updated);
+}
+
+function getNoteForOrderStatusChange(status: string): string {
+  const notes: Record<string, string> = {
+    ready_for_delivery: "All loads folded (ready for delivery)",
+    waiting_for_payment: "All loads cleaned and weighed; payment link sent",
+    ready_for_wash: "All loads have shelf location",
+    in_progress: "Wash started (load status updated)",
+  };
+  return notes[status] ?? "Order status updated";
+}
+
+async function handleWaitingForPayment(
+  orderId: string,
+  _user: { id: string }
+): Promise<void> {
+  const { prisma } = await import("@/lib/db");
+  const order = await prisma.order.findUnique({
+    where: { id: orderId },
+    include: { orderLoads: true, customer: { select: { email: true, phone: true } } },
+  });
+  if (!order || order.status !== "waiting_for_payment") return;
+  const loads = order.orderLoads;
+  const totalLbs = loads.reduce((sum: number, l: { weightLbs?: number | null }) => sum + (l.weightLbs ?? 0), 0);
+  if (totalLbs <= 0) return;
+  const setting = await prisma.setting.findUnique({
+    where: { key: "price_per_pound_cents" },
+  });
+  const pricePerPoundCents = setting ? parseInt(setting.value, 10) || 150 : 150;
+  const totalCents = Math.round(totalLbs * pricePerPoundCents);
+  await prisma.order.update({
+    where: { id: orderId },
+    data: { totalCents },
+  });
+  const baseUrl = process.env.NEXTAUTH_URL ?? "http://localhost:3000";
+  const paymentUrl = `${baseUrl}/orders/${orderId}`;
+  const { sendOrderNotification } = await import("@/lib/notify");
+  await sendOrderNotification(orderId, "ready_for_payment", {
+    orderNumber: order.orderNumber,
+    totalCents,
+    totalLbs,
+    perLoadLbs: loads.map((l: { weightLbs?: number | null }) => l.weightLbs ?? 0),
+    paymentUrl,
+  });
 }

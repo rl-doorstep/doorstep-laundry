@@ -5,6 +5,7 @@ import { AppHeader } from "@/components/app-header";
 import { AdminUserList } from "./admin-user-list";
 import { AdminLoadLocations } from "./admin-load-locations";
 import { AdminDriverLocations } from "./admin-driver-locations";
+import { AdminPricePerPound } from "./admin-price-per-pound";
 import { AdminDebugSection } from "./admin-debug-section";
 
 export default async function AdminPage() {
@@ -45,6 +46,16 @@ export default async function AdminPage() {
             Where drivers are (when they share location from the Driver page). Click &quot;View on map&quot; to open in Google Maps.
           </p>
           <AdminDriverLocations />
+        </section>
+
+        <section>
+          <h2 className="text-lg font-semibold text-fern-900 mb-2">
+            Price per pound
+          </h2>
+          <p className="text-sm text-fern-600 mb-6">
+            Global rate used when orders enter &quot;Waiting for payment&quot; (after loads are cleaned and weighed). Default $1.50/lb.
+          </p>
+          <AdminPricePerPound />
         </section>
 
         <section>

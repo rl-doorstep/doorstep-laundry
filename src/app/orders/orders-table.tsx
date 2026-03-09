@@ -6,10 +6,11 @@ import { getTimeSlotById } from "@/lib/slots";
 const POLL_INTERVAL_MS = 15_000;
 
 const STATUS_LABEL: Record<string, string> = {
-  draft: "Draft",
   scheduled: "Scheduled",
   picked_up: "Picked up",
+  ready_for_wash: "Ready for wash",
   in_progress: "In progress",
+  waiting_for_payment: "Waiting for payment",
   ready_for_delivery: "Ready for delivery",
   out_for_delivery: "Out for delivery",
   delivered: "Delivered",

@@ -11,11 +11,20 @@ export type NotifyEvent =
   | "out_for_delivery"
   | "delivery_update"
   | "delivered"
-  | "payment_received";
+  | "payment_received"
+  | "ready_for_payment";
 
 export type DeliveryUpdatePayload = {
   stopsAway?: number;
   etaMinutes?: number;
+};
+
+export type ReadyForPaymentPayload = {
+  orderNumber: string;
+  totalCents: number;
+  totalLbs: number;
+  perLoadLbs: number[];
+  paymentUrl: string;
 };
 
 const eventMessages: Record<
@@ -67,6 +76,11 @@ const eventMessages: Record<
     subject: "Payment received – Order confirmed",
     body: "We've received your payment. Your order is confirmed.",
   },
+  ready_for_payment: {
+    sms: "Your laundry is ready! Total {{total}}. Pay now: {{paymentUrl}} Ref: {{orderNumber}}",
+    subject: "Your laundry is ready – pay to complete",
+    body: "Your laundry is ready! Total: {{total}} ({{totalLbs}} lbs). Pay now: {{paymentUrl}} Transaction #{{orderNumber}}",
+  },
 };
 
 function interpolate(
@@ -90,10 +104,22 @@ function interpolate(
   return out;
 }
 
+function interpolateReadyForPayment(
+  template: string,
+  payload: ReadyForPaymentPayload
+): string {
+  const total = `$${(payload.totalCents / 100).toFixed(2)}`;
+  return template
+    .replace(/\{\{total\}\}/g, total)
+    .replace(/\{\{totalLbs\}\}/g, String(payload.totalLbs))
+    .replace(/\{\{paymentUrl\}\}/g, payload.paymentUrl)
+    .replace(/\{\{orderNumber\}\}/g, payload.orderNumber);
+}
+
 export async function sendOrderNotification(
   orderId: string,
   event: NotifyEvent,
-  payload?: DeliveryUpdatePayload
+  payload?: DeliveryUpdatePayload | ReadyForPaymentPayload
 ): Promise<{ sms?: boolean; email?: boolean }> {
   const order = await prisma.order.findUnique({
     where: { id: orderId },
@@ -106,9 +132,22 @@ export async function sendOrderNotification(
   const msg = eventMessages[event];
   if (!msg) return {};
 
-  const smsText = event === "delivery_update" ? interpolate(msg.sms, payload) : msg.sms;
-  const emailBody = event === "delivery_update" ? interpolate(msg.body, payload) : msg.body;
-  const subject = event === "delivery_update" ? "Delivery update – Doorstep Laundry" : msg.subject;
+  let smsText: string;
+  let emailBody: string;
+  let subject: string;
+  if (event === "delivery_update" && payload && "stopsAway" in payload) {
+    smsText = interpolate(msg.sms, payload);
+    emailBody = interpolate(msg.body, payload);
+    subject = "Delivery update – Doorstep Laundry";
+  } else if (event === "ready_for_payment" && payload && "orderNumber" in payload) {
+    smsText = interpolateReadyForPayment(msg.sms, payload);
+    emailBody = interpolateReadyForPayment(msg.body, payload);
+    subject = msg.subject;
+  } else {
+    smsText = msg.sms;
+    emailBody = msg.body;
+    subject = msg.subject;
+  }
 
   const result = { sms: false, email: false };
   const fromEmail = process.env.RESEND_FROM_EMAIL ?? "notifications@example.com";

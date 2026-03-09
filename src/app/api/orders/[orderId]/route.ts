@@ -60,9 +60,9 @@ export async function PATCH(
   if (role === "customer" && order.customerId !== userId) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
-  if (order.status !== "draft") {
+  if (order.status !== "scheduled") {
     return NextResponse.json(
-      { error: "Only draft orders can be updated" },
+      { error: "Only scheduled orders can be updated" },
       { status: 400 }
     );
   }
@@ -89,7 +89,8 @@ export async function PATCH(
       numberOfLoads?: number;
     };
     const loads = numberOfLoads != null && numberOfLoads >= 1 ? numberOfLoads : order.numberOfLoads;
-    const totalCents = loads * PRICE_PER_LOAD_CENTS;
+    // totalCents set at weigh-in (waiting_for_payment); leave existing until then
+    const totalCents = order.totalCents;
 
     if (
       !pickupAddressId ||
@@ -154,9 +155,9 @@ export async function DELETE(
   if (role === "customer" && order.customerId !== userId) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
-  if (order.status !== "draft") {
+  if (order.status !== "scheduled") {
     return NextResponse.json(
-      { error: "Only draft orders can be deleted" },
+      { error: "Only scheduled orders can be deleted" },
       { status: 400 }
     );
   }

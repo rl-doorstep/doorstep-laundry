@@ -7,10 +7,11 @@ import { getTimeSlotById } from "@/lib/slots";
 const POLL_INTERVAL_MS = 15_000;
 
 const STATUS_LABEL: Record<string, string> = {
-  draft: "Draft",
   scheduled: "Scheduled",
   picked_up: "Picked up",
+  ready_for_wash: "Ready for wash",
   in_progress: "In progress",
+  waiting_for_payment: "Waiting for payment",
   ready_for_delivery: "Ready for delivery",
   out_for_delivery: "Out for delivery",
   delivered: "Delivered",
@@ -24,17 +25,19 @@ const LOAD_STATUS_LABEL: Record<string, string> = {
   washing: "Washing",
   drying: "Drying",
   folding: "Folding",
+  cleaned: "Cleaned",
   ready_for_delivery: "Ready for delivery",
   out_for_delivery: "Out for delivery",
   delivered: "Delivered",
 };
 
 const NEXT_STATUS: Record<string, string[]> = {
-  draft: ["scheduled", "cancelled"],
   scheduled: ["picked_up", "cancelled"],
-  picked_up: ["in_progress"],
-  in_progress: ["ready_for_delivery", "out_for_delivery"],
-  ready_for_delivery: ["out_for_delivery"],
+  picked_up: ["ready_for_wash", "in_progress", "cancelled"],
+  ready_for_wash: ["in_progress", "cancelled"],
+  in_progress: ["ready_for_delivery", "out_for_delivery", "cancelled"],
+  waiting_for_payment: [],
+  ready_for_delivery: ["out_for_delivery", "cancelled"],
   out_for_delivery: ["delivered"],
   delivered: [],
   cancelled: [],
@@ -46,6 +49,7 @@ type OrderLoadRow = {
   loadCode: string | null;
   status: string;
   location: string | null;
+  weightLbs?: number | null;
 };
 
 type OrderRow = {
@@ -154,7 +158,7 @@ export function WashDashboard({
 
   async function updateLoad(
     loadId: string,
-    updates: { status?: string; location?: string }
+    updates: { status?: string; location?: string; weightLbs?: number }
   ) {
     setUpdatingLoadId(loadId);
     try {
@@ -273,6 +277,9 @@ export function WashDashboard({
                 Location
               </th>
               <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-fern-500">
+                Weight (lbs)
+              </th>
+              <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-fern-500">
                 Time / Dates
               </th>
             </tr>
@@ -291,7 +298,7 @@ export function WashDashboard({
               if (rows.length === 0) {
                 return (
                   <tr>
-                    <td colSpan={6} className="px-4 py-10 text-center text-fern-500">
+                    <td colSpan={7} className="px-4 py-10 text-center text-fern-500">
                       No orders for this filter.
                     </td>
                   </tr>
@@ -377,6 +384,53 @@ export function WashDashboard({
                           </option>
                         ))}
                       </select>
+                    ) : (
+                      <span className="text-fern-400 text-sm">—</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-3">
+                    {load ? (
+                      load.status === "cleaned" ? (
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.1"
+                          value={load.weightLbs ?? ""}
+                          onChange={(e) => {
+                            const v = e.target.value === "" ? undefined : parseFloat(e.target.value);
+                            setOrders((prev) =>
+                              prev.map((o) =>
+                                o.id === order.id
+                                  ? {
+                                      ...o,
+                                      orderLoads: o.orderLoads.map((l) =>
+                                        l.id === load.id
+                                          ? { ...l, weightLbs: v ?? null }
+                                          : l
+                                      ),
+                                    }
+                                  : o
+                              )
+                            );
+                            if (v !== undefined && !Number.isNaN(v)) {
+                              updateLoad(load.id, { weightLbs: v });
+                            }
+                          }}
+                          onBlur={(e) => {
+                            const v = parseFloat((e.target as HTMLInputElement).value);
+                            if (!Number.isNaN(v) && v >= 0) {
+                              updateLoad(load.id, { weightLbs: v });
+                            }
+                          }}
+                          disabled={updatingLoadId === load.id}
+                          className={`${inputClass} w-20`}
+                          placeholder="0"
+                        />
+                      ) : (
+                        <span className="text-fern-600 text-sm">
+                          {load.weightLbs != null ? `${load.weightLbs.toFixed(1)} lbs` : "—"}
+                        </span>
+                      )
                     ) : (
                       <span className="text-fern-400 text-sm">—</span>
                     )}

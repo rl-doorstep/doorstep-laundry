@@ -18,7 +18,7 @@ export default async function WashPage() {
 
   let orders = await prisma.order.findMany({
     where: {
-      status: { notIn: ["draft", "cancelled"] },
+      status: { notIn: ["cancelled"] },
       pickupDate: { gte: today, lte: endOfToday },
     },
     orderBy: { pickupDate: "asc" },
@@ -49,7 +49,7 @@ export default async function WashPage() {
   }
   orders = await prisma.order.findMany({
     where: {
-      status: { notIn: ["draft", "cancelled"] },
+      status: { notIn: ["cancelled"] },
       pickupDate: { gte: today, lte: endOfToday },
     },
     orderBy: { pickupDate: "asc" },

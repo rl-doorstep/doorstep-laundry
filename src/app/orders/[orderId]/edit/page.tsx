@@ -33,7 +33,7 @@ export default async function OrderEditPage({
 
   if (!order) notFound();
   if (order.customerId !== userId) redirect("/dashboard");
-  if (order.status !== "draft") redirect(`/orders/${orderId}`);
+  if (order.status !== "scheduled") redirect(`/orders/${orderId}`);
 
   const addresses: Address[] = [...userAddresses];
   if (order.pickupAddress && !addresses.some((a) => a.id === order.pickupAddressId)) {

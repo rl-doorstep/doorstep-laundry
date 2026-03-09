@@ -6,10 +6,11 @@ import { getTimeSlotById } from "@/lib/slots";
 import { DeleteDraftOrderButton } from "@/components/delete-draft-order-button";
 
 const statusLabel: Record<string, string> = {
-  draft: "Draft",
   scheduled: "Scheduled",
   picked_up: "Picked up",
+  ready_for_wash: "Ready for wash",
   in_progress: "In progress",
+  waiting_for_payment: "Waiting for payment",
   ready_for_delivery: "Ready for delivery",
   out_for_delivery: "Out for delivery",
   delivered: "Delivered",
@@ -28,7 +29,7 @@ export type OrderListItemOrder = {
 
 export function OrderListItem({ order }: { order: OrderListItemOrder }) {
   const router = useRouter();
-  const isDraft = order.status === "draft";
+  const isScheduled = order.status === "scheduled";
 
   return (
     <li className="flex gap-2 items-stretch">
@@ -62,7 +63,7 @@ export function OrderListItem({ order }: { order: OrderListItemOrder }) {
           </span>
         </div>
       </Link>
-      {isDraft && (
+      {isScheduled && (
         <DeleteDraftOrderButton
           orderId={order.id}
           variant="icon"

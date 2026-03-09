@@ -41,6 +41,18 @@ export async function POST(request: Request) {
       { status: 400 }
     );
   }
+  if (order.status !== "waiting_for_payment") {
+    return NextResponse.json(
+      { error: "Order is not ready for payment yet" },
+      { status: 400 }
+    );
+  }
+  if (order.totalCents <= 0) {
+    return NextResponse.json(
+      { error: "Order total has not been set; contact support" },
+      { status: 400 }
+    );
+  }
 
   try {
     const stripe = getStripe();
@@ -62,7 +74,7 @@ export async function POST(request: Request) {
         },
       ],
       success_url: `${baseUrl}/orders/${orderId}?paid=1`,
-      cancel_url: `${baseUrl}/book?cancelled=1`,
+      cancel_url: `${baseUrl}/orders/${orderId}`,
       metadata: {
         orderId,
         order_number: order.orderNumber,
