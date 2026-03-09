@@ -75,12 +75,9 @@ export async function GET(
         hotWater: l.hotWater,
         bleach: l.bleach,
         hypoallergenic: l.hypoallergenic,
-        fabricSoftener: l.fabricSoftener,
         delicateCycle: l.delicateCycle,
-        extraRinse: l.extraRinse,
         scentFree: l.scentFree,
         coldWaterOnly: l.coldWaterOnly,
-        hangDry: l.hangDry,
       })),
     };
     const pdfBuffer = await generateReceiptPdf(receiptOrder, {

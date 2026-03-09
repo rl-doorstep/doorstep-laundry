@@ -135,12 +135,9 @@ model OrderLoad {
   hotWater       Boolean    @default(false) @map("hot_water")
   bleach         Boolean    @default(false) @map("bleach")
   hypoallergenic Boolean    @default(false) @map("hypoallergenic")
-  fabricSoftener Boolean    @default(false) @map("fabric_softener")
   delicateCycle  Boolean    @default(false) @map("delicate_cycle")
-  extraRinse     Boolean    @default(false) @map("extra_rinse")
   scentFree      Boolean    @default(false) @map("scent_free")
   coldWaterOnly  Boolean    @default(false) @map("cold_water_only")
-  hangDry        Boolean    @default(false) @map("hang_dry")
   createdAt      DateTime   @default(now()) @map("created_at")
   updatedAt      DateTime   @updatedAt @map("updated_at")
 

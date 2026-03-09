@@ -58,12 +58,9 @@ export default async function OrderEditPage({
         hotWater: load.hotWater,
         bleach: load.bleach,
         hypoallergenic: load.hypoallergenic,
-        fabricSoftener: load.fabricSoftener,
         delicateCycle: load.delicateCycle,
-        extraRinse: load.extraRinse,
         scentFree: load.scentFree,
         coldWaterOnly: load.coldWaterOnly,
-        hangDry: load.hangDry,
       };
     }
   );

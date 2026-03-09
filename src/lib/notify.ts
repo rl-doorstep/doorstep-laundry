@@ -295,24 +295,18 @@ export async function sendOrderNotification(
                 hotWater?: boolean;
                 bleach?: boolean;
                 hypoallergenic?: boolean;
-                fabricSoftener?: boolean;
                 delicateCycle?: boolean;
-                extraRinse?: boolean;
                 scentFree?: boolean;
                 coldWaterOnly?: boolean;
-                hangDry?: boolean;
               }) => ({
                 loadNumber: l.loadNumber,
                 weightLbs: l.weightLbs,
                 hotWater: l.hotWater,
                 bleach: l.bleach,
                 hypoallergenic: l.hypoallergenic,
-                fabricSoftener: l.fabricSoftener,
                 delicateCycle: l.delicateCycle,
-                extraRinse: l.extraRinse,
                 scentFree: l.scentFree,
                 coldWaterOnly: l.coldWaterOnly,
-                hangDry: l.hangDry,
               })
             ),
           };

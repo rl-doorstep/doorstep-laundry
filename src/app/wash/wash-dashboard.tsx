@@ -41,12 +41,9 @@ type OrderLoadRow = {
   hotWater?: boolean;
   bleach?: boolean;
   hypoallergenic?: boolean;
-  fabricSoftener?: boolean;
   delicateCycle?: boolean;
-  extraRinse?: boolean;
   scentFree?: boolean;
   coldWaterOnly?: boolean;
-  hangDry?: boolean;
 };
 
 type OrderRow = {
