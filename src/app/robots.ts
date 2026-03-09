@@ -1,18 +1,10 @@
 import type { MetadataRoute } from "next";
 
+const PRODUCTION_BASE_URL = "https://doorsteplaundrylc.com";
+
 function getBaseUrl(): string {
-  const site = process.env.SITE_URL?.trim();
-  if (site && site.startsWith("http")) {
-    return site.replace(/\/$/, "");
-  }
-  if (
-    process.env.NEXTAUTH_URL &&
-    process.env.NEXTAUTH_URL.startsWith("http")
-  ) {
-    return process.env.NEXTAUTH_URL.replace(/\/$/, "");
-  }
-  if (process.env.VERCEL_URL) {
-    return `https://${process.env.VERCEL_URL}`;
+  if (process.env.NODE_ENV === "production") {
+    return PRODUCTION_BASE_URL;
   }
   return "http://localhost:3000";
 }
