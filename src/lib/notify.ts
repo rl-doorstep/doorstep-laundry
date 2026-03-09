@@ -145,7 +145,16 @@ export async function sendOrderNotification(
   const order = await prisma.order.findUnique({
     where: { id: orderId },
     include: {
-      customer: { select: { email: true, name: true, phone: true } },
+      customer: {
+        select: {
+          email: true,
+          name: true,
+          phone: true,
+          ...(event === "payment_received"
+            ? { customPricePerPoundCents: true, nmgrtExempt: true }
+            : {}),
+        },
+      },
       ...(event === "payment_received"
         ? {
             pickupAddress: true,
@@ -249,11 +258,21 @@ export async function sendOrderNotification(
       }
       if (event === "payment_received" && order.customer && "pickupAddress" in order && "deliveryAddress" in order && "orderLoads" in order) {
         try {
-          const [pricePerPoundCents, grtPercent, company] = await Promise.all([
+          const [defaultPriceCents, grtPercent, company] = await Promise.all([
             getPricePerPoundCents(),
             getGrtPercent(),
             getCompanyInfo(),
           ]);
+          const { getEffectivePricing } = await import("./order-total");
+          const customerPricing =
+            order.customer && "customPricePerPoundCents" in order.customer
+              ? (order.customer as { customPricePerPoundCents?: number | null; nmgrtExempt?: boolean })
+              : null;
+          const { pricePerPoundCents, nmgrtExempt } = getEffectivePricing(
+            order,
+            customerPricing,
+            defaultPriceCents
+          );
           const receiptOrder = {
             orderNumber: order.orderNumber,
             totalCents: order.totalCents,
@@ -269,9 +288,34 @@ export async function sendOrderNotification(
             },
             pickupAddress: order.pickupAddress,
             deliveryAddress: order.deliveryAddress,
-            orderLoads: order.orderLoads.map((l: { loadNumber: number; weightLbs: number | null }) => ({ loadNumber: l.loadNumber, weightLbs: l.weightLbs })),
+            orderLoads: order.orderLoads.map(
+              (l: {
+                loadNumber: number;
+                weightLbs: number | null;
+                hotWater?: boolean;
+                bleach?: boolean;
+                hypoallergenic?: boolean;
+                delicateCycle?: boolean;
+                scentFree?: boolean;
+                coldWaterOnly?: boolean;
+              }) => ({
+                loadNumber: l.loadNumber,
+                weightLbs: l.weightLbs,
+                hotWater: l.hotWater,
+                bleach: l.bleach,
+                hypoallergenic: l.hypoallergenic,
+                delicateCycle: l.delicateCycle,
+                scentFree: l.scentFree,
+                coldWaterOnly: l.coldWaterOnly,
+              })
+            ),
           };
-          const pdfBuffer = await generateReceiptPdf(receiptOrder, { pricePerPoundCents, grtPercent, company });
+          const pdfBuffer = await generateReceiptPdf(receiptOrder, {
+            pricePerPoundCents,
+            grtPercent,
+            nmgrtExempt,
+            company,
+          });
           emailPayload.attachments = [{ filename: `receipt-${order.orderNumber}.pdf`, content: pdfBuffer }];
         } catch (e) {
           console.error("[notify] Failed to generate receipt PDF for payment_received:", e);

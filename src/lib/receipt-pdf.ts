@@ -5,6 +5,8 @@
 
 import { PDFDocument, StandardFonts, rgb, degrees } from "pdf-lib";
 import type { CompanyInfo } from "./settings";
+import type { LoadOptionsInput } from "./load-options";
+import { getEnabledLoadOptionLabels } from "./load-options";
 
 export type ReceiptOrder = {
   orderNumber: string;
@@ -17,13 +19,18 @@ export type ReceiptOrder = {
   customer: { name: string | null; email: string; phone?: string | null };
   pickupAddress: { street: string; city: string; state: string; zip: string };
   deliveryAddress: { street: string; city: string; state: string; zip: string };
-  orderLoads: Array<{ loadNumber: number; weightLbs: number | null }>;
+  orderLoads: Array<{
+    loadNumber: number;
+    weightLbs: number | null;
+  } & Partial<LoadOptionsInput>>;
 };
 
 export type ReceiptOptions = {
-  /** Base price per pound in cents (e.g. 150 = $1.50). */
+  /** Effective price per pound in cents (e.g. 150 = $1.50). */
   pricePerPoundCents: number;
   grtPercent: number;
+  /** When true, no NMGRT line or tax amount (e.g. non-profit). */
+  nmgrtExempt?: boolean;
   company: CompanyInfo;
 };
 
@@ -128,15 +135,19 @@ export async function generateReceiptPdf(
   order: ReceiptOrder,
   options: ReceiptOptions
 ): Promise<Buffer> {
-  const { pricePerPoundCents, grtPercent, company } = options;
+  const { pricePerPoundCents, grtPercent, nmgrtExempt = false, company } = options;
   const totalLbs = order.orderLoads.reduce(
     (sum, l) => sum + (Number(l.weightLbs) || 0),
     0
   );
-  // Compute from base price: subtotal = lbs × base, tax = subtotal × GRT%, total = subtotal + tax
-  const subtotalCents = Math.round(totalLbs * pricePerPoundCents);
-  const taxCents = Math.round(subtotalCents * (grtPercent / 100));
-  const totalCents = subtotalCents + taxCents;
+  // Use stored total to get breakdown (matches what was actually charged)
+  const { computeSubtotalAndTaxCents } = await import("./order-total");
+  const { subtotalCents, taxCents } = computeSubtotalAndTaxCents(
+    order.totalCents,
+    grtPercent,
+    nmgrtExempt
+  );
+  const totalCents = order.totalCents;
   const unitPricePerLbDollars = pricePerPoundCents / 100;
   const description = "Wash and fold delivery service";
 
@@ -247,11 +258,17 @@ export async function generateReceiptPdf(
     page.drawText(`$ ${unitPrice.toFixed(2)}`, { x: colUnit, y, size: FONT_SIZE_SMALL, font: font, color: BLACK });
     page.drawText(totalText, { x: totalColRight - font.widthOfTextAtSize(totalText, FONT_SIZE_SMALL), y, size: FONT_SIZE_SMALL, font: font, color: BLACK });
     y -= ROW_HEIGHT;
+    const optionLabels = getEnabledLoadOptionLabels(load);
+    if (optionLabels.length > 0) {
+      const optsText = optionLabels.join(", ");
+      page.drawText(optsText, { x: colDesc, y, size: FONT_SIZE_SMALL - 1, font: font, color: LABEL_GRAY });
+      y -= ROW_HEIGHT * 0.75;
+    }
   }
 
   y -= LINE_HEIGHT;
 
-  // ----- Summary: Subtotal, NMGRT, Total -----
+  // ----- Summary: Subtotal, NMGRT (if not exempt), Total -----
   const sumLabelX = width - MARGIN - 130;
   const sumSubtotalText = `$ ${formatDollars(subtotalCents)}`;
   const sumTaxText = `$ ${formatDollars(taxCents)}`;
@@ -260,9 +277,11 @@ export async function generateReceiptPdf(
   page.drawText(sumSubtotalText, { x: totalColRight - font.widthOfTextAtSize(sumSubtotalText, FONT_SIZE_SMALL), y, size: FONT_SIZE_SMALL, font: font, color: BLACK });
   y -= ROW_HEIGHT;
 
-  page.drawText(`NMGRT (${grtPercent}%)`, { x: sumLabelX, y, size: FONT_SIZE_SMALL, font: font, color: LABEL_GRAY });
-  page.drawText(sumTaxText, { x: totalColRight - font.widthOfTextAtSize(sumTaxText, FONT_SIZE_SMALL), y, size: FONT_SIZE_SMALL, font: font, color: BLACK });
-  y -= ROW_HEIGHT;
+  if (!nmgrtExempt) {
+    page.drawText(`NMGRT (${grtPercent}%)`, { x: sumLabelX, y, size: FONT_SIZE_SMALL, font: font, color: LABEL_GRAY });
+    page.drawText(sumTaxText, { x: totalColRight - font.widthOfTextAtSize(sumTaxText, FONT_SIZE_SMALL), y, size: FONT_SIZE_SMALL, font: font, color: BLACK });
+    y -= ROW_HEIGHT;
+  }
 
   page.drawText("TOTAL", { x: sumLabelX, y, size: FONT_SIZE_SMALL, font: fontBold, color: BLACK });
   page.drawText(sumTotalText, { x: totalColRight - fontBold.widthOfTextAtSize(sumTotalText, FONT_SIZE_SMALL), y, size: FONT_SIZE_SMALL, font: fontBold, color: BLACK });

@@ -28,7 +28,10 @@ export async function POST(request: Request) {
 
   const order = await prisma.order.findUnique({
     where: { id: orderId },
-    include: { orderLoads: true },
+    include: {
+      orderLoads: true,
+      customer: { select: { customPricePerPoundCents: true, nmgrtExempt: true } },
+    },
   });
   if (!order) {
     return NextResponse.json({ error: "Order not found" }, { status: 404 });
@@ -53,9 +56,19 @@ export async function POST(request: Request) {
     prisma.setting.findUnique({ where: { key: "price_per_pound_cents" } }),
     (await import("@/lib/settings")).getGrtPercent(),
   ]);
-  const pricePerPoundCents = setting ? parseInt(String(setting.value), 10) || 150 : 150;
-  const { computeOrderTotalWithTax } = await import("@/lib/order-total");
-  const { subtotalCents, taxCents, totalCents } = computeOrderTotalWithTax(order.orderLoads, pricePerPoundCents, grtPercent);
+  const defaultPriceCents = setting ? parseInt(String(setting.value), 10) || 150 : 150;
+  const { getEffectivePricing, computeOrderTotalWithTax } = await import("@/lib/order-total");
+  const { pricePerPoundCents, nmgrtExempt } = getEffectivePricing(
+    order,
+    order.customer,
+    defaultPriceCents
+  );
+  const { subtotalCents, taxCents, totalCents } = computeOrderTotalWithTax(
+    order.orderLoads,
+    pricePerPoundCents,
+    grtPercent,
+    nmgrtExempt
+  );
   if (totalCents <= 0) {
     return NextResponse.json(
       { error: "Order total has not been set; contact support" },
@@ -68,36 +81,40 @@ export async function POST(request: Request) {
     data: { totalCents },
   });
 
+  const lineItems = [
+    {
+      price_data: {
+        currency: "usd",
+        product_data: {
+          name: "Wash and fold delivery service",
+          description: `Order ${order.orderNumber} · Pickup ${new Date(order.pickupDate).toLocaleDateString()}, delivery ${new Date(order.deliveryDate).toLocaleDateString()}`,
+        },
+        unit_amount: subtotalCents,
+      },
+      quantity: 1,
+    },
+  ];
+  if (!nmgrtExempt && taxCents > 0) {
+    lineItems.push({
+      price_data: {
+        currency: "usd",
+        product_data: {
+          name: `NMGRT (${grtPercent}%)`,
+          description: "New Mexico Gross Receipts Tax",
+        },
+        unit_amount: taxCents,
+      },
+      quantity: 1,
+    } as (typeof lineItems)[0]);
+  }
+
   try {
     const stripe = getStripe();
     const baseUrl = process.env.NEXTAUTH_URL ?? "http://localhost:3000";
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
       payment_method_types: ["card"],
-      line_items: [
-        {
-          price_data: {
-            currency: "usd",
-            product_data: {
-              name: "Wash and fold delivery service",
-              description: `Order ${order.orderNumber} · Pickup ${new Date(order.pickupDate).toLocaleDateString()}, delivery ${new Date(order.deliveryDate).toLocaleDateString()}`,
-            },
-            unit_amount: subtotalCents,
-          },
-          quantity: 1,
-        },
-        {
-          price_data: {
-            currency: "usd",
-            product_data: {
-              name: `NMGRT (${grtPercent}%)`,
-              description: "New Mexico Gross Receipts Tax",
-            },
-            unit_amount: taxCents,
-          },
-          quantity: 1,
-        },
-      ],
+      line_items: lineItems,
       success_url: `${baseUrl}/orders/${orderId}?paid=1`,
       cancel_url: `${baseUrl}/orders/${orderId}`,
       metadata: {

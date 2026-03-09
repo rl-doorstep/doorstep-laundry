@@ -5,6 +5,7 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { AppHeader } from "@/components/app-header";
 import { BookForm, type BookFormInitialOrder } from "@/app/book/book-form";
+import type { LoadOptionsInput } from "@/lib/load-options";
 import type { Address } from "@prisma/client";
 
 export default async function OrderEditPage({
@@ -23,6 +24,7 @@ export default async function OrderEditPage({
       include: {
         pickupAddress: true,
         deliveryAddress: true,
+        orderLoads: { orderBy: { loadNumber: "asc" } },
       },
     }),
     prisma.address.findMany({
@@ -46,6 +48,23 @@ export default async function OrderEditPage({
     addresses.unshift(order.deliveryAddress as Address);
   }
 
+  const orderLoads = order.orderLoads ?? [];
+  const loadOptions: LoadOptionsInput[] = Array.from(
+    { length: order.numberOfLoads },
+    (_, i) => {
+      const load = orderLoads[i];
+      if (!load) return {};
+      return {
+        hotWater: load.hotWater,
+        bleach: load.bleach,
+        hypoallergenic: load.hypoallergenic,
+        delicateCycle: load.delicateCycle,
+        scentFree: load.scentFree,
+        coldWaterOnly: load.coldWaterOnly,
+      };
+    }
+  );
+
   const initialOrder: BookFormInitialOrder = {
     numberOfLoads: order.numberOfLoads,
     pickupDate: order.pickupDate,
@@ -55,6 +74,7 @@ export default async function OrderEditPage({
     pickupAddressId: order.pickupAddressId,
     deliveryAddressId: order.deliveryAddressId,
     notes: order.notes ?? "",
+    loadOptions,
   };
 
   return (

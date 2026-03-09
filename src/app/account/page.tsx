@@ -5,6 +5,8 @@ import { prisma } from "@/lib/db";
 import { AppHeader } from "@/components/app-header";
 import { AccountForm } from "./account-form";
 import { AddressSection } from "./address-section";
+import { DefaultLoadOptionsSection } from "./default-load-options-section";
+import type { LoadOptionsInput } from "@/lib/load-options";
 
 export default async function AccountPage() {
   const session = await getServerSession(authOptions);
@@ -15,7 +17,7 @@ export default async function AccountPage() {
   const [user, addresses, ordersUsingAddresses] = await Promise.all([
     prisma.user.findUnique({
       where: { id: userId },
-      select: { name: true, email: true, phone: true },
+      select: { name: true, email: true, phone: true, defaultLoadOptions: true },
     }),
     prisma.address.findMany({
       where: { userId },
@@ -54,6 +56,18 @@ export default async function AccountPage() {
             name={user?.name ?? ""}
             email={user?.email ?? ""}
             phone={user?.phone ?? ""}
+          />
+        </section>
+        <section className="rounded-2xl border border-fern-200/80 bg-white p-6 shadow-sm">
+          <h2 className="text-lg font-medium text-fern-900 mb-4">
+            Default laundry options
+          </h2>
+          <DefaultLoadOptionsSection
+            initialOptions={
+              user?.defaultLoadOptions && typeof user.defaultLoadOptions === "object"
+                ? (user.defaultLoadOptions as LoadOptionsInput)
+                : null
+            }
           />
         </section>
         <section className="rounded-2xl border border-fern-200/80 bg-white p-6 shadow-sm">

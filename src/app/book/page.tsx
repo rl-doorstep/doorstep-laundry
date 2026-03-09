@@ -12,10 +12,21 @@ export default async function BookPage() {
   const role = (session.user as { role: string }).role;
   if (role === "staff" || role === "admin") redirect("/wash");
 
-  const addresses = await prisma.address.findMany({
-    where: { userId },
-    orderBy: [{ isDefault: "desc" }, { createdAt: "asc" }],
-  });
+  const [addresses, user] = await Promise.all([
+    prisma.address.findMany({
+      where: { userId },
+      orderBy: [{ isDefault: "desc" }, { createdAt: "asc" }],
+    }),
+    prisma.user.findUnique({
+      where: { id: userId },
+      select: { defaultLoadOptions: true },
+    }),
+  ]);
+
+  const defaultLoadOptions =
+    user?.defaultLoadOptions && typeof user.defaultLoadOptions === "object"
+      ? (user.defaultLoadOptions as Record<string, boolean>)
+      : null;
 
   return (
     <div className="min-h-screen bg-fern-50">
@@ -29,10 +40,10 @@ export default async function BookPage() {
             <p className="text-fern-600 mb-4">
               Add an address when you continue, or use an existing one from your account.
             </p>
-            <BookForm addresses={[]} />
+            <BookForm addresses={[]} defaultLoadOptions={defaultLoadOptions} />
           </div>
         ) : (
-          <BookForm addresses={addresses} />
+          <BookForm addresses={addresses} defaultLoadOptions={defaultLoadOptions} />
         )}
       </main>
     </div>

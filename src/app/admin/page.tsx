@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { AppHeader } from "@/components/app-header";
 import { AdminUserList } from "./admin-user-list";
+import { AdminCustomerSearch } from "./admin-customer-search";
 import { AdminLoadLocations } from "./admin-load-locations";
 import { AdminDriverLocations } from "./admin-driver-locations";
 import { AdminPricePerPound } from "./admin-price-per-pound";
@@ -28,6 +29,16 @@ export default async function AdminPage() {
             Set each user&apos;s role. Changes take effect on their next request or when they sign in again.
           </p>
           <AdminUserList />
+        </section>
+
+        <section>
+          <h2 className="text-lg font-semibold text-fern-900 mb-2">
+            Find customer
+          </h2>
+          <p className="text-sm text-fern-600 mb-6">
+            Search all customers by email or name. Select one to set custom price per pound and NMGRT exempt (e.g. for non-profits).
+          </p>
+          <AdminCustomerSearch />
         </section>
 
         <section>

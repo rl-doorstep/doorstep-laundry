@@ -4,6 +4,7 @@ import { signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 
 const inputClass =
   "mt-1 block w-full rounded-lg border border-fern-200 bg-white px-3 py-2.5 text-fern-900 placeholder-fern-400 focus:border-fern-500 focus:outline-none focus:ring-2 focus:ring-fern-500/20 transition-colors";
@@ -48,10 +49,10 @@ export function LoginForm() {
       <div className="w-full max-w-sm space-y-8 rounded-2xl border border-fern-200/80 bg-white p-8 shadow-lg shadow-fern-900/5">
         <div className="flex flex-col items-center text-center">
           <Link href="/app" className="flex items-center justify-center gap-2 text-fern-900 mb-4">
-            <img src="/doorstep/doorstep-logo-icon.svg" alt="" className="h-12 w-auto" />
-            <img src="/doorstep/doorstep-logo-wordmark.svg" alt="Doorstep" className="h-8 w-auto" />
+            <Image src="/doorstep/doorstep-logo-icon.svg" alt="" width={48} height={48} className="h-12 w-auto" unoptimized />
+            <Image src="/doorstep/doorstep-logo-wordmark.svg" alt="Doorstep" width={120} height={32} className="h-8 w-auto" unoptimized />
           </Link>
-          <img src="/doorstep/doorstep-logo-subtext.svg" alt="" className="h-10 w-auto opacity-90" />
+          <Image src="/doorstep/doorstep-logo-subtext.svg" alt="" width={160} height={40} className="h-10 w-auto opacity-90" unoptimized />
           <h1 className="mt-6 text-2xl font-semibold text-fern-900">
             Sign in
           </h1>

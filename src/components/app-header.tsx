@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
 
@@ -72,15 +73,21 @@ export function AppHeader() {
           className="flex items-center gap-2 text-fern-900 hover:opacity-90 transition-opacity"
           aria-label="Doorstep Laundry – Home"
         >
-          <img
+          <Image
             src="/doorstep/doorstep-logo-icon.svg"
             alt=""
+            width={36}
+            height={36}
             className="h-9 w-auto"
+            unoptimized
           />
-          <img
+          <Image
             src="/doorstep/doorstep-logo-wordmark.svg"
             alt="Doorstep"
+            width={140}
+            height={28}
             className="h-7 w-auto hidden sm:block"
+            unoptimized
           />
           <span className="text-lg font-semibold text-fern-800 sm:hidden">Doorstep Laundry</span>
         </Link>

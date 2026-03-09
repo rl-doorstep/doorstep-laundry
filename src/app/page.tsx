@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 
 export const metadata: Metadata = {
   title: "Doorstep Laundry – Laundry Pickup & Delivery in Las Cruces, NM | Coming Soon",
@@ -30,10 +31,13 @@ export default function ComingSoonPage() {
     <div className="min-h-screen bg-fern-50 flex flex-col items-center justify-center px-4">
       <div className="max-w-lg w-full text-center">
         <div className="flex justify-center mb-8">
-          <img
+          <Image
             src="/doorstep/doorstep-laundry-logo-v3.svg"
             alt="Doorstep Laundry – laundry pickup and delivery in Las Cruces, NM"
+            width={240}
+            height={96}
             className="h-20 w-auto sm:h-24"
+            unoptimized
           />
         </div>
         <h1 className="text-3xl font-bold tracking-tight text-fern-900 sm:text-4xl">
