@@ -21,7 +21,7 @@ export async function GET(request: Request) {
 
   if (role === "staff" || role === "admin") {
     const showDelivered = ["1", "true"].includes(searchParams.get("showDelivered") ?? "");
-    const excludedStatuses: OrderStatus[] = ["cancelled", ...(showDelivered ? [] : ["delivered"])];
+    const excludedStatuses: OrderStatus[] = showDelivered ? ["cancelled"] : ["cancelled", "delivered"];
     const where: {
       pickupDate?: { gte: Date; lte: Date };
       status?: OrderStatus | { notIn: OrderStatus[] };
