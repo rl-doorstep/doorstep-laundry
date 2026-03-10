@@ -332,8 +332,8 @@ export function DriverDashboard() {
       ) : null}
 
       {pickups.length > 0 && (
-        <div className="rounded-2xl border border-fern-200/80 bg-white shadow-sm overflow-hidden">
-          <div className="px-4 py-3 border-b border-fern-200 flex flex-wrap items-center justify-between gap-2">
+        <div className="rounded-2xl border border-fern-200/80 bg-white shadow-sm overflow-hidden p-4">
+          <div className="py-3 border-b border-fern-200 flex flex-wrap items-center justify-between gap-2">
             <h2 className="text-sm font-semibold text-fern-800">
               Pickups (scheduled)
             </h2>
@@ -345,7 +345,7 @@ export function DriverDashboard() {
               {selectedPickupIds.size === pickups.length ? "Deselect all" : "Select all"}
             </button>
           </div>
-          <p className="px-4 py-2 text-xs text-fern-500 border-b border-fern-100">
+          <p className="py-2 text-xs text-fern-500 border-b border-fern-100">
             Orders to pick up from customers. Status changes (e.g. to picked up) are done from the wash dashboard.
           </p>
           <div className="overflow-x-auto">
@@ -394,8 +394,19 @@ export function DriverDashboard() {
       )}
 
       <div className="rounded-2xl border border-fern-200/80 bg-white p-4 shadow-sm">
-        <h2 className="text-sm font-semibold text-fern-800 mb-3">Orders available for delivery</h2>
-        <p className="text-xs text-fern-500 mb-3">Only orders with all loads ready can be picked up. Use the controls above to select orders, optimize route, then Start route.</p>
+        <div className="py-3 border-b border-fern-200 flex flex-wrap items-center justify-between gap-2">
+          <h2 className="text-sm font-semibold text-fern-800">Orders available for delivery</h2>
+          <button
+            type="button"
+            onClick={selectAll}
+            className="text-sm font-medium text-fern-600 hover:text-fern-900"
+          >
+            {selectedIds.size === deliveryOrdersAvailable.length ? "Deselect all" : "Select all"}
+          </button>
+        </div>
+        <p className="py-2 text-xs text-fern-500 border-b border-fern-100 mb-3">
+          Only orders with all loads ready can be picked up. Use the controls above to select orders, optimize route, then Start route.
+        </p>
         {deliveryOrdersAvailable.length === 0 ? (
           <p className="text-sm text-fern-500">No orders ready for delivery.</p>
         ) : (
