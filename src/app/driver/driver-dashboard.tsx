@@ -41,6 +41,7 @@ export function DriverDashboard() {
   const [runOrderIds, setRunOrderIds] = useState<string[] | null>(null);
   const [optimizing, setOptimizing] = useState(false);
   const [starting, setStarting] = useState(false);
+  const [startingPickup, setStartingPickup] = useState(false);
   const [deliveringId, setDeliveringId] = useState<string | null>(null);
   const [locationSharing, setLocationSharing] = useState(false);
 
@@ -132,6 +133,29 @@ export function DriverDashboard() {
       }
     } finally {
       setOptimizing(false);
+    }
+  };
+
+  const handleStartPickup = async () => {
+    const toUse = Array.from(selectedPickupIds);
+    if (toUse.length === 0) return;
+    if (!confirm(`Start pickup route with ${toUse.length} order(s)? Orders will be marked picked up and loads set to incoming.`)) return;
+    setStartingPickup(true);
+    try {
+      const res = await fetch("/api/driver/start-pickup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderIds: toUse }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        alert(err.error ?? "Failed to start pickup route");
+        return;
+      }
+      setSelectedPickupIds(new Set());
+      await fetchOrders();
+    } finally {
+      setStartingPickup(false);
     }
   };
 
@@ -266,6 +290,14 @@ export function DriverDashboard() {
           className={`rounded-lg px-4 py-2 text-sm font-medium ${inputClass}`}
         >
           {optimizing ? "Optimizing…" : "Optimize route"}
+        </button>
+        <button
+          type="button"
+          onClick={handleStartPickup}
+          disabled={startingPickup || selectedPickupIds.size === 0}
+          className="rounded-lg border border-fern-300 bg-white px-4 py-2 text-sm font-medium text-fern-700 hover:bg-fern-50 disabled:opacity-50"
+        >
+          {startingPickup ? "Starting…" : "Start pickup route"}
         </button>
         <button
           type="button"

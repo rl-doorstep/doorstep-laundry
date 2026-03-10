@@ -123,7 +123,7 @@ export async function POST(request: Request) {
     });
     await prisma.orderLoad.updateMany({
       where: { orderId },
-      data: { location: "Out for delivery" },
+      data: { status: "out_for_delivery", location: "Out for delivery" },
     });
     await sendOrderNotification(orderId, "out_for_delivery").catch((e) =>
       console.error("Notify out_for_delivery:", e)
