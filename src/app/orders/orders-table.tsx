@@ -9,6 +9,24 @@ type SortDir = "asc" | "desc";
 
 const POLL_INTERVAL_MS = 15_000;
 
+/** Order statuses in workflow/transition order (matches order-transitions.ts). Used for status column sort. */
+const STATUS_ORDER: string[] = [
+  "scheduled",
+  "picked_up",
+  "ready_for_wash",
+  "in_progress",
+  "waiting_for_payment",
+  "ready_for_delivery",
+  "out_for_delivery",
+  "delivered",
+  "cancelled",
+];
+
+function statusSortIndex(status: string): number {
+  const i = STATUS_ORDER.indexOf(status);
+  return i === -1 ? STATUS_ORDER.length : i;
+}
+
 const STATUS_LABEL: Record<string, string> = {
   scheduled: "Scheduled",
   picked_up: "Picked up",
@@ -108,8 +126,8 @@ export function OrdersTable({
           vb = (b.customer.name ?? b.customer.email).toLowerCase();
           break;
         case "status":
-          va = a.status;
-          vb = b.status;
+          va = statusSortIndex(a.status);
+          vb = statusSortIndex(b.status);
           break;
         case "loads":
           va = loadsSummary(a);
