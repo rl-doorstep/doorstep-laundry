@@ -39,9 +39,11 @@ export function DriverDashboard() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [displayOrderIds, setDisplayOrderIds] = useState<string[]>([]);
   const [runOrderIds, setRunOrderIds] = useState<string[] | null>(null);
+  const [runPickupOrderIds, setRunPickupOrderIds] = useState<string[]>([]);
+  const [runPickupOrders, setRunPickupOrders] = useState<OrderRow[]>([]);
+  const [runDeliveryOrders, setRunDeliveryOrders] = useState<OrderRow[]>([]);
   const [optimizing, setOptimizing] = useState(false);
   const [starting, setStarting] = useState(false);
-  const [startingPickup, setStartingPickup] = useState(false);
   const [deliveringId, setDeliveringId] = useState<string | null>(null);
   const [locationSharing, setLocationSharing] = useState(false);
 
@@ -55,10 +57,16 @@ export function DriverDashboard() {
   const fetchRun = useCallback(async () => {
     const res = await fetch("/api/driver/run");
     const data = await res.json().catch(() => ({}));
-    if (data.runId && Array.isArray(data.orderIds)) {
-      setRunOrderIds(data.orderIds);
+    if (data.runId) {
+      setRunOrderIds(Array.isArray(data.orderIds) ? data.orderIds : []);
+      setRunPickupOrderIds(Array.isArray(data.pickupOrderIds) ? data.pickupOrderIds : []);
+      setRunPickupOrders(Array.isArray(data.pickupOrders) ? data.pickupOrders : []);
+      setRunDeliveryOrders(Array.isArray(data.deliveryOrders) ? data.deliveryOrders : []);
     } else {
       setRunOrderIds(null);
+      setRunPickupOrderIds([]);
+      setRunPickupOrders([]);
+      setRunDeliveryOrders([]);
     }
   }, []);
 
@@ -136,55 +144,54 @@ export function DriverDashboard() {
     }
   };
 
-  const handleStartPickup = async () => {
-    const toUse = Array.from(selectedPickupIds);
-    if (toUse.length === 0) return;
-    if (!confirm(`Start pickup route with ${toUse.length} order(s)? Orders will be marked picked up and loads set to incoming.`)) return;
-    setStartingPickup(true);
-    try {
-      const res = await fetch("/api/driver/start-pickup", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ orderIds: toUse }),
-      });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        alert(err.error ?? "Failed to start pickup route");
-        return;
-      }
-      setSelectedPickupIds(new Set());
-      await fetchOrders();
-    } finally {
-      setStartingPickup(false);
-    }
-  };
-
-  const handleStartDelivery = async () => {
-    const ids = displayOrderIds.filter(
+  const handleStartRoute = async () => {
+    const pickupIds = Array.from(selectedPickupIds);
+    const deliveryIds = displayOrderIds.filter(
       (id) => selectedIds.has(id) || selectedIds.size === 0
-    );
-    const toUse = (ids.length ? ids : displayOrderIds).filter((id) =>
-      deliveryOrdersAvailable.some((o) => o.id === id)
-    );
-    if (toUse.length === 0) return;
-    if (!confirm(`Start route with ${toUse.length} stop(s)?`)) return;
+    ).filter((id) => deliveryOrdersAvailable.some((o) => o.id === id));
+    const hasPickups = pickupIds.length > 0;
+    const hasDeliveries = deliveryIds.length > 0;
+    if (!hasPickups && !hasDeliveries) return;
+    const parts: string[] = [];
+    if (hasPickups) parts.push(`${pickupIds.length} pickup(s)`);
+    if (hasDeliveries) parts.push(`${deliveryIds.length} delivery stop(s)`);
+    if (!confirm(`Start route with ${parts.join(" and ")}?`)) return;
     setStarting(true);
     try {
-      const res = await fetch("/api/driver/run", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ orderIds: toUse }),
-      });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        alert(err.error ?? "Failed to start run");
-        return;
+      if (hasPickups) {
+        const res = await fetch("/api/driver/start-pickup", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ orderIds: pickupIds }),
+        });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          alert(err.error ?? "Failed to start pickup route");
+          return;
+        }
+        setSelectedPickupIds(new Set());
       }
-      const data = await res.json();
-      setRunOrderIds(data.orderIds);
-      setLocationSharing(true);
+      if (hasDeliveries) {
+        const res = await fetch("/api/driver/run", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            orderIds: deliveryIds,
+            ...(pickupIds.length > 0 && { pickupOrderIds: pickupIds }),
+          }),
+        });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          alert(err.error ?? "Failed to start delivery run");
+          return;
+        }
+        const data = await res.json();
+        setRunOrderIds(data.orderIds);
+        setRunPickupOrderIds(data.pickupOrderIds ?? []);
+        setLocationSharing(true);
+        await fetchRun();
+      }
       await fetchOrders();
-      await fetchRun();
     } finally {
       setStarting(false);
     }
@@ -229,11 +236,11 @@ export function DriverDashboard() {
     return () => clearInterval(interval);
   }, [locationSharing]);
 
-  const runOrders = runOrderIds
-    ? runOrderIds
-        .map((id) => deliveries.find((o) => o.id === id))
-        .filter((o): o is OrderRow => o != null)
-    : [];
+  const hasRun = (runPickupOrders.length + runDeliveryOrders.length) > 0;
+  const runStops: { type: "pickup" | "delivery"; order: OrderRow }[] = [
+    ...runPickupOrders.map((order) => ({ type: "pickup" as const, order })),
+    ...runDeliveryOrders.map((order) => ({ type: "delivery" as const, order })),
+  ];
 
   const inputClass =
     "rounded-lg border border-fern-200 bg-white px-3 py-2 text-sm text-fern-900 focus:border-fern-500 focus:outline-none focus:ring-2 focus:ring-fern-500/20";
@@ -293,16 +300,14 @@ export function DriverDashboard() {
         </button>
         <button
           type="button"
-          onClick={handleStartPickup}
-          disabled={startingPickup || selectedPickupIds.size === 0}
-          className="rounded-lg border border-fern-300 bg-white px-4 py-2 text-sm font-medium text-fern-700 hover:bg-fern-50 disabled:opacity-50"
-        >
-          {startingPickup ? "Starting…" : "Start pickup route"}
-        </button>
-        <button
-          type="button"
-          onClick={handleStartDelivery}
-          disabled={starting}
+          onClick={handleStartRoute}
+          disabled={
+            starting ||
+            (selectedPickupIds.size === 0 &&
+              (selectedIds.size === 0
+                ? deliveryOrdersAvailable.length === 0
+                : !deliveryOrdersAvailable.some((o) => selectedIds.has(o.id))))
+          }
           className="rounded-lg bg-fern-500 text-white px-4 py-2 text-sm font-medium hover:bg-fern-600 disabled:opacity-50"
         >
           {starting ? "Starting…" : "Start route"}
@@ -315,41 +320,56 @@ export function DriverDashboard() {
         </div>
       )}
 
-      {runOrderIds && runOrderIds.length > 0 ? (
+      {hasRun ? (
         <div className="rounded-2xl border border-fern-200/80 bg-white shadow-sm overflow-hidden">
           <h2 className="px-4 py-3 text-sm font-semibold text-fern-800 border-b border-fern-200">
-            Current run – Mark delivered at each stop
+            Current run – Pickups and deliveries
           </h2>
           <ul className="divide-y divide-fern-200">
-            {runOrders.map((order, index) => (
+            {runStops.map(({ type, order }, index) => (
               <li key={order.id} className="px-4 py-4 flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <span className="font-mono text-sm font-medium text-fern-900">
                     Stop {index + 1}: {order.orderNumber}
+                    {type === "pickup" ? (
+                      <span className="ml-2 rounded-full bg-fern-100 px-2 py-0.5 text-xs font-medium text-fern-700">
+                        Pickup
+                      </span>
+                    ) : (
+                      <span className="ml-2 rounded-full bg-fern-100 px-2 py-0.5 text-xs font-medium text-fern-700">
+                        Delivery
+                      </span>
+                    )}
                   </span>
                   <p className="text-sm text-fern-600 mt-0.5">
-                    {formatAddress(order.deliveryAddress)}
+                    {type === "pickup" && order.pickupAddress
+                      ? formatAddress(order.pickupAddress)
+                      : formatAddress(order.deliveryAddress)}
                   </p>
                   <p className="text-xs text-fern-500">
                     {order.customer.name ?? order.customer.email}
                   </p>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => handleMarkDelivered(order.id)}
-                  disabled={deliveringId === order.id || order.status === "delivered"}
-                  className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
-                    order.status === "delivered"
-                      ? "bg-fern-100 text-fern-500 cursor-default"
-                      : "bg-fern-500 text-white hover:bg-fern-600 disabled:opacity-50"
-                  }`}
-                >
-                  {order.status === "delivered"
-                    ? "Delivered"
-                    : deliveringId === order.id
-                      ? "Updating…"
-                      : "Mark delivered"}
-                </button>
+                {type === "delivery" ? (
+                  <button
+                    type="button"
+                    onClick={() => handleMarkDelivered(order.id)}
+                    disabled={deliveringId === order.id || order.status === "delivered"}
+                    className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
+                      order.status === "delivered"
+                        ? "bg-fern-100 text-fern-500 cursor-default"
+                        : "bg-fern-500 text-white hover:bg-fern-600 disabled:opacity-50"
+                    }`}
+                  >
+                    {order.status === "delivered"
+                      ? "Delivered"
+                      : deliveringId === order.id
+                        ? "Updating…"
+                        : "Mark delivered"}
+                  </button>
+                ) : (
+                  <span className="text-xs text-fern-500">Pick up</span>
+                )}
               </li>
             ))}
           </ul>
@@ -483,7 +503,7 @@ export function DriverDashboard() {
         )}
       </div>
 
-      {!locationSharing && runOrderIds && runOrderIds.length > 0 && (
+      {!locationSharing && hasRun && (
         <button
           type="button"
           onClick={() => setLocationSharing(true)}

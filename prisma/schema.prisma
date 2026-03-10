@@ -209,10 +209,11 @@ model DriverLocation {
 }
 
 model DriverRun {
-  id        String   @id @default(cuid())
-  driverId  String   @map("driver_id")
-  orderIds  Json     @map("order_ids") // array of order id strings
-  startedAt DateTime @default(now()) @map("started_at")
+  id              String   @id @default(cuid())
+  driverId        String   @map("driver_id")
+  orderIds        Json     @map("order_ids") // delivery order id strings
+  pickupOrderIds  Json?    @map("pickup_order_ids") // pickup order id strings (same run)
+  startedAt       DateTime @default(now()) @map("started_at")
 
   driver User @relation(fields: [driverId], references: [id], onDelete: Cascade)
 
