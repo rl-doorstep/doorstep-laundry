@@ -97,7 +97,7 @@ export function OrdersTable({
   const [orders, setOrders] = useState(initialOrders);
   const [filter, setFilter] = useState<"due_today" | "all">("all");
   const [showDelivered, setShowDelivered] = useState(false);
-  const [sortBy, setSortBy] = useState<SortKey>("pickup");
+  const [sortBy, setSortBy] = useState<SortKey>("status");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
   const [loading, setLoading] = useState(false);
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
