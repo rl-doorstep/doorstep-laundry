@@ -9,6 +9,24 @@ type SortDir = "asc" | "desc";
 
 const POLL_INTERVAL_MS = 15_000;
 
+/** Order statuses in workflow/transition order (matches order-transitions.ts). Used for status column sort. */
+const STATUS_ORDER: string[] = [
+  "scheduled",
+  "picked_up",
+  "ready_for_wash",
+  "in_progress",
+  "waiting_for_payment",
+  "ready_for_delivery",
+  "out_for_delivery",
+  "delivered",
+  "cancelled",
+];
+
+function statusSortIndex(status: string): number {
+  const i = STATUS_ORDER.indexOf(status);
+  return i === -1 ? STATUS_ORDER.length : i;
+}
+
 const STATUS_LABEL: Record<string, string> = {
   scheduled: "Scheduled",
   picked_up: "Picked up",
@@ -78,7 +96,8 @@ export function OrdersTable({
 }) {
   const [orders, setOrders] = useState(initialOrders);
   const [filter, setFilter] = useState<"due_today" | "all">("all");
-  const [sortBy, setSortBy] = useState<SortKey>("pickup");
+  const [showDelivered, setShowDelivered] = useState(false);
+  const [sortBy, setSortBy] = useState<SortKey>("status");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
   const [loading, setLoading] = useState(false);
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
@@ -108,8 +127,8 @@ export function OrdersTable({
           vb = (b.customer.name ?? b.customer.email).toLowerCase();
           break;
         case "status":
-          va = a.status;
-          vb = b.status;
+          va = statusSortIndex(a.status);
+          vb = statusSortIndex(b.status);
           break;
         case "loads":
           va = loadsSummary(a);
@@ -142,27 +161,29 @@ export function OrdersTable({
       if (showLoading) setLoading(true);
       const params = new URLSearchParams();
       params.set("filter", filter);
+      if (showDelivered) params.set("showDelivered", "1");
       const res = await fetch(`/api/orders?${params}`);
       const data = await res.json().catch(() => []);
       setOrders(Array.isArray(data) ? data : []);
       if (showLoading) setLoading(false);
     },
-    [filter]
+    [filter, showDelivered]
   );
 
   useEffect(() => {
-    if (filter === "all") {
+    if (filter === "all" && !showDelivered) {
       setOrders(initialOrders);
       return;
     }
     setLoading(true);
     const params = new URLSearchParams();
     params.set("filter", filter);
+    if (showDelivered) params.set("showDelivered", "1");
     fetch(`/api/orders?${params}`)
       .then((res) => res.json().catch(() => []))
       .then((data) => setOrders(Array.isArray(data) ? data : []))
       .finally(() => setLoading(false));
-  }, [filter, initialOrders]);
+  }, [filter, showDelivered, initialOrders]);
 
   // Poll for updates from other washers; refetch when tab becomes visible
   useEffect(() => {
@@ -225,6 +246,15 @@ export function OrdersTable({
             All orders
           </button>
         </div>
+        <label className="flex items-center gap-2 text-sm text-fern-700 cursor-pointer select-none">
+          <input
+            type="checkbox"
+            checked={showDelivered}
+            onChange={(e) => setShowDelivered(e.target.checked)}
+            className="rounded border-fern-300 text-fern-600 focus:ring-fern-500"
+          />
+          Show delivered orders
+        </label>
         <button
           type="button"
           onClick={() => setSortDir((d) => (d === "asc" ? "desc" : "asc"))}

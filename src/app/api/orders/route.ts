@@ -20,10 +20,12 @@ export async function GET(request: Request) {
   const status = searchParams.get("status");
 
   if (role === "staff" || role === "admin") {
+    const showDelivered = ["1", "true"].includes(searchParams.get("showDelivered") ?? "");
+    const excludedStatuses: OrderStatus[] = showDelivered ? ["cancelled"] : ["cancelled", "delivered"];
     const where: {
       pickupDate?: { gte: Date; lte: Date };
       status?: OrderStatus | { notIn: OrderStatus[] };
-    } = { status: { notIn: ["cancelled"] } };
+    } = { status: { notIn: excludedStatuses } };
     const filter = searchParams.get("filter");
     const useDueToday = filter === "due_today" || (pickupDate && filter !== "all");
     if (useDueToday || pickupDate) {

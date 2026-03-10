@@ -2,13 +2,16 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions, isStaff } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { isInTimeWindow } from "@/lib/slots";
 
 /**
- * GET: Orders available to any driver:
- * - ready_for_delivery with ALL loads ready_for_delivery (available to pick up)
- * - out_for_delivery that are in the current user's active run (my run)
+ * GET: Orders available to any driver.
+ * Query: window=now|all (default all). "now" = only orders whose pickup/delivery date is today and current time is in the order's time slot.
+ * Returns { pickups: Order[], deliveries: Order[] }.
+ * - pickups: status scheduled (optionally filtered by pickup window).
+ * - deliveries: ready_for_delivery with all loads ready + current run's out_for_delivery (run orders always included).
  */
-export async function GET() {
+export async function GET(request: Request) {
   const session = await getServerSession(authOptions);
   if (!session?.user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -19,13 +22,32 @@ export async function GET() {
   }
 
   const userId = (session.user as { id: string }).id;
+  const { searchParams } = new URL(request.url);
+  const windowParam = searchParams.get("window") ?? "all";
+  const windowNow = windowParam === "now";
 
   const include = {
     customer: { select: { id: true, name: true, email: true, phone: true } },
+    pickupAddress: true,
     deliveryAddress: true,
     orderLoads: { orderBy: { loadNumber: "asc" } },
   } as const;
 
+  const now = new Date();
+
+  // Pickups: scheduled orders
+  const scheduledOrders = await prisma.order.findMany({
+    where: { status: "scheduled" },
+    include,
+    orderBy: { pickupDate: "asc" },
+  });
+  const pickups = windowNow
+    ? scheduledOrders.filter((o) =>
+        isInTimeWindow(o.pickupDate, o.pickupTimeSlot, now)
+      )
+    : scheduledOrders;
+
+  // Deliveries: ready_for_delivery (all loads ready) + current run's out_for_delivery
   const readyOrders = await prisma.order.findMany({
     where: { status: "ready_for_delivery" },
     include,
@@ -64,17 +86,21 @@ export async function GET() {
     return loads.every((l) => l.status === "ready_for_delivery");
   });
 
-  const byId = new Map<string, (typeof readyOrders)[number]>();
-  for (const o of readyWithAllLoads) byId.set(o.id, o);
-  for (const o of runOrders) byId.set(o.id, o);
+  const readyFiltered = windowNow
+    ? readyWithAllLoads.filter((o) =>
+        isInTimeWindow(o.deliveryDate, o.deliveryTimeSlot, now)
+      )
+    : readyWithAllLoads;
 
   const runIdSet = new Set(runOrderIds);
-  const ordered = runOrderIds.length
+  const deliveriesOrdered = runOrderIds.length
     ? [
-        ...runOrderIds.map((id) => byId.get(id)).filter(Boolean),
-        ...Array.from(byId.values()).filter((o) => !runIdSet.has(o.id)),
+        ...runOrderIds.map((id) =>
+          runOrders.find((o) => o.id === id)
+        ).filter(Boolean),
+        ...readyFiltered.filter((o) => !runIdSet.has(o.id)),
       ]
-    : Array.from(byId.values());
+    : readyFiltered;
 
-  return NextResponse.json(ordered);
+  return NextResponse.json({ pickups, deliveries: deliveriesOrdered });
 }

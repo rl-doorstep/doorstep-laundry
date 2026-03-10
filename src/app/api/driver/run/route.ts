@@ -4,8 +4,15 @@ import { authOptions, isStaff } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { sendOrderNotification } from "@/lib/notify";
 
+const runOrderInclude = {
+  customer: { select: { id: true, name: true, email: true, phone: true } },
+  pickupAddress: true,
+  deliveryAddress: true,
+} as const;
+
 /**
- * GET: Current driver's active run (latest run with at least one order not delivered), or null.
+ * GET: Current driver's active run (latest run with pickups or at least one delivery not delivered), or null.
+ * Returns pickupOrders and deliveryOrders so the UI can show both (picked_up orders are not in the driver orders list).
  */
 export async function GET() {
   const session = await getServerSession(authOptions);
@@ -25,15 +32,37 @@ export async function GET() {
   });
 
   for (const run of runs) {
-    const orderIds = run.orderIds as string[];
+    const orderIds = (run.orderIds as string[]) ?? [];
+    const pickupOrderIds = (run.pickupOrderIds as string[] | null) ?? [];
+    const hasPickups = pickupOrderIds.length > 0;
     const delivered = await prisma.order.count({
       where: { id: { in: orderIds }, status: "delivered" },
     });
-    if (delivered < orderIds.length) {
+    const deliveryActive = delivered < orderIds.length;
+    if (hasPickups || deliveryActive) {
+      const [pickupOrders, deliveryOrders] = await Promise.all([
+        pickupOrderIds.length > 0
+          ? prisma.order.findMany({
+              where: { id: { in: pickupOrderIds } },
+              include: runOrderInclude,
+            })
+          : [],
+        orderIds.length > 0
+          ? prisma.order.findMany({
+              where: { id: { in: orderIds } },
+              include: runOrderInclude,
+            })
+          : [],
+      ]);
+      const pickupOrdered = pickupOrderIds.map((id) => pickupOrders.find((o) => o.id === id)).filter(Boolean);
+      const deliveryOrdered = orderIds.map((id) => deliveryOrders.find((o) => o.id === id)).filter(Boolean);
       return NextResponse.json({
         runId: run.id,
         orderIds,
+        pickupOrderIds,
         startedAt: run.startedAt,
+        pickupOrders: pickupOrdered,
+        deliveryOrders: deliveryOrdered,
       });
     }
   }
@@ -43,7 +72,7 @@ export async function GET() {
 
 /**
  * POST: Start a delivery run. Create DriverRun and set each order to out_for_delivery.
- * Body: { orderIds: string[] }
+ * Body: { orderIds: string[], pickupOrderIds?: string[] } — pickupOrderIds optional (pickups already transitioned by start-pickup).
  */
 export async function POST(request: Request) {
   const session = await getServerSession(authOptions);
@@ -55,7 +84,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  let body: { orderIds?: string[] };
+  let body: { orderIds?: string[]; pickupOrderIds?: string[] };
   try {
     body = await request.json();
   } catch {
@@ -63,6 +92,7 @@ export async function POST(request: Request) {
   }
 
   const orderIds = body.orderIds;
+  const pickupOrderIds = Array.isArray(body.pickupOrderIds) ? body.pickupOrderIds : [];
   if (!Array.isArray(orderIds) || orderIds.length === 0) {
     return NextResponse.json({ error: "orderIds array required" }, { status: 400 });
   }
@@ -105,6 +135,7 @@ export async function POST(request: Request) {
     data: {
       driverId,
       orderIds,
+      pickupOrderIds: pickupOrderIds.length > 0 ? pickupOrderIds : undefined,
     },
   });
 
@@ -123,7 +154,7 @@ export async function POST(request: Request) {
     });
     await prisma.orderLoad.updateMany({
       where: { orderId },
-      data: { location: "Out for delivery" },
+      data: { status: "out_for_delivery", location: "Out for delivery" },
     });
     await sendOrderNotification(orderId, "out_for_delivery").catch((e) =>
       console.error("Notify out_for_delivery:", e)
@@ -133,6 +164,7 @@ export async function POST(request: Request) {
   return NextResponse.json({
     runId: run.id,
     orderIds,
+    pickupOrderIds: pickupOrderIds.length > 0 ? pickupOrderIds : [],
     startedAt: run.startedAt,
   });
 }

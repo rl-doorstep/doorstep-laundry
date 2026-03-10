@@ -12,7 +12,7 @@ export default async function OrdersPage() {
   if (role !== "staff" && role !== "admin") redirect("/dashboard");
 
   const orders = await prisma.order.findMany({
-    where: { status: { notIn: ["cancelled"] } },
+    where: { status: { notIn: ["cancelled", "delivered"] } },
     orderBy: { pickupDate: "asc" },
     include: {
       customer: { select: { id: true, name: true, email: true, phone: true } },
