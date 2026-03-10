@@ -261,13 +261,6 @@ export function DriverDashboard() {
         <span className="text-fern-300">|</span>
         <button
           type="button"
-          onClick={selectAll}
-          className="text-sm font-medium text-fern-600 hover:text-fern-900"
-        >
-          {selectedIds.size === deliveryOrdersAvailable.length ? "Deselect all" : "Select all"}
-        </button>
-        <button
-          type="button"
           onClick={handleOptimize}
           disabled={optimizing || (displayOrderIds.length <= 1 && selectedIds.size <= 1)}
           className={`rounded-lg px-4 py-2 text-sm font-medium ${inputClass}`}
