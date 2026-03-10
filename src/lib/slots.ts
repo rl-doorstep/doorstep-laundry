@@ -38,3 +38,28 @@ export function getTimeSlots(): TimeSlot[] {
 export function getTimeSlotById(id: string): TimeSlot | undefined {
   return DEFAULT_TIME_SLOTS.find((s) => s.id === id);
 }
+
+/**
+ * True if `now` falls within the order's date and time slot (for driver "now" filter).
+ * Uses local calendar day and slot start/end hours. If no time slot, treat as eligible.
+ */
+export function isInTimeWindow(
+  orderDate: Date,
+  timeSlotId: string | null,
+  now: Date
+): boolean {
+  const orderDay = new Date(orderDate);
+  const nowDay = new Date(now);
+  if (
+    orderDay.getFullYear() !== nowDay.getFullYear() ||
+    orderDay.getMonth() !== nowDay.getMonth() ||
+    orderDay.getDate() !== nowDay.getDate()
+  ) {
+    return false;
+  }
+  if (!timeSlotId || timeSlotId.trim() === "") return true;
+  const slot = getTimeSlotById(timeSlotId);
+  if (!slot) return true;
+  const currentHour = now.getHours() + now.getMinutes() / 60;
+  return currentHour >= slot.startHour && currentHour < slot.endHour;
+}
