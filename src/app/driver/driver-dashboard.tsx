@@ -35,6 +35,7 @@ export function DriverDashboard() {
   const [pickups, setPickups] = useState<OrderRow[]>([]);
   const [deliveries, setDeliveries] = useState<OrderRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedPickupIds, setSelectedPickupIds] = useState<Set<string>>(new Set());
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [displayOrderIds, setDisplayOrderIds] = useState<string[]>([]);
   const [runOrderIds, setRunOrderIds] = useState<string[] | null>(null);
@@ -87,6 +88,23 @@ export function DriverDashboard() {
     });
   };
 
+  const togglePickupSelect = (id: string) => {
+    setSelectedPickupIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const selectAllPickups = () => {
+    if (selectedPickupIds.size === pickups.length) {
+      setSelectedPickupIds(new Set());
+    } else {
+      setSelectedPickupIds(new Set(pickups.map((o) => o.id)));
+    }
+  };
+
   const selectAll = () => {
     if (selectedIds.size === deliveryOrdersAvailable.length) {
       setSelectedIds(new Set());
@@ -125,7 +143,7 @@ export function DriverDashboard() {
       deliveryOrdersAvailable.some((o) => o.id === id)
     );
     if (toUse.length === 0) return;
-    if (!confirm(`Start delivery run with ${toUse.length} stop(s)?`)) return;
+    if (!confirm(`Start route with ${toUse.length} stop(s)?`)) return;
     setStarting(true);
     try {
       const res = await fetch("/api/driver/run", {
@@ -240,6 +258,30 @@ export function DriverDashboard() {
           />
           Now (in time window)
         </label>
+        <span className="text-fern-300">|</span>
+        <button
+          type="button"
+          onClick={selectAll}
+          className="text-sm font-medium text-fern-600 hover:text-fern-900"
+        >
+          {selectedIds.size === deliveryOrdersAvailable.length ? "Deselect all" : "Select all"}
+        </button>
+        <button
+          type="button"
+          onClick={handleOptimize}
+          disabled={optimizing || (displayOrderIds.length <= 1 && selectedIds.size <= 1)}
+          className={`rounded-lg px-4 py-2 text-sm font-medium ${inputClass}`}
+        >
+          {optimizing ? "Optimizing…" : "Optimize route"}
+        </button>
+        <button
+          type="button"
+          onClick={handleStartDelivery}
+          disabled={starting}
+          className="rounded-lg bg-fern-500 text-white px-4 py-2 text-sm font-medium hover:bg-fern-600 disabled:opacity-50"
+        >
+          {starting ? "Starting…" : "Start route"}
+        </button>
       </div>
 
       {locationSharing && (
@@ -291,9 +333,18 @@ export function DriverDashboard() {
 
       {pickups.length > 0 && (
         <div className="rounded-2xl border border-fern-200/80 bg-white shadow-sm overflow-hidden">
-          <h2 className="px-4 py-3 text-sm font-semibold text-fern-800 border-b border-fern-200">
-            Pickups (scheduled)
-          </h2>
+          <div className="px-4 py-3 border-b border-fern-200 flex flex-wrap items-center justify-between gap-2">
+            <h2 className="text-sm font-semibold text-fern-800">
+              Pickups (scheduled)
+            </h2>
+            <button
+              type="button"
+              onClick={selectAllPickups}
+              className="text-sm font-medium text-fern-600 hover:text-fern-900"
+            >
+              {selectedPickupIds.size === pickups.length ? "Deselect all" : "Select all"}
+            </button>
+          </div>
           <p className="px-4 py-2 text-xs text-fern-500 border-b border-fern-100">
             Orders to pick up from customers. Status changes (e.g. to picked up) are done from the wash dashboard.
           </p>
@@ -301,6 +352,9 @@ export function DriverDashboard() {
             <table className="min-w-full divide-y divide-fern-200">
               <thead>
                 <tr>
+                  <th className="px-2 py-2 text-left text-xs font-medium text-fern-500 w-8">
+                    <span className="sr-only">Select</span>
+                  </th>
                   <th className="px-2 py-2 text-left text-xs font-medium text-fern-500">Order</th>
                   <th className="px-2 py-2 text-left text-xs font-medium text-fern-500">Pickup address</th>
                   <th className="px-2 py-2 text-left text-xs font-medium text-fern-500">Date / time</th>
@@ -309,6 +363,14 @@ export function DriverDashboard() {
               <tbody className="divide-y divide-fern-200">
                 {pickups.map((order) => (
                   <tr key={order.id}>
+                    <td className="px-2 py-2">
+                      <input
+                        type="checkbox"
+                        checked={selectedPickupIds.has(order.id)}
+                        onChange={() => togglePickupSelect(order.id)}
+                        className="rounded border-fern-300"
+                      />
+                    </td>
                     <td className="px-2 py-2 font-mono text-sm text-fern-900">
                       {order.orderNumber}
                     </td>
@@ -333,36 +395,11 @@ export function DriverDashboard() {
 
       <div className="rounded-2xl border border-fern-200/80 bg-white p-4 shadow-sm">
         <h2 className="text-sm font-semibold text-fern-800 mb-3">Orders available for delivery</h2>
-        <p className="text-xs text-fern-500 mb-3">Only orders with all loads ready can be picked up. Select orders, optimize route, then Start delivery.</p>
+        <p className="text-xs text-fern-500 mb-3">Only orders with all loads ready can be picked up. Use the controls above to select orders, optimize route, then Start route.</p>
         {deliveryOrdersAvailable.length === 0 ? (
           <p className="text-sm text-fern-500">No orders ready for delivery.</p>
         ) : (
           <>
-            <div className="flex flex-wrap gap-3 mb-4">
-              <button
-                type="button"
-                onClick={selectAll}
-                className="text-sm font-medium text-fern-600 hover:text-fern-900"
-              >
-                {selectedIds.size === deliveryOrdersAvailable.length ? "Deselect all" : "Select all"}
-              </button>
-              <button
-                type="button"
-                onClick={handleOptimize}
-                disabled={optimizing || (displayOrderIds.length <= 1 && selectedIds.size <= 1)}
-                className={`rounded-lg px-4 py-2 text-sm font-medium ${inputClass}`}
-              >
-                {optimizing ? "Optimizing…" : "Optimize route"}
-              </button>
-              <button
-                type="button"
-                onClick={handleStartDelivery}
-                disabled={starting}
-                className="rounded-lg bg-fern-500 text-white px-4 py-2 text-sm font-medium hover:bg-fern-600 disabled:opacity-50"
-              >
-                {starting ? "Starting…" : "Start delivery"}
-              </button>
-            </div>
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-fern-200">
                 <thead>
