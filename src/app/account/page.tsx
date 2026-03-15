@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { AppHeader } from "@/components/app-header";
+import { formatPhoneDisplay } from "@/lib/phone";
 import { AccountForm } from "./account-form";
 import { AddressSection } from "./address-section";
 import { DefaultLoadOptionsSection } from "./default-load-options-section";
@@ -55,7 +56,7 @@ export default async function AccountPage() {
           <AccountForm
             name={user?.name ?? ""}
             email={user?.email ?? ""}
-            phone={user?.phone ?? ""}
+            phone={formatPhoneDisplay(user?.phone ?? "")}
           />
         </section>
         <section className="rounded-2xl border border-fern-200/80 bg-white p-6 shadow-sm">
