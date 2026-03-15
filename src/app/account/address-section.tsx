@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useGoogleMapsScript } from "@/hooks/use-google-maps";
+import { AddressAutocomplete } from "@/components/address-autocomplete";
 
 type Address = {
   id: string;
@@ -63,6 +65,90 @@ export function AddressSection({
     zip: "",
     isDefault: false,
   });
+  const [verifyResult, setVerifyResult] = useState<{
+    valid: boolean;
+    suggested?: { street: string; city: string; state: string; zip: string };
+    message?: string;
+  } | null>(null);
+  type PendingSave =
+    | { mode: "add"; form: typeof newAddress }
+    | { mode: "edit"; id: string; form: { label: string; street: string; city: string; state: string; zip: string; isDefault: boolean } };
+  const [pendingSave, setPendingSave] = useState<PendingSave | null>(null);
+
+  const mapsApiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
+  const { loaded: mapsLoaded } = useGoogleMapsScript(mapsApiKey);
+
+  function addressPartsEqual(
+    a: { street: string; city: string; state: string; zip: string },
+    b: { street: string; city: string; state: string; zip: string }
+  ) {
+    return (
+      a.street.trim() === b.street.trim() &&
+      a.city.trim() === b.city.trim() &&
+      a.state.trim() === b.state.trim() &&
+      a.zip.trim() === b.zip.trim()
+    );
+  }
+
+  async function verifyAddress(parts: { street: string; city: string; state: string; zip: string }) {
+    const res = await fetch("/api/addresses/verify", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(parts),
+    });
+    const data = (await res.json().catch(() => ({}))) as {
+      valid?: boolean;
+      suggested?: { street: string; city: string; state: string; zip: string };
+      message?: string;
+    };
+    return {
+      valid: data.valid ?? false,
+      suggested: data.suggested,
+      message: data.message,
+    };
+  }
+
+  async function doSave(
+    pending: PendingSave,
+    useSuggested: boolean
+  ) {
+    const suggested = verifyResult?.suggested;
+    if (pending.mode === "add") {
+      const payload = useSuggested && suggested
+        ? { ...pending.form, ...suggested }
+        : { ...pending.form, isDefault: initialAddresses.length === 0 };
+      const res = await fetch("/api/addresses", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setMessage(data.error ?? "Failed to add address");
+        return;
+      }
+      setAddOpen(false);
+      setNewAddress({ label: "", street: "", city: "", state: "", zip: "", isDefault: false });
+    } else {
+      const payload = useSuggested && suggested
+        ? { ...pending.form, ...suggested }
+        : pending.form;
+      const res = await fetch(`/api/addresses/${pending.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setMessage(data.error ?? "Failed to update address");
+        return;
+      }
+      setEditingId(null);
+    }
+    setPendingSave(null);
+    setVerifyResult(null);
+    router.refresh();
+  }
 
   function openEdit(addr: Address) {
     setEditingId(addr.id);
@@ -78,6 +164,8 @@ export function AddressSection({
       },
     }));
     setMessage("");
+    setVerifyResult(null);
+    setPendingSave(null);
   }
 
   async function handleUpdate(id: string) {
@@ -88,21 +176,23 @@ export function AddressSection({
     }
     setSaving(true);
     setMessage("");
+    setVerifyResult(null);
+    setPendingSave(null);
     try {
-      const res = await fetch(`/api/addresses/${id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        setMessage(data.error ?? "Failed to update address");
+      const result = await verifyAddress({ street: form.street, city: form.city, state: form.state, zip: form.zip });
+      const verificationSkipped = !result.valid && result.message?.toLowerCase().includes("not configured");
+      if (!result.valid && !verificationSkipped) {
+        setMessage(result.message ?? "Address could not be verified.");
         setSaving(false);
         return;
       }
-      setEditingId(null);
-      setMessage("");
-      router.refresh();
+      if (result.valid && result.suggested && !addressPartsEqual(form, result.suggested)) {
+        setVerifyResult(result);
+        setPendingSave({ mode: "edit", id, form });
+        setSaving(false);
+        return;
+      }
+      await doSave({ mode: "edit", id, form }, Boolean(result.valid && result.suggested));
     } catch {
       setMessage("Something went wrong");
     }
@@ -158,21 +248,31 @@ export function AddressSection({
     }
     setSaving(true);
     setMessage("");
+    setVerifyResult(null);
+    setPendingSave(null);
     try {
-      const res = await fetch("/api/addresses", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...newAddress, isDefault: initialAddresses.length === 0 }),
+      const result = await verifyAddress({
+        street: newAddress.street,
+        city: newAddress.city,
+        state: newAddress.state,
+        zip: newAddress.zip,
       });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        setMessage(data.error ?? "Failed to add address");
+      const verificationSkipped = !result.valid && result.message?.toLowerCase().includes("not configured");
+      if (!result.valid && !verificationSkipped) {
+        setMessage(result.message ?? "Address could not be verified.");
         setSaving(false);
         return;
       }
-      setAddOpen(false);
-      setNewAddress({ label: "", street: "", city: "", state: "", zip: "", isDefault: false });
-      router.refresh();
+      if (result.valid && result.suggested && !addressPartsEqual(newAddress, result.suggested)) {
+        setVerifyResult(result);
+        setPendingSave({ mode: "add", form: { ...newAddress } });
+        setSaving(false);
+        return;
+      }
+      await doSave(
+        { mode: "add", form: { ...newAddress } },
+        Boolean(result.valid && result.suggested)
+      );
     } catch {
       setMessage("Something went wrong");
     }
@@ -206,6 +306,23 @@ export function AddressSection({
                     placeholder="e.g. Home"
                   />
                 </div>
+                {mapsApiKey && (
+                  <div>
+                    <label className={labelClass}>Search address</label>
+                    <AddressAutocomplete
+                      apiKey={mapsApiKey}
+                      scriptLoaded={mapsLoaded}
+                      onSelect={(parts) =>
+                        setEditForm((f) => ({
+                          ...f,
+                          [addr.id]: { ...f[addr.id], ...parts },
+                        }))
+                      }
+                      placeholder="Start typing your address for suggestions…"
+                      className={inputClass}
+                    />
+                  </div>
+                )}
                 <div>
                   <label className={labelClass}>Street</label>
                   <input
@@ -274,6 +391,48 @@ export function AddressSection({
                   />
                   <span className="text-sm text-fern-700">Default address</span>
                 </label>
+                {pendingSave?.mode === "edit" && pendingSave.id === addr.id && verifyResult?.valid && verifyResult.suggested && (
+                  <div className="rounded-lg p-3 text-sm bg-fern-50 text-fern-800">
+                    <p className="font-medium mb-1">Suggested address:</p>
+                    <p className="text-fern-600 mb-2">
+                      {verifyResult.suggested.street}, {verifyResult.suggested.city}, {verifyResult.suggested.state} {verifyResult.suggested.zip}
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          if (!pendingSave) return;
+                          setSaving(true);
+                          try {
+                            await doSave(pendingSave, true);
+                          } finally {
+                            setSaving(false);
+                          }
+                        }}
+                        disabled={saving}
+                        className="rounded-lg bg-fern-500 text-white px-3 py-1.5 text-sm font-medium hover:bg-fern-600 disabled:opacity-50"
+                      >
+                        Use suggested
+                      </button>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          if (!pendingSave) return;
+                          setSaving(true);
+                          try {
+                            await doSave(pendingSave, false);
+                          } finally {
+                            setSaving(false);
+                          }
+                        }}
+                        disabled={saving}
+                        className="rounded-lg border border-fern-200 bg-white px-3 py-1.5 text-sm font-medium text-fern-700 hover:bg-fern-50 disabled:opacity-50"
+                      >
+                        Save as entered
+                      </button>
+                    </div>
+                  </div>
+                )}
                 <div className="flex flex-wrap gap-2 pt-2">
                   <button
                     type="button"
@@ -285,7 +444,7 @@ export function AddressSection({
                   </button>
                   <button
                     type="button"
-                    onClick={() => setEditingId(null)}
+                    onClick={() => { setEditingId(null); setPendingSave(null); setVerifyResult(null); }}
                     disabled={saving}
                     className="rounded-lg border border-fern-200 bg-white px-4 py-2 text-sm font-medium text-fern-700 hover:bg-fern-50"
                   >
@@ -366,6 +525,18 @@ export function AddressSection({
               placeholder="e.g. Home"
             />
           </div>
+          {mapsApiKey && (
+            <div>
+              <label className={labelClass}>Search address</label>
+              <AddressAutocomplete
+                apiKey={mapsApiKey}
+                scriptLoaded={mapsLoaded}
+                onSelect={(parts) => setNewAddress((a) => ({ ...a, ...parts }))}
+                placeholder="Start typing your address for suggestions…"
+                className={inputClass}
+              />
+            </div>
+          )}
           <div>
             <label className={labelClass}>Street</label>
             <input
@@ -409,6 +580,48 @@ export function AddressSection({
             />
             <span className="text-sm text-fern-700">Default address</span>
           </label>
+          {pendingSave?.mode === "add" && verifyResult?.valid && verifyResult.suggested && (
+            <div className="rounded-lg p-3 text-sm bg-fern-50 text-fern-800">
+              <p className="font-medium mb-1">Suggested address:</p>
+              <p className="text-fern-600 mb-2">
+                {verifyResult.suggested.street}, {verifyResult.suggested.city}, {verifyResult.suggested.state} {verifyResult.suggested.zip}
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (!pendingSave) return;
+                    setSaving(true);
+                    try {
+                      await doSave(pendingSave, true);
+                    } finally {
+                      setSaving(false);
+                    }
+                  }}
+                  disabled={saving}
+                  className="rounded-lg bg-fern-500 text-white px-3 py-1.5 text-sm font-medium hover:bg-fern-600 disabled:opacity-50"
+                >
+                  Use suggested
+                </button>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (!pendingSave) return;
+                    setSaving(true);
+                    try {
+                      await doSave(pendingSave, false);
+                    } finally {
+                      setSaving(false);
+                    }
+                  }}
+                  disabled={saving}
+                  className="rounded-lg border border-fern-200 bg-white px-3 py-1.5 text-sm font-medium text-fern-700 hover:bg-fern-50 disabled:opacity-50"
+                >
+                  Save as entered
+                </button>
+              </div>
+            </div>
+          )}
           <div className="flex flex-wrap gap-2 pt-2">
             <button
               type="button"
@@ -416,11 +629,11 @@ export function AddressSection({
               disabled={saving}
               className="rounded-lg bg-fern-500 text-white px-4 py-2 text-sm font-medium hover:bg-fern-600 disabled:opacity-50"
             >
-              {saving ? "Adding…" : "Add address"}
+              {saving ? "Verifying…" : "Add address"}
             </button>
             <button
               type="button"
-              onClick={() => { setAddOpen(false); setMessage(""); }}
+              onClick={() => { setAddOpen(false); setMessage(""); setVerifyResult(null); setPendingSave(null); }}
               disabled={saving}
               className="rounded-lg border border-fern-200 bg-white px-4 py-2 text-sm font-medium text-fern-700 hover:bg-fern-50"
             >

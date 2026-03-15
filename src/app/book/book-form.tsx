@@ -6,6 +6,8 @@ import type { Address } from "@prisma/client";
 import { getTimeSlots, type TimeSlot } from "@/lib/slots";
 import type { LoadOptionsInput } from "@/lib/load-options";
 import { LOAD_OPTION_KEYS, LOAD_OPTION_LABELS } from "@/lib/load-options";
+import { useGoogleMapsScript } from "@/hooks/use-google-maps";
+import { AddressAutocomplete } from "@/components/address-autocomplete";
 
 const PRICE_PER_LOAD_CENTS = 2500;
 const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -94,6 +96,9 @@ export function BookForm({
   const [pickupAddressId, setPickupAddressId] = useState(initialOrder?.pickupAddressId ?? addresses[0]?.id ?? "");
   const [deliveryAddressId, setDeliveryAddressId] = useState(initialOrder?.deliveryAddressId ?? addresses[0]?.id ?? "");
   const [notes, setNotes] = useState(initialOrder?.notes ?? "");
+
+  const mapsApiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
+  const { loaded: mapsLoaded } = useGoogleMapsScript(mapsApiKey);
 
   const pickupDateStr = pickupDate.toISOString().slice(0, 10);
   const deliveryDateStr = deliveryDate.toISOString().slice(0, 10);
@@ -610,6 +615,18 @@ export function BookForm({
           {(useNewPickup || addresses.length === 0) && (
             <div className="mt-2 grid gap-2">
               <input placeholder="Label (e.g. Home)" value={newAddress.label} onChange={(e) => setNewAddress((a) => ({ ...a, label: e.target.value }))} className={inputClass} />
+              {mapsApiKey && (
+                <div>
+                  <label className="block text-xs font-medium text-fern-500 mb-0.5">Search address (optional)</label>
+                  <AddressAutocomplete
+                    apiKey={mapsApiKey}
+                    scriptLoaded={mapsLoaded}
+                    onSelect={(parts) => setNewAddress((a) => ({ ...a, ...parts }))}
+                    placeholder="Start typing your address for suggestions…"
+                    className={inputClass}
+                  />
+                </div>
+              )}
               <input placeholder="Street" value={newAddress.street} onChange={(e) => setNewAddress((a) => ({ ...a, street: e.target.value }))} className={inputClass} />
               <div className="grid grid-cols-2 gap-2">
                 <input placeholder="City" value={newAddress.city} onChange={(e) => setNewAddress((a) => ({ ...a, city: e.target.value }))} className={inputClass} />
