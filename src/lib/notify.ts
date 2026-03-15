@@ -2,6 +2,7 @@ import { prisma } from "./db";
 import Twilio from "twilio";
 import { Resend } from "resend";
 import { getGrtPercent, getCompanyInfo, getPricePerPoundCents } from "./settings";
+import { toE164 } from "./phone";
 import { generateReceiptPdf } from "./receipt-pdf";
 
 export type NotifyEvent =
@@ -206,25 +207,29 @@ export async function sendOrderNotification(
     (twilioMessagingServiceSid || twilioFrom) &&
     order.customer.phone;
   if (canSendSms) {
-    const toPhone = order.customer.phone!;
-    try {
-      const client = Twilio(twilioSid, twilioToken);
-      await client.messages.create(
-        twilioMessagingServiceSid
-          ? {
-              body: `[${order.orderNumber}] ${smsText}`,
-              messagingServiceSid: twilioMessagingServiceSid,
-              to: toPhone,
-            }
-          : {
-              body: `[${order.orderNumber}] ${smsText}`,
-              from: twilioFrom!,
-              to: toPhone,
-            }
-      );
-      result.sms = true;
-    } catch (e) {
-      console.error("Twilio SMS error:", e);
+    const toPhoneE164 = toE164(order.customer.phone!);
+    if (!toPhoneE164) {
+      console.warn("[notify] Customer phone not in valid format for SMS:", order.orderNumber);
+    } else {
+      try {
+        const client = Twilio(twilioSid, twilioToken);
+        await client.messages.create(
+          twilioMessagingServiceSid
+            ? {
+                body: `[${order.orderNumber}] ${smsText}`,
+                messagingServiceSid: twilioMessagingServiceSid,
+                to: toPhoneE164,
+              }
+            : {
+                body: `[${order.orderNumber}] ${smsText}`,
+                from: twilioFrom!,
+                to: toPhoneE164,
+              }
+        );
+        result.sms = true;
+      } catch (e) {
+        console.error("Twilio SMS error:", e);
+      }
     }
   }
 

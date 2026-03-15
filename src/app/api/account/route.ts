@@ -3,7 +3,7 @@ import { getServerSession } from "next-auth";
 import { Prisma } from "@prisma/client";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { isValidPhone, normalizePhone } from "@/lib/phone";
+import { isValidPhone, normalizePhone, formatPhoneForStorage } from "@/lib/phone";
 import type { LoadOptionsInput } from "@/lib/load-options";
 import { LOAD_OPTION_KEYS } from "@/lib/load-options";
 
@@ -47,7 +47,7 @@ export async function PATCH(request: Request) {
         );
       }
       const normalized = normalizePhone(phone);
-      data.phone = normalized ?? "";
+      data.phone = normalized !== null ? formatPhoneForStorage(normalized) : "";
     }
     if (defaultLoadOptions !== undefined) {
       data.defaultLoadOptions = parseDefaultLoadOptions(defaultLoadOptions);

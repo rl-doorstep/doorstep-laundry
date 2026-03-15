@@ -84,7 +84,7 @@ export function AccountForm({
           type="tel"
           value={form.phone}
           onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
-          placeholder="(505) 123-4567"
+          placeholder="+1 (505)-123-4567"
           className={inputClass}
           aria-invalid={form.phone.trim() !== "" && !isValidPhone(form.phone)}
         />

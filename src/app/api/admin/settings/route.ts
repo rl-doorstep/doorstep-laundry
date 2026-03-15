@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-import { isValidPhone, normalizePhone } from "@/lib/phone";
+import { isValidPhone, normalizePhone, formatPhoneForStorage } from "@/lib/phone";
 
 const PRICE_PER_POUND_KEY = "price_per_pound_cents";
 const DEFAULT_PRICE_PER_POUND_CENTS = 150;
@@ -116,7 +116,13 @@ export async function PATCH(request: Request) {
         { status: 400 }
       );
     }
-    const value = trimmed === "" ? "" : (normalizePhone(trimmed) ?? trimmed);
+    const value =
+      trimmed === ""
+        ? ""
+        : (() => {
+            const norm = normalizePhone(trimmed);
+            return norm !== null ? formatPhoneForStorage(norm) : trimmed;
+          })();
     await upsertSetting(COMPANY_KEYS.phone, value, "setting-company-phone");
     result.companyPhone = value;
   }
