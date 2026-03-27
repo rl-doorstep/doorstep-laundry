@@ -21,11 +21,16 @@ export async function GET(request: Request) {
 
   if (role === "staff" || role === "admin") {
     const showDelivered = ["1", "true"].includes(searchParams.get("showDelivered") ?? "");
-    const excludedStatuses: OrderStatus[] = showDelivered ? ["cancelled"] : ["cancelled", "delivered"];
+    const forWash = ["1", "true"].includes(searchParams.get("forWash") ?? "");
     const where: {
       pickupDate?: { gte: Date; lte: Date };
       status?: OrderStatus | { notIn: OrderStatus[] };
-    } = { status: { notIn: excludedStatuses } };
+      AND?: Array<
+        | { status: OrderStatus }
+        | { NOT: { status: OrderStatus } }
+        | { status: { notIn: OrderStatus[] } }
+      >;
+    } = {};
     const filter = searchParams.get("filter");
     const useDueToday = filter === "due_today" || (pickupDate && filter !== "all");
     if (useDueToday || pickupDate) {
@@ -36,7 +41,18 @@ export async function GET(request: Request) {
       end.setHours(23, 59, 59, 999);
       where.pickupDate = { gte: start, lte: end };
     }
-    if (status) where.status = status as OrderStatus;
+    if (forWash && status) {
+      where.AND = [
+        { status: status as OrderStatus },
+        { NOT: { status: "out_for_delivery" } },
+      ];
+    } else if (status) {
+      where.status = status as OrderStatus;
+    } else {
+      const excludedStatuses: OrderStatus[] = showDelivered ? ["cancelled"] : ["cancelled", "delivered"];
+      if (forWash) excludedStatuses.push("out_for_delivery");
+      where.status = { notIn: excludedStatuses };
+    }
     const orders = await prisma.order.findMany({
       where,
       orderBy: { pickupDate: "asc" },

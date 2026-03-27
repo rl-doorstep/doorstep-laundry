@@ -13,7 +13,6 @@ const STATUS_LABEL: Record<string, string> = {
   in_progress: "In progress",
   waiting_for_payment: "Waiting for payment",
   ready_for_delivery: "Ready for delivery",
-  out_for_delivery: "Out for delivery",
   delivered: "Delivered",
   cancelled: "Cancelled",
 };
@@ -93,6 +92,7 @@ export function WashDashboard({
     if (showLoading) setLoading(true);
     const params = new URLSearchParams();
     params.set("filter", filter);
+    params.set("forWash", "1");
     if (statusFilter) params.set("status", statusFilter);
     const res = await fetch(`/api/orders?${params}`);
     const data = await res.json().catch(() => []);
@@ -123,6 +123,7 @@ export function WashDashboard({
     setLoading(true);
     const params = new URLSearchParams();
     params.set("filter", value);
+    params.set("forWash", "1");
     if (statusFilter) params.set("status", statusFilter);
     fetch(`/api/orders?${params}`)
       .then((res) => res.json().catch(() => []))
