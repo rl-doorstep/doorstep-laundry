@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { isValidPhone, normalizePhone, formatPhoneForStorage } from "@/lib/phone";
 
 const PRICE_PER_POUND_KEY = "price_per_pound_cents";
 const DEFAULT_PRICE_PER_POUND_CENTS = 150;
@@ -108,8 +109,22 @@ export async function PATCH(request: Request) {
     result.companyAddress = body.companyAddress.trim();
   }
   if (typeof body.companyPhone === "string") {
-    await upsertSetting(COMPANY_KEYS.phone, body.companyPhone.trim(), "setting-company-phone");
-    result.companyPhone = body.companyPhone.trim();
+    const trimmed = body.companyPhone.trim();
+    if (trimmed !== "" && !isValidPhone(trimmed)) {
+      return NextResponse.json(
+        { error: "Company phone must be a valid 10-digit US number (e.g. 505-123-4567) or empty." },
+        { status: 400 }
+      );
+    }
+    const value =
+      trimmed === ""
+        ? ""
+        : (() => {
+            const norm = normalizePhone(trimmed);
+            return norm !== null ? formatPhoneForStorage(norm) : trimmed;
+          })();
+    await upsertSetting(COMPANY_KEYS.phone, value, "setting-company-phone");
+    result.companyPhone = value;
   }
   if (typeof body.companyEmail === "string") {
     await upsertSetting(COMPANY_KEYS.email, body.companyEmail.trim(), "setting-company-email");

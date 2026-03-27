@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { Prisma } from "@prisma/client";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { isValidPhone, normalizePhone, formatPhoneForStorage } from "@/lib/phone";
 import type { LoadOptionsInput } from "@/lib/load-options";
 import { LOAD_OPTION_KEYS } from "@/lib/load-options";
 
@@ -35,7 +36,19 @@ export async function PATCH(request: Request) {
     };
     const data: { name?: string; phone?: string; defaultLoadOptions?: LoadOptionsInput | null } = {};
     if (typeof name === "string") data.name = name;
-    if (typeof phone === "string") data.phone = phone;
+    if (phone !== undefined) {
+      if (typeof phone !== "string") {
+        return NextResponse.json({ error: "Invalid phone" }, { status: 400 });
+      }
+      if (!isValidPhone(phone)) {
+        return NextResponse.json(
+          { error: "Please enter a valid 10-digit US phone number (e.g. 505-123-4567)." },
+          { status: 400 }
+        );
+      }
+      const normalized = normalizePhone(phone);
+      data.phone = normalized !== null ? formatPhoneForStorage(normalized) : "";
+    }
     if (defaultLoadOptions !== undefined) {
       data.defaultLoadOptions = parseDefaultLoadOptions(defaultLoadOptions);
     }

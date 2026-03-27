@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { isValidPhone } from "@/lib/phone";
 
 const FIELD_IDS = {
   name: "admin-company-name",
@@ -36,6 +37,10 @@ export function AdminCompanyInfo() {
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
+    if (companyPhone.trim() !== "" && !isValidPhone(companyPhone)) {
+      setMessage("Company phone must be a valid 10-digit US number (e.g. 505-123-4567) or empty.");
+      return;
+    }
     setSaving(true);
     setMessage(null);
     try {

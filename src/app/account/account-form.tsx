@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { isValidPhone } from "@/lib/phone";
 
 const inputClass =
   "mt-1 block w-full rounded-lg border border-fern-200 bg-white px-3 py-2.5 text-fern-900 placeholder-fern-400 focus:border-fern-500 focus:outline-none focus:ring-2 focus:ring-fern-500/20 transition-colors";
@@ -21,6 +22,10 @@ export function AccountForm({
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (form.phone.trim() !== "" && !isValidPhone(form.phone)) {
+      setMessage("Please enter a valid 10-digit US phone number (e.g. 505-123-4567).");
+      return;
+    }
     setSaving(true);
     setMessage("");
     try {
@@ -79,8 +84,11 @@ export function AccountForm({
           type="tel"
           value={form.phone}
           onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
+          placeholder="+1 (505)-123-4567"
           className={inputClass}
+          aria-invalid={form.phone.trim() !== "" && !isValidPhone(form.phone)}
         />
+        <p className="text-xs text-fern-500 mt-1">10-digit US number. Leave blank for no SMS.</p>
       </div>
       <button
         type="submit"
