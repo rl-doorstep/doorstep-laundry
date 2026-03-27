@@ -96,9 +96,46 @@ export function BookForm({
   const [pickupAddressId, setPickupAddressId] = useState(initialOrder?.pickupAddressId ?? addresses[0]?.id ?? "");
   const [deliveryAddressId, setDeliveryAddressId] = useState(initialOrder?.deliveryAddressId ?? addresses[0]?.id ?? "");
   const [notes, setNotes] = useState(initialOrder?.notes ?? "");
+  const [verifyResult, setVerifyResult] = useState<{
+    valid: boolean;
+    suggested?: { street: string; city: string; state: string; zip: string };
+    message?: string;
+  } | null>(null);
+  type PendingSave = { mode: "add" } | { mode: "order" };
+  const [pendingSave, setPendingSave] = useState<PendingSave | null>(null);
 
   const mapsApiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
   const { loaded: mapsLoaded } = useGoogleMapsScript(mapsApiKey);
+
+  function addressPartsEqual(
+    a: { street: string; city: string; state: string; zip: string },
+    b: { street: string; city: string; state: string; zip: string }
+  ) {
+    return (
+      a.street.trim() === b.street.trim() &&
+      a.city.trim() === b.city.trim() &&
+      a.state.trim() === b.state.trim() &&
+      a.zip.trim() === b.zip.trim()
+    );
+  }
+
+  async function verifyAddress(parts: { street: string; city: string; state: string; zip: string }) {
+    const res = await fetch("/api/addresses/verify", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(parts),
+    });
+    const data = (await res.json().catch(() => ({}))) as {
+      valid?: boolean;
+      suggested?: { street: string; city: string; state: string; zip: string };
+      message?: string;
+    };
+    return {
+      valid: data.valid ?? false,
+      suggested: data.suggested,
+      message: data.message,
+    };
+  }
 
   const pickupDateStr = pickupDate.toISOString().slice(0, 10);
   const deliveryDateStr = deliveryDate.toISOString().slice(0, 10);
@@ -197,6 +234,32 @@ export function BookForm({
     setStep(2);
   }
 
+  async function doAddAddress(addr: { street: string; city: string; state: string; zip: string }) {
+    const payload = {
+      ...newAddress,
+      ...addr,
+      isDefault: addresses.length === 0,
+    };
+    const res = await fetch("/api/addresses", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      setError(data.error ?? "Failed to add address");
+      return;
+    }
+    router.refresh();
+    setNewAddress({ label: "", street: "", city: "", state: "", zip: "" });
+    setUseNewPickup(false);
+    setUseNewDelivery(false);
+    setPickupAddressId(data.id);
+    setDeliveryAddressId(data.id);
+    setVerifyResult(null);
+    setPendingSave(null);
+  }
+
   async function handleAddAddress() {
     if (
       !newAddress.label ||
@@ -210,37 +273,36 @@ export function BookForm({
     }
     setError("");
     setLoading(true);
+    setVerifyResult(null);
+    setPendingSave(null);
     try {
-      const res = await fetch("/api/addresses", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...newAddress,
-          isDefault: addresses.length === 0,
-        }),
+      const result = await verifyAddress({
+        street: newAddress.street,
+        city: newAddress.city,
+        state: newAddress.state,
+        zip: newAddress.zip,
       });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        setError(data.error ?? "Failed to add address");
+      const verificationSkipped = !result.valid && result.message?.toLowerCase().includes("not configured");
+      if (!result.valid && !verificationSkipped) {
+        setError(result.message ?? "Address could not be verified.");
         setLoading(false);
         return;
       }
-      router.refresh();
-      setNewAddress({ label: "", street: "", city: "", state: "", zip: "" });
-      setUseNewPickup(false);
-      setUseNewDelivery(false);
-      setPickupAddressId(data.id);
-      setDeliveryAddressId(data.id);
-      setLoading(false);
+      if (result.valid && result.suggested && !addressPartsEqual(newAddress, result.suggested)) {
+        setVerifyResult(result);
+        setPendingSave({ mode: "add" });
+        setLoading(false);
+        return;
+      }
+      await doAddAddress(result.valid && result.suggested ? result.suggested : newAddress);
     } catch {
       setError("Something went wrong");
-      setLoading(false);
     }
+    setLoading(false);
   }
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setError("");
+  async function submitWithAddress(addr: { street: string; city: string; state: string; zip: string }) {
+    const addressPayload = { ...newAddress, ...addr };
     let finalPickupId = pickupAddressId;
     let finalDeliveryId = deliveryAddressId;
 
@@ -248,7 +310,7 @@ export function BookForm({
       const res = await fetch("/api/addresses", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(newAddress),
+        body: JSON.stringify(addressPayload),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -269,7 +331,7 @@ export function BookForm({
       const res = await fetch("/api/addresses", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(newAddress),
+        body: JSON.stringify(addressPayload),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -279,6 +341,78 @@ export function BookForm({
       finalDeliveryId = data.id;
     }
 
+    if (!finalPickupId || !finalDeliveryId) {
+      setError("Please select or add pickup and delivery addresses.");
+      return;
+    }
+
+    const orderPayload = {
+      pickupAddressId: finalPickupId,
+      deliveryAddressId: finalDeliveryId,
+      pickupDate: pickupDateStr,
+      deliveryDate: deliveryDateStr,
+      pickupTimeSlot,
+      deliveryTimeSlot,
+      notes: notes || undefined,
+      numberOfLoads,
+      loadOptions: loadOptions.slice(0, numberOfLoads),
+    };
+    const url = editOrderId ? `/api/orders/${editOrderId}` : "/api/orders";
+    const method = editOrderId ? "PATCH" : "POST";
+    const res = await fetch(url, {
+      method,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(orderPayload),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      setError(data.error ?? (editOrderId ? "Failed to update order" : "Failed to create order"));
+      return;
+    }
+    setVerifyResult(null);
+    setPendingSave(null);
+    router.push(editOrderId ? `/orders/${editOrderId}` : `/orders/${data.id}`);
+    router.refresh();
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setError("");
+    setVerifyResult(null);
+    setPendingSave(null);
+
+    const usingNewAddress = (useNewPickup || useNewDelivery) && newAddress.label && newAddress.street;
+    if (usingNewAddress) {
+      setLoading(true);
+      try {
+        const result = await verifyAddress({
+          street: newAddress.street,
+          city: newAddress.city,
+          state: newAddress.state,
+          zip: newAddress.zip,
+        });
+        const verificationSkipped = !result.valid && result.message?.toLowerCase().includes("not configured");
+        if (!result.valid && !verificationSkipped) {
+          setError(result.message ?? "Address could not be verified.");
+          setLoading(false);
+          return;
+        }
+        if (result.valid && result.suggested && !addressPartsEqual(newAddress, result.suggested)) {
+          setVerifyResult(result);
+          setPendingSave({ mode: "order" });
+          setLoading(false);
+          return;
+        }
+        await submitWithAddress(result.valid && result.suggested ? result.suggested : newAddress);
+      } catch {
+        setError("Something went wrong");
+      }
+      setLoading(false);
+      return;
+    }
+
+    let finalPickupId = pickupAddressId;
+    let finalDeliveryId = deliveryAddressId;
     if (!finalPickupId || !finalDeliveryId) {
       setError("Please select or add pickup and delivery addresses.");
       return;
@@ -314,8 +448,8 @@ export function BookForm({
       router.refresh();
     } catch {
       setError("Something went wrong");
-      setLoading(false);
     }
+    setLoading(false);
   }
 
   const inputClass =
@@ -633,9 +767,49 @@ export function BookForm({
                 <input placeholder="State" value={newAddress.state} onChange={(e) => setNewAddress((a) => ({ ...a, state: e.target.value }))} className={inputClass} />
               </div>
               <input placeholder="ZIP" value={newAddress.zip} onChange={(e) => setNewAddress((a) => ({ ...a, zip: e.target.value }))} className={inputClass} />
+              {pendingSave?.mode === "add" && verifyResult?.valid && verifyResult.suggested && (
+                <div className="rounded-lg p-3 text-sm bg-fern-50 text-fern-800">
+                  <p className="font-medium mb-1">Suggested address:</p>
+                  <p className="text-fern-600 mb-2">
+                    {verifyResult.suggested.street}, {verifyResult.suggested.city}, {verifyResult.suggested.state} {verifyResult.suggested.zip}
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        setLoading(true);
+                        try {
+                          await doAddAddress(verifyResult.suggested!);
+                        } finally {
+                          setLoading(false);
+                        }
+                      }}
+                      disabled={loading}
+                      className="rounded-lg bg-fern-500 text-white px-3 py-1.5 text-sm font-medium hover:bg-fern-600 disabled:opacity-50"
+                    >
+                      Use suggested
+                    </button>
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        setLoading(true);
+                        try {
+                          await doAddAddress(newAddress);
+                        } finally {
+                          setLoading(false);
+                        }
+                      }}
+                      disabled={loading}
+                      className="rounded-lg border border-fern-200 bg-white px-3 py-1.5 text-sm font-medium text-fern-700 hover:bg-fern-50 disabled:opacity-50"
+                    >
+                      Save as entered
+                    </button>
+                  </div>
+                </div>
+              )}
               {addresses.length === 0 && (
                 <button type="button" onClick={handleAddAddress} disabled={loading} className="rounded-lg bg-fern-100 text-fern-700 px-4 py-2 text-sm font-medium hover:bg-fern-200">
-                  Add address
+                  {loading ? "Verifying…" : "Add address"}
                 </button>
               )}
             </div>
@@ -671,13 +845,54 @@ export function BookForm({
           <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} className={`mt-1 ${inputClass}`} />
         </div>
 
+        {pendingSave?.mode === "order" && verifyResult?.valid && verifyResult.suggested && (
+          <div className="rounded-lg p-3 text-sm bg-fern-50 text-fern-800">
+            <p className="font-medium mb-1">Suggested address:</p>
+            <p className="text-fern-600 mb-2">
+              {verifyResult.suggested.street}, {verifyResult.suggested.city}, {verifyResult.suggested.state} {verifyResult.suggested.zip}
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={async () => {
+                  setLoading(true);
+                  try {
+                    await submitWithAddress(verifyResult.suggested!);
+                  } finally {
+                    setLoading(false);
+                  }
+                }}
+                disabled={loading}
+                className="rounded-lg bg-fern-500 text-white px-3 py-1.5 text-sm font-medium hover:bg-fern-600 disabled:opacity-50"
+              >
+                Use suggested
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  setLoading(true);
+                  try {
+                    await submitWithAddress(newAddress);
+                  } finally {
+                    setLoading(false);
+                  }
+                }}
+                disabled={loading}
+                className="rounded-lg border border-fern-200 bg-white px-3 py-1.5 text-sm font-medium text-fern-700 hover:bg-fern-50 disabled:opacity-50"
+              >
+                Save as entered
+              </button>
+            </div>
+          </div>
+        )}
+
         <button
           type="submit"
-          disabled={loading}
+          disabled={loading || (pendingSave?.mode === "order" && !!verifyResult?.suggested)}
           className="w-full rounded-lg bg-fern-500 text-white py-3 font-medium hover:bg-fern-600 disabled:opacity-50 transition-colors"
         >
           {loading
-            ? (isEdit ? "Saving…" : "Creating order…")
+            ? (isEdit ? "Saving…" : "Verifying…")
             : isEdit
               ? "Save changes"
               : "Create order & continue to payment"}
