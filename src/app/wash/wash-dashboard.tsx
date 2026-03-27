@@ -480,14 +480,11 @@ export function WashDashboard({
                   </td>
                   <td className="px-4 py-3">
                     {(() => {
-                      const orderPaid = ["ready_for_delivery", "out_for_delivery", "delivered"].includes(
-                        order.status
-                      );
                       const loads = order.orderLoads ?? [];
                       const lastLoad = loads.length > 0 ? loads[loads.length - 1] : null;
                       const isLastLoadRow =
                         load == null || (lastLoad != null && load.id === lastLoad.id);
-                      if (orderPaid || !isLastLoadRow) {
+                      if (order.status !== "in_progress" || !isLastLoadRow) {
                         return <span className="text-fern-400 text-sm">—</span>;
                       }
                       return (
