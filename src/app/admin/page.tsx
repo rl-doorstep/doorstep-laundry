@@ -82,16 +82,9 @@ export default async function AdminPage() {
         </section>
 
         <section>
-          <h2 className="text-lg font-semibold text-fern-900 mb-2">
+          <h2 className="text-lg font-semibold text-fern-900 mb-6">
             Company, facility &amp; service area
           </h2>
-          <p className="text-sm text-fern-600 mb-6">
-            <strong>Receipts:</strong> name, logo, address, phone, and email in the top left of PDF receipts.
-            <br />
-            <strong>Service area:</strong> the address field is your facility location. Directly under it, set{" "}
-            <strong>Maximum service distance (miles)</strong> to limit how far away pickup/delivery addresses can be
-            (straight-line miles; requires <code className="text-fern-800">GOOGLE_MAPS_API_KEY</code>).
-          </p>
           <AdminCompanyInfo />
         </section>
 
