@@ -38,8 +38,6 @@ export function DriverDashboard() {
   const [selectedPickupIds, setSelectedPickupIds] = useState<Set<string>>(new Set());
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [displayOrderIds, setDisplayOrderIds] = useState<string[]>([]);
-  const [runOrderIds, setRunOrderIds] = useState<string[] | null>(null);
-  const [runPickupOrderIds, setRunPickupOrderIds] = useState<string[]>([]);
   const [runPickupOrders, setRunPickupOrders] = useState<OrderRow[]>([]);
   const [runDeliveryOrders, setRunDeliveryOrders] = useState<OrderRow[]>([]);
   const [optimizing, setOptimizing] = useState(false);
@@ -58,13 +56,9 @@ export function DriverDashboard() {
     const res = await fetch("/api/driver/run");
     const data = await res.json().catch(() => ({}));
     if (data.runId) {
-      setRunOrderIds(Array.isArray(data.orderIds) ? data.orderIds : []);
-      setRunPickupOrderIds(Array.isArray(data.pickupOrderIds) ? data.pickupOrderIds : []);
       setRunPickupOrders(Array.isArray(data.pickupOrders) ? data.pickupOrders : []);
       setRunDeliveryOrders(Array.isArray(data.deliveryOrders) ? data.deliveryOrders : []);
     } else {
-      setRunOrderIds(null);
-      setRunPickupOrderIds([]);
       setRunPickupOrders([]);
       setRunDeliveryOrders([]);
     }
@@ -86,7 +80,7 @@ export function DriverDashboard() {
     ) {
       setDisplayOrderIds(deliveryOrdersAvailable.map((o) => o.id));
     }
-  }, [deliveryOrdersAvailable.length, displayOrderIds.length]);
+  }, [deliveryOrdersAvailable, displayOrderIds.length]);
 
   const toggleSelect = (id: string) => {
     setSelectedIds((prev) => {
@@ -185,9 +179,7 @@ export function DriverDashboard() {
           alert(err.error ?? "Failed to start delivery run");
           return;
         }
-        const data = await res.json();
-        setRunOrderIds(data.orderIds);
-        setRunPickupOrderIds(data.pickupOrderIds ?? []);
+        await res.json();
         setLocationSharing(true);
         await fetchRun();
       }

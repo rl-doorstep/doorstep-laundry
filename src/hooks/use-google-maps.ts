@@ -32,7 +32,7 @@ export function useGoogleMapsScript(apiKey: string | undefined) {
       return;
     }
     if (window.google?.maps?.places) {
-      setLoaded(true);
+      queueMicrotask(() => setLoaded(true));
       return;
     }
     const existing = document.querySelector(

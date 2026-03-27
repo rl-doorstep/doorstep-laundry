@@ -411,8 +411,8 @@ export function BookForm({
       return;
     }
 
-    let finalPickupId = pickupAddressId;
-    let finalDeliveryId = deliveryAddressId;
+    const finalPickupId = pickupAddressId;
+    const finalDeliveryId = deliveryAddressId;
     if (!finalPickupId || !finalDeliveryId) {
       setError("Please select or add pickup and delivery addresses.");
       return;
