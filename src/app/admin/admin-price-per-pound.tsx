@@ -9,14 +9,29 @@ export function AdminPricePerPound() {
   const [message, setMessage] = useState< string | null>(null);
 
   useEffect(() => {
-    fetch("/api/admin/settings")
-      .then((res) => res.json())
-      .then((data) => {
-        const cents = data.pricePerPoundCents ?? 150;
+    fetch("/api/admin/settings", { credentials: "same-origin" })
+      .then(async (res) => {
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          setMessage(data.error ?? `Could not load settings (${res.status}).`);
+          const fallback = 150;
+          setPricePerPoundCents(fallback);
+          setInputValue((fallback / 100).toFixed(2));
+          return;
+        }
+        const cents =
+          typeof data.pricePerPoundCents === "number" && Number.isFinite(data.pricePerPoundCents)
+            ? data.pricePerPoundCents
+            : 150;
         setPricePerPoundCents(cents);
         setInputValue((cents / 100).toFixed(2));
       })
-      .catch(() => setPricePerPoundCents(150));
+      .catch(() => {
+        setMessage("Could not load settings. Check your connection and try refreshing.");
+        const fallback = 150;
+        setPricePerPoundCents(fallback);
+        setInputValue((fallback / 100).toFixed(2));
+      });
   }, []);
 
   async function handleSave(e: React.FormEvent) {
@@ -32,6 +47,7 @@ export function AdminPricePerPound() {
     try {
       const res = await fetch("/api/admin/settings", {
         method: "PATCH",
+        credentials: "same-origin",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ pricePerPoundCents: cents }),
       });

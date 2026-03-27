@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { checkAddressWithinServiceArea } from "@/lib/service-area";
 
 export async function GET() {
   const session = await getServerSession(authOptions);
@@ -37,6 +38,15 @@ export async function POST(request: Request) {
         { error: "label, street, city, state, zip required" },
         { status: 400 }
       );
+    }
+    const area = await checkAddressWithinServiceArea({
+      street,
+      city,
+      state,
+      zip,
+    });
+    if (!area.ok) {
+      return NextResponse.json({ error: area.error }, { status: 400 });
     }
     if (isDefault) {
       await prisma.address.updateMany({

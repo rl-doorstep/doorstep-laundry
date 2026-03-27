@@ -6,6 +6,7 @@ import { generateOrderNumber } from "@/lib/order-number";
 import { sendOrderNotification } from "@/lib/notify";
 import { toOrderLoadOptions, type LoadOptionsInput } from "@/lib/load-options";
 import type { OrderStatus } from "@prisma/client";
+import { checkAddressWithinServiceArea } from "@/lib/service-area";
 
 export async function GET(request: Request) {
   const session = await getServerSession(authOptions);
@@ -184,6 +185,28 @@ export async function POST(request: Request) {
     const delivery = new Date(deliveryDate);
     if (isNaN(pickup.getTime()) || isNaN(delivery.getTime())) {
       return NextResponse.json({ error: "Invalid dates" }, { status: 400 });
+    }
+
+    const [pickupAddr, deliveryAddr] = await Promise.all([
+      prisma.address.findUnique({ where: { id: pickupAddressId } }),
+      prisma.address.findUnique({ where: { id: deliveryAddressId } }),
+    ]);
+    if (!pickupAddr || !deliveryAddr) {
+      return NextResponse.json(
+        { error: "Pickup or delivery address not found" },
+        { status: 400 }
+      );
+    }
+    for (const addr of [pickupAddr, deliveryAddr]) {
+      const area = await checkAddressWithinServiceArea({
+        street: addr.street,
+        city: addr.city,
+        state: addr.state,
+        zip: addr.zip,
+      });
+      if (!area.ok) {
+        return NextResponse.json({ error: area.error }, { status: 400 });
+      }
     }
 
     const orderNumber = await generateOrderNumber();
