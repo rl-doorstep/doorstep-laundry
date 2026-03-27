@@ -13,7 +13,6 @@ const STATUS_LABEL: Record<string, string> = {
   in_progress: "In progress",
   waiting_for_payment: "Waiting for payment",
   ready_for_delivery: "Ready for delivery",
-  out_for_delivery: "Out for delivery",
   delivered: "Delivered",
   cancelled: "Cancelled",
 };
@@ -75,6 +74,7 @@ export function WashDashboard({
   const [updatingLoadId, setUpdatingLoadId] = useState<string | null>(null);
   const [weightDraft, setWeightDraft] = useState<Record<string, string>>({});
   const [loadLocationNames, setLoadLocationNames] = useState<string[]>([]);
+  const [addingLoadOrderId, setAddingLoadOrderId] = useState<string | null>(null);
 
   useEffect(() => {
     fetch("/api/load-locations")
@@ -92,6 +92,7 @@ export function WashDashboard({
     if (showLoading) setLoading(true);
     const params = new URLSearchParams();
     params.set("filter", filter);
+    params.set("forWash", "1");
     if (statusFilter) params.set("status", statusFilter);
     const res = await fetch(`/api/orders?${params}`);
     const data = await res.json().catch(() => []);
@@ -122,11 +123,27 @@ export function WashDashboard({
     setLoading(true);
     const params = new URLSearchParams();
     params.set("filter", value);
+    params.set("forWash", "1");
     if (statusFilter) params.set("status", statusFilter);
     fetch(`/api/orders?${params}`)
       .then((res) => res.json().catch(() => []))
       .then((data) => setOrders(Array.isArray(data) ? data : []))
       .finally(() => setLoading(false));
+  }
+
+  async function addLoadToOrder(orderId: string) {
+    setAddingLoadOrderId(orderId);
+    try {
+      const res = await fetch(`/api/orders/${orderId}/loads`, { method: "POST" });
+      const err = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        alert(typeof err.error === "string" ? err.error : "Failed to add load");
+        return;
+      }
+      await fetchOrders(false);
+    } finally {
+      setAddingLoadOrderId(null);
+    }
   }
 
   async function updateLoad(
@@ -261,6 +278,9 @@ export function WashDashboard({
               <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-fern-500">
                 Time / Dates
               </th>
+              <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-fern-500">
+                Loads
+              </th>
             </tr>
           </thead>
           <tbody className="divide-y divide-fern-200">
@@ -277,7 +297,7 @@ export function WashDashboard({
               if (rows.length === 0) {
                 return (
                   <tr>
-                    <td colSpan={7} className="px-4 py-10 text-center text-fern-500">
+                    <td colSpan={8} className="px-4 py-10 text-center text-fern-500">
                       No orders for this filter.
                     </td>
                   </tr>
@@ -457,6 +477,27 @@ export function WashDashboard({
                       {new Date(order.pickupDate as string).toLocaleDateString()} /{" "}
                       {new Date(order.deliveryDate as string).toLocaleDateString()}
                     </div>
+                  </td>
+                  <td className="px-4 py-3">
+                    {(() => {
+                      const loads = order.orderLoads ?? [];
+                      const lastLoad = loads.length > 0 ? loads[loads.length - 1] : null;
+                      const isLastLoadRow =
+                        load == null || (lastLoad != null && load.id === lastLoad.id);
+                      if (order.status !== "in_progress" || !isLastLoadRow) {
+                        return <span className="text-fern-400 text-sm">—</span>;
+                      }
+                      return (
+                        <button
+                          type="button"
+                          onClick={() => addLoadToOrder(order.id)}
+                          disabled={addingLoadOrderId === order.id}
+                          className="rounded-lg border border-fern-300 bg-fern-50 px-2.5 py-1.5 text-xs font-medium text-fern-800 hover:bg-fern-100 disabled:opacity-50"
+                        >
+                          {addingLoadOrderId === order.id ? "Adding…" : "+ Add load"}
+                        </button>
+                      );
+                    })()}
                   </td>
                 </tr>
               ));

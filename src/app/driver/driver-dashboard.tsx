@@ -9,6 +9,7 @@ type OrderRow = {
   id: string;
   orderNumber: string;
   status: string;
+  numberOfLoads: number;
   customer: { name: string | null; email: string; phone: string | null };
   pickupAddress?: AddressRow | null;
   deliveryAddress: AddressRow;
@@ -16,6 +17,7 @@ type OrderRow = {
   deliveryDate?: string;
   pickupTimeSlot?: string | null;
   deliveryTimeSlot?: string | null;
+  orderLoads?: { id: string; loadNumber: number; status: string }[];
 };
 
 const STATUS_LABEL: Record<string, string> = {
@@ -44,6 +46,7 @@ export function DriverDashboard() {
   const [starting, setStarting] = useState(false);
   const [deliveringId, setDeliveringId] = useState<string | null>(null);
   const [locationSharing, setLocationSharing] = useState(false);
+  const [adjustingLoadsOrderId, setAdjustingLoadsOrderId] = useState<string | null>(null);
 
   const fetchOrders = useCallback(async () => {
     const res = await fetch(`/api/driver/orders?window=${windowFilter}`);
@@ -189,6 +192,23 @@ export function DriverDashboard() {
     }
   };
 
+  async function adjustLoads(orderId: string, action: "add" | "remove") {
+    setAdjustingLoadsOrderId(orderId);
+    try {
+      const res = await fetch(`/api/orders/${orderId}/loads`, {
+        method: action === "add" ? "POST" : "DELETE",
+      });
+      const err = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        alert(typeof err.error === "string" ? err.error : "Failed to update loads");
+        return;
+      }
+      await Promise.all([fetchOrders(), fetchRun()]);
+    } finally {
+      setAdjustingLoadsOrderId(null);
+    }
+  }
+
   const handleMarkDelivered = async (orderId: string) => {
     setDeliveringId(orderId);
     try {
@@ -317,6 +337,9 @@ export function DriverDashboard() {
           <h2 className="px-4 py-3 text-sm font-semibold text-fern-800 border-b border-fern-200">
             Current run – Pickups and deliveries
           </h2>
+          <p className="px-4 py-2 text-xs text-fern-500 border-b border-fern-100 bg-fern-50/50">
+            At pickup, use Loads + / − on each pickup stop if the actual bags don’t match what was scheduled.
+          </p>
           <ul className="divide-y divide-fern-200">
             {runStops.map(({ type, order }, index) => (
               <li key={order.id} className="px-4 py-4 flex flex-wrap items-center justify-between gap-3">
@@ -360,7 +383,35 @@ export function DriverDashboard() {
                         : "Mark delivered"}
                   </button>
                 ) : (
-                  <span className="text-xs text-fern-500">Pick up</span>
+                  <div className="flex flex-col items-end gap-1 sm:flex-row sm:items-center sm:gap-2">
+                    <span className="text-xs text-fern-500">Loads</span>
+                    <div className="flex flex-wrap items-center gap-1">
+                      <span className="text-sm font-medium text-fern-800 tabular-nums min-w-[1.25rem]">
+                        {order.numberOfLoads ?? order.orderLoads?.length ?? 1}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => adjustLoads(order.id, "remove")}
+                        disabled={
+                          adjustingLoadsOrderId === order.id ||
+                          (order.numberOfLoads ?? order.orderLoads?.length ?? 1) <= 1
+                        }
+                        className="rounded border border-fern-200 bg-white px-2 py-0.5 text-sm text-fern-700 hover:bg-fern-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                        aria-label="Remove one load"
+                      >
+                        −
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => adjustLoads(order.id, "add")}
+                        disabled={adjustingLoadsOrderId === order.id}
+                        className="rounded border border-fern-200 bg-white px-2 py-0.5 text-sm text-fern-700 hover:bg-fern-50 disabled:opacity-40"
+                        aria-label="Add one load"
+                      >
+                        +
+                      </button>
+                    </div>
+                  </div>
                 )}
               </li>
             ))}
@@ -383,7 +434,8 @@ export function DriverDashboard() {
             </button>
           </div>
           <p className="py-2 text-xs text-fern-500 border-b border-fern-100">
-            Orders to pick up from customers. Status changes (e.g. to picked up) are done from the wash dashboard.
+            Select orders and start a route. After you start, adjust load counts on each pickup stop in{" "}
+            <span className="font-medium text-fern-600">Current run</span> when you’re at the customer.
           </p>
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-fern-200">
