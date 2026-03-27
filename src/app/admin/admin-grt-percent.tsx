@@ -9,14 +9,29 @@ export function AdminGrtPercent() {
   const [message, setMessage] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch("/api/admin/settings")
-      .then((res) => res.json())
-      .then((data) => {
-        const pct = data.grtPercent ?? 8.39;
+    fetch("/api/admin/settings", { credentials: "same-origin" })
+      .then(async (res) => {
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          setMessage(data.error ?? `Could not load settings (${res.status}).`);
+          const fallback = 8.39;
+          setGrtPercent(fallback);
+          setInputValue(String(fallback));
+          return;
+        }
+        const pct =
+          typeof data.grtPercent === "number" && Number.isFinite(data.grtPercent)
+            ? data.grtPercent
+            : 8.39;
         setGrtPercent(pct);
         setInputValue(String(pct));
       })
-      .catch(() => setGrtPercent(8.39));
+      .catch(() => {
+        setMessage("Could not load settings. Check your connection and try refreshing.");
+        const fallback = 8.39;
+        setGrtPercent(fallback);
+        setInputValue(String(fallback));
+      });
   }, []);
 
   async function handleSave(e: React.FormEvent) {
@@ -31,6 +46,7 @@ export function AdminGrtPercent() {
     try {
       const res = await fetch("/api/admin/settings", {
         method: "PATCH",
+        credentials: "same-origin",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ grtPercent: parsed }),
       });

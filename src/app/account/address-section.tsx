@@ -56,6 +56,7 @@ export function AddressSection({
   const [addOpen, setAddOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
+  const [addMessage, setAddMessage] = useState("");
   const [editForm, setEditForm] = useState<Record<string, { label: string; street: string; city: string; state: string; zip: string; isDefault: boolean }>>({});
   const [newAddress, setNewAddress] = useState({
     label: "",
@@ -124,10 +125,11 @@ export function AddressSection({
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setMessage(data.error ?? "Failed to add address");
+        setAddMessage(data.error ?? "Failed to add address");
         return;
       }
       setAddOpen(false);
+      setAddMessage("");
       setNewAddress({ label: "", street: "", city: "", state: "", zip: "", isDefault: false });
     } else {
       const payload = useSuggested && suggested
@@ -164,6 +166,7 @@ export function AddressSection({
       },
     }));
     setMessage("");
+    setAddMessage("");
     setVerifyResult(null);
     setPendingSave(null);
   }
@@ -241,13 +244,17 @@ export function AddressSection({
     setSaving(false);
   }
 
+  function patchNewAddress(update: Partial<typeof newAddress> | ((a: typeof newAddress) => typeof newAddress)) {
+    setAddMessage("");
+    setNewAddress((a) => (typeof update === "function" ? update(a) : { ...a, ...update }));
+  }
+
   async function handleAdd() {
     if (!newAddress.label?.trim() || !newAddress.street?.trim() || !newAddress.city?.trim() || !newAddress.state?.trim() || !newAddress.zip?.trim()) {
-      setMessage("All address fields are required.");
+      setAddMessage("All address fields are required.");
       return;
     }
     setSaving(true);
-    setMessage("");
     setVerifyResult(null);
     setPendingSave(null);
     try {
@@ -259,7 +266,7 @@ export function AddressSection({
       });
       const verificationSkipped = !result.valid && result.message?.toLowerCase().includes("not configured");
       if (!result.valid && !verificationSkipped) {
-        setMessage(result.message ?? "Address could not be verified.");
+        setAddMessage(result.message ?? "Address could not be verified.");
         setSaving(false);
         return;
       }
@@ -274,16 +281,16 @@ export function AddressSection({
         Boolean(result.valid && result.suggested)
       );
     } catch {
-      setMessage("Something went wrong");
+      setAddMessage("Something went wrong");
     }
     setSaving(false);
   }
 
   return (
     <div className="space-y-4">
-      {message && (
+      {message ? (
         <p className="text-sm text-fern-600">{message}</p>
-      )}
+      ) : null}
       <ul className="space-y-3">
         {initialAddresses.map((addr) => (
           <li
@@ -520,7 +527,7 @@ export function AddressSection({
             <label className={labelClass}>Label</label>
             <input
               value={newAddress.label}
-              onChange={(e) => setNewAddress((a) => ({ ...a, label: e.target.value }))}
+              onChange={(e) => patchNewAddress({ label: e.target.value })}
               className={inputClass}
               placeholder="e.g. Home"
             />
@@ -531,7 +538,7 @@ export function AddressSection({
               <AddressAutocomplete
                 apiKey={mapsApiKey}
                 scriptLoaded={mapsLoaded}
-                onSelect={(parts) => setNewAddress((a) => ({ ...a, ...parts }))}
+                onSelect={(parts) => patchNewAddress((a) => ({ ...a, ...parts }))}
                 placeholder="Start typing your address for suggestions…"
                 className={inputClass}
               />
@@ -541,7 +548,7 @@ export function AddressSection({
             <label className={labelClass}>Street</label>
             <input
               value={newAddress.street}
-              onChange={(e) => setNewAddress((a) => ({ ...a, street: e.target.value }))}
+              onChange={(e) => patchNewAddress({ street: e.target.value })}
               className={inputClass}
             />
           </div>
@@ -550,7 +557,7 @@ export function AddressSection({
               <label className={labelClass}>City</label>
               <input
                 value={newAddress.city}
-                onChange={(e) => setNewAddress((a) => ({ ...a, city: e.target.value }))}
+                onChange={(e) => patchNewAddress({ city: e.target.value })}
                 className={inputClass}
               />
             </div>
@@ -558,7 +565,7 @@ export function AddressSection({
               <label className={labelClass}>State</label>
               <input
                 value={newAddress.state}
-                onChange={(e) => setNewAddress((a) => ({ ...a, state: e.target.value }))}
+                onChange={(e) => patchNewAddress({ state: e.target.value })}
                 className={inputClass}
               />
             </div>
@@ -567,7 +574,7 @@ export function AddressSection({
             <label className={labelClass}>ZIP</label>
             <input
               value={newAddress.zip}
-              onChange={(e) => setNewAddress((a) => ({ ...a, zip: e.target.value }))}
+              onChange={(e) => patchNewAddress({ zip: e.target.value })}
               className={inputClass}
             />
           </div>
@@ -575,7 +582,7 @@ export function AddressSection({
             <input
               type="checkbox"
               checked={newAddress.isDefault}
-              onChange={(e) => setNewAddress((a) => ({ ...a, isDefault: e.target.checked }))}
+              onChange={(e) => patchNewAddress({ isDefault: e.target.checked })}
               className="rounded border-fern-200 text-fern-500 focus:ring-fern-500"
             />
             <span className="text-sm text-fern-700">Default address</span>
@@ -622,18 +629,21 @@ export function AddressSection({
               </div>
             </div>
           )}
+          {addMessage ? (
+            <p className="text-sm text-fern-600 pt-1">{addMessage}</p>
+          ) : null}
           <div className="flex flex-wrap gap-2 pt-2">
             <button
               type="button"
               onClick={handleAdd}
-              disabled={saving}
+              disabled={saving || !!addMessage}
               className="rounded-lg bg-fern-500 text-white px-4 py-2 text-sm font-medium hover:bg-fern-600 disabled:opacity-50"
             >
               {saving ? "Verifying…" : "Add address"}
             </button>
             <button
               type="button"
-              onClick={() => { setAddOpen(false); setMessage(""); setVerifyResult(null); setPendingSave(null); }}
+              onClick={() => { setAddOpen(false); setAddMessage(""); setVerifyResult(null); setPendingSave(null); }}
               disabled={saving}
               className="rounded-lg border border-fern-200 bg-white px-4 py-2 text-sm font-medium text-fern-700 hover:bg-fern-50"
             >
@@ -644,8 +654,9 @@ export function AddressSection({
       ) : (
         <button
           type="button"
-          onClick={() => { setAddOpen(true); setMessage(""); }}
-          className="rounded-lg border border-fern-200 bg-white px-4 py-2 text-sm font-medium text-fern-700 hover:bg-fern-50 hover:border-fern-300"
+          onClick={() => { setAddOpen(true); setAddMessage(""); setMessage(""); }}
+          disabled={saving}
+          className="rounded-lg border border-fern-200 bg-white px-4 py-2 text-sm font-medium text-fern-700 hover:bg-fern-50 hover:border-fern-300 disabled:opacity-50"
         >
           + Add address
         </button>

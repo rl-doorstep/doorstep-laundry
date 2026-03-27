@@ -5,6 +5,8 @@ const DEFAULT_GRT_PERCENT = 8.39;
 const PRICE_PER_POUND_KEY = "price_per_pound_cents";
 const DEFAULT_PRICE_PER_POUND_CENTS = 150;
 
+export const MAX_SERVICE_DISTANCE_MILES_KEY = "max_service_distance_miles";
+
 const COMPANY_KEYS = {
   name: "company_name",
   address: "company_address",
@@ -60,4 +62,16 @@ export async function getCompanyInfo(): Promise<CompanyInfo> {
     email: map[COMPANY_KEYS.email]?.trim() || "",
     logoUrl: map[COMPANY_KEYS.logoUrl]?.trim() || "",
   };
+}
+
+/**
+ * Server-side only. Straight-line service radius in miles; 0 = no limit.
+ */
+export async function getMaxServiceDistanceMiles(): Promise<number> {
+  const row = await prisma.setting.findUnique({
+    where: { key: MAX_SERVICE_DISTANCE_MILES_KEY },
+  });
+  if (!row?.value?.trim()) return 0;
+  const value = parseFloat(row.value);
+  return Number.isFinite(value) && value > 0 ? value : 0;
 }

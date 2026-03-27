@@ -82,12 +82,9 @@ export default async function AdminPage() {
         </section>
 
         <section>
-          <h2 className="text-lg font-semibold text-fern-900 mb-2">
-            Company info (receipts)
+          <h2 className="text-lg font-semibold text-fern-900 mb-6">
+            Company, facility &amp; service area
           </h2>
-          <p className="text-sm text-fern-600 mb-6">
-            Shown on PDF receipts: company name (or logo), address, phone, and email in the top left. Logo URL can be a full URL or a path like /logo.png.
-          </p>
           <AdminCompanyInfo />
         </section>
 

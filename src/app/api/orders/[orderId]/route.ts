@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { toOrderLoadOptions } from "@/lib/load-options";
+import { checkAddressWithinServiceArea } from "@/lib/service-area";
 import type { LoadOptionsInput } from "@/lib/load-options";
 
 export async function GET(
@@ -111,6 +112,28 @@ export async function PATCH(
     const delivery = new Date(deliveryDate);
     if (isNaN(pickup.getTime()) || isNaN(delivery.getTime())) {
       return NextResponse.json({ error: "Invalid dates" }, { status: 400 });
+    }
+
+    const [pickupAddr, deliveryAddr] = await Promise.all([
+      prisma.address.findUnique({ where: { id: pickupAddressId } }),
+      prisma.address.findUnique({ where: { id: deliveryAddressId } }),
+    ]);
+    if (!pickupAddr || !deliveryAddr) {
+      return NextResponse.json(
+        { error: "Pickup or delivery address not found" },
+        { status: 400 }
+      );
+    }
+    for (const addr of [pickupAddr, deliveryAddr]) {
+      const area = await checkAddressWithinServiceArea({
+        street: addr.street,
+        city: addr.city,
+        state: addr.state,
+        zip: addr.zip,
+      });
+      if (!area.ok) {
+        return NextResponse.json({ error: area.error }, { status: 400 });
+      }
     }
 
     const updated = await prisma.order.update({

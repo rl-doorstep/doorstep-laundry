@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { isValidPhone, normalizePhone, formatPhoneForStorage } from "@/lib/phone";
+import { MAX_SERVICE_DISTANCE_MILES_KEY } from "@/lib/settings";
 
 const PRICE_PER_POUND_KEY = "price_per_pound_cents";
 const DEFAULT_PRICE_PER_POUND_CENTS = 150;
@@ -17,38 +18,63 @@ const COMPANY_KEYS = {
   logoUrl: "company_logo_url",
 } as const;
 
+/** Ensure session/cookies are read on each request (admin UI loads settings client-side). */
+export const dynamic = "force-dynamic";
+
 /**
  * GET: Return global settings (admin only). Includes pricePerPoundCents, grtPercent, and company info.
  */
 export async function GET() {
-  const session = await getServerSession(authOptions);
-  if (!session?.user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-  if ((session.user as { role: string }).role !== "admin") {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    if ((session.user as { role: string }).role !== "admin") {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
 
-  const [priceRow, grtRow, companyRows] = await Promise.all([
-    prisma.setting.findUnique({ where: { key: PRICE_PER_POUND_KEY } }),
-    prisma.setting.findUnique({ where: { key: GRT_PERCENT_KEY } }),
-    prisma.setting.findMany({ where: { key: { in: Object.values(COMPANY_KEYS) } } }),
-  ]);
-  const pricePerPoundCents = priceRow
-    ? parseInt(priceRow.value, 10) || DEFAULT_PRICE_PER_POUND_CENTS
-    : DEFAULT_PRICE_PER_POUND_CENTS;
-  const grtPercent = grtRow
-    ? parseFloat(grtRow.value) || DEFAULT_GRT_PERCENT
-    : DEFAULT_GRT_PERCENT;
-  const companyMap = Object.fromEntries(companyRows.map((r) => [r.key, r.value]));
-  const company = {
-    companyName: companyMap[COMPANY_KEYS.name] ?? "",
-    companyAddress: companyMap[COMPANY_KEYS.address] ?? "",
-    companyPhone: companyMap[COMPANY_KEYS.phone] ?? "",
-    companyEmail: companyMap[COMPANY_KEYS.email] ?? "",
-    companyLogoUrl: companyMap[COMPANY_KEYS.logoUrl] ?? "",
-  };
-  return NextResponse.json({ pricePerPoundCents, grtPercent, ...company });
+    const [priceRow, grtRow, companyRows, maxDistRow] = await Promise.all([
+      prisma.setting.findUnique({ where: { key: PRICE_PER_POUND_KEY } }),
+      prisma.setting.findUnique({ where: { key: GRT_PERCENT_KEY } }),
+      prisma.setting.findMany({ where: { key: { in: Object.values(COMPANY_KEYS) } } }),
+      prisma.setting.findUnique({ where: { key: MAX_SERVICE_DISTANCE_MILES_KEY } }),
+    ]);
+    const pricePerPoundCents = priceRow
+      ? parseInt(priceRow.value, 10) || DEFAULT_PRICE_PER_POUND_CENTS
+      : DEFAULT_PRICE_PER_POUND_CENTS;
+    const grtPercent = grtRow
+      ? parseFloat(grtRow.value) || DEFAULT_GRT_PERCENT
+      : DEFAULT_GRT_PERCENT;
+    const companyMap = Object.fromEntries(companyRows.map((r) => [r.key, r.value]));
+    const company = {
+      companyName: companyMap[COMPANY_KEYS.name] ?? "",
+      companyAddress: companyMap[COMPANY_KEYS.address] ?? "",
+      companyPhone: companyMap[COMPANY_KEYS.phone] ?? "",
+      companyEmail: companyMap[COMPANY_KEYS.email] ?? "",
+      companyLogoUrl: companyMap[COMPANY_KEYS.logoUrl] ?? "",
+    };
+    const maxServiceDistanceMiles = maxDistRow?.value?.trim()
+      ? parseFloat(maxDistRow.value)
+      : null;
+    return NextResponse.json({
+      pricePerPoundCents,
+      grtPercent,
+      maxServiceDistanceMiles:
+        maxServiceDistanceMiles != null &&
+        Number.isFinite(maxServiceDistanceMiles) &&
+        maxServiceDistanceMiles >= 0
+          ? maxServiceDistanceMiles
+          : null,
+      ...company,
+    });
+  } catch (e) {
+    console.error("[admin/settings GET]", e);
+    return NextResponse.json(
+      { error: "Failed to load settings from the database." },
+      { status: 500 }
+    );
+  }
 }
 
 function upsertSetting(key: string, value: string, createId: string) {
@@ -79,6 +105,7 @@ export async function PATCH(request: Request) {
     companyPhone?: string;
     companyEmail?: string;
     companyLogoUrl?: string;
+    maxServiceDistanceMiles?: number | null;
   };
   try {
     body = await request.json();
@@ -133,6 +160,30 @@ export async function PATCH(request: Request) {
   if (typeof body.companyLogoUrl === "string") {
     await upsertSetting(COMPANY_KEYS.logoUrl, body.companyLogoUrl.trim(), "setting-company-logo-url");
     result.companyLogoUrl = body.companyLogoUrl.trim();
+  }
+
+  if (body.maxServiceDistanceMiles !== undefined) {
+    if (body.maxServiceDistanceMiles === null) {
+      await prisma.setting.deleteMany({ where: { key: MAX_SERVICE_DISTANCE_MILES_KEY } });
+      result.maxServiceDistanceMiles = null;
+    } else if (
+      typeof body.maxServiceDistanceMiles === "number" &&
+      body.maxServiceDistanceMiles >= 0 &&
+      Number.isFinite(body.maxServiceDistanceMiles)
+    ) {
+      const v = Math.round(body.maxServiceDistanceMiles * 1000) / 1000;
+      await upsertSetting(
+        MAX_SERVICE_DISTANCE_MILES_KEY,
+        String(v),
+        "setting-max-service-distance-miles"
+      );
+      result.maxServiceDistanceMiles = v;
+    } else {
+      return NextResponse.json(
+        { error: "maxServiceDistanceMiles must be a non-negative number or null" },
+        { status: 400 }
+      );
+    }
   }
 
   if (Object.keys(result).length === 0) {

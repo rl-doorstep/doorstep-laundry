@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { checkAddressWithinServiceArea } from "@/lib/service-area";
 
 export async function PATCH(
   request: Request,
@@ -49,6 +50,24 @@ export async function PATCH(
 
     if (Object.keys(data).length === 0) {
       return NextResponse.json(address);
+    }
+
+    const touchesLocation =
+      data.street !== undefined ||
+      data.city !== undefined ||
+      data.state !== undefined ||
+      data.zip !== undefined;
+    if (touchesLocation) {
+      const merged = {
+        street: data.street ?? address.street,
+        city: data.city ?? address.city,
+        state: data.state ?? address.state,
+        zip: data.zip ?? address.zip,
+      };
+      const area = await checkAddressWithinServiceArea(merged);
+      if (!area.ok) {
+        return NextResponse.json({ error: area.error }, { status: 400 });
+      }
     }
 
     if (data.isDefault) {
