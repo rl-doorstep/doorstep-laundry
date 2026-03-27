@@ -135,7 +135,7 @@ export async function checkAddressWithinServiceArea(parts: {
       maxMiles >= 10 ? Math.round(maxMiles) : Math.round(maxMiles * 10) / 10;
     return {
       ok: false,
-      error: `This address is outside our service area—we currently serve within about ${roundedMax} miles (straight-line) of our facility. Please use a closer address or contact us for help.`,
+      error: `This address is outside our service area—we currently serve within about ${roundedMax} miles of our facility. Please use a closer address or contact us for help.`,
     };
   }
 
