@@ -150,9 +150,6 @@ export function AdminCompanyInfo() {
           className="w-full rounded-lg border border-fern-300 px-3 py-2 text-sm text-fern-900"
           placeholder="e.g. 15 (leave empty for no limit)"
         />
-        <p className="text-xs text-fern-500 mt-1">
-          Straight-line miles from the facility address (not driving distance). Leave empty or 0 for no limit.
-        </p>
       </div>
       <div>
         <label htmlFor={FIELD_IDS.phone} className="block text-sm font-medium text-fern-700 mb-1">
