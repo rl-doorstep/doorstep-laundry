@@ -8,6 +8,10 @@ const runOrderInclude = {
   customer: { select: { id: true, name: true, email: true, phone: true } },
   pickupAddress: true,
   deliveryAddress: true,
+  orderLoads: {
+    orderBy: { loadNumber: "asc" as const },
+    select: { id: true, loadNumber: true, status: true },
+  },
 } as const;
 
 /**

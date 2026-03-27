@@ -10,6 +10,7 @@ import { isInTimeWindow } from "@/lib/slots";
  * Returns { pickups: Order[], deliveries: Order[] }.
  * - pickups: status scheduled (optionally filtered by pickup window).
  * - deliveries: ready_for_delivery with all loads ready + current run's out_for_delivery (run orders always included).
+ * Each order includes scalars (e.g. numberOfLoads) plus orderLoads, customer, pickupAddress, deliveryAddress.
  */
 export async function GET(request: Request) {
   const session = await getServerSession(authOptions);
