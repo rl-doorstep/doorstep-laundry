@@ -1,10 +1,15 @@
 import { NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { toOrderLoadOptions } from "@/lib/load-options";
 import { checkAddressWithinServiceArea } from "@/lib/service-area";
 import type { LoadOptionsInput } from "@/lib/load-options";
+import {
+  normalizeBulkyItems,
+  type BulkyItems,
+} from "@/lib/bulky-items";
 
 export async function GET(
   _request: Request,
@@ -81,6 +86,7 @@ export async function PATCH(
       notes,
       numberOfLoads,
       loadOptions,
+      bulkyItems: bulkyItemsPayload,
     } = body as {
       pickupAddressId?: string;
       deliveryAddressId?: string;
@@ -91,6 +97,7 @@ export async function PATCH(
       notes?: string;
       numberOfLoads?: number;
       loadOptions?: LoadOptionsInput[];
+      bulkyItems?: BulkyItems[];
     };
     const loads = numberOfLoads != null && numberOfLoads >= 1 ? numberOfLoads : order.numberOfLoads;
     // totalCents set at weigh-in (waiting_for_payment); leave existing until then
@@ -154,11 +161,21 @@ export async function PATCH(
     const existingByNumber = new Map(order.orderLoads.map((l) => [l.loadNumber, l]));
     for (let n = 1; n <= loads; n++) {
       const opts = toOrderLoadOptions(loadOptions?.[n - 1]);
+      const bulkyNorm = normalizeBulkyItems(bulkyItemsPayload?.[n - 1]);
+      const bulkyJson =
+        Object.keys(bulkyNorm).length > 0 ? (bulkyNorm as object) : null;
       const existing = existingByNumber.get(n);
       if (existing) {
+        const data: Prisma.OrderLoadUpdateInput = { ...opts };
+        if (bulkyItemsPayload !== undefined) {
+          data.bulkyItems =
+            bulkyJson === null
+              ? Prisma.JsonNull
+              : (bulkyJson as Prisma.InputJsonValue);
+        }
         await prisma.orderLoad.update({
           where: { id: existing.id },
-          data: opts,
+          data,
         });
       } else {
         await prisma.orderLoad.create({
@@ -168,6 +185,7 @@ export async function PATCH(
             loadCode: `${order.orderNumber}-L${n}`,
             status: "ready_for_pickup",
             ...opts,
+            bulkyItems: bulkyJson ?? undefined,
           },
         });
       }

@@ -81,19 +81,24 @@ export async function POST(request: Request) {
     data: { totalCents },
   });
 
-  const lineItems = [
+  const { buildWashAndBulkyStripeLineItems } = await import(
+    "@/lib/checkout-line-items"
+  );
+  const lineItems = buildWashAndBulkyStripeLineItems(
     {
-      price_data: {
-        currency: "usd",
-        product_data: {
-          name: "Wash and fold delivery service",
-          description: `Order ${order.orderNumber} · Pickup ${new Date(order.pickupDate).toLocaleDateString()}, delivery ${new Date(order.deliveryDate).toLocaleDateString()}`,
-        },
-        unit_amount: subtotalCents,
-      },
-      quantity: 1,
+      orderNumber: order.orderNumber,
+      pickupDate: order.pickupDate,
+      deliveryDate: order.deliveryDate,
     },
-  ];
+    order.orderLoads,
+    pricePerPoundCents
+  );
+  if (lineItems.length === 0) {
+    return NextResponse.json(
+      { error: "Order has no billable weight or bulky items; contact support" },
+      { status: 400 }
+    );
+  }
   if (!nmgrtExempt && taxCents > 0) {
     lineItems.push({
       price_data: {
@@ -105,7 +110,7 @@ export async function POST(request: Request) {
         unit_amount: taxCents,
       },
       quantity: 1,
-    } as (typeof lineItems)[0]);
+    });
   }
 
   try {

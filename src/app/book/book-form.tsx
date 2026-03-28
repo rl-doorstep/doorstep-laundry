@@ -6,6 +6,12 @@ import type { Address } from "@prisma/client";
 import { getTimeSlots, type TimeSlot } from "@/lib/slots";
 import type { LoadOptionsInput } from "@/lib/load-options";
 import { LOAD_OPTION_KEYS, LOAD_OPTION_LABELS } from "@/lib/load-options";
+import type { BulkyItems } from "@/lib/bulky-items";
+import {
+  BULKY_ITEM_KEYS,
+  BULKY_ITEM_LABELS,
+  normalizeBulkyItems,
+} from "@/lib/bulky-items";
 import { useGoogleMapsScript } from "@/hooks/use-google-maps";
 import { AddressAutocomplete } from "@/components/address-autocomplete";
 
@@ -13,6 +19,7 @@ const PRICE_PER_LOAD_CENTS = 2500;
 const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 const emptyLoadOptions: LoadOptionsInput = {};
+const emptyBulkyItems: BulkyItems = {};
 
 export type BookFormInitialOrder = {
   numberOfLoads: number;
@@ -24,6 +31,8 @@ export type BookFormInitialOrder = {
   deliveryAddressId: string;
   notes: string;
   loadOptions?: LoadOptionsInput[];
+  /** Per-load bulky item counts (same length as numberOfLoads when editing). */
+  bulkyItems?: BulkyItems[];
 };
 
 export function BookForm({
@@ -57,6 +66,12 @@ export function BookForm({
     }
     const defaults = defaultLoadOptions ?? emptyLoadOptions;
     return [defaults];
+  });
+  const [bulkyItemsPerLoad, setBulkyItemsPerLoad] = useState<BulkyItems[]>(() => {
+    if (initialOrder?.bulkyItems && initialOrder.bulkyItems.length > 0) {
+      return initialOrder.bulkyItems.map((b) => normalizeBulkyItems(b));
+    }
+    return [{ ...emptyBulkyItems }];
   });
   const [pickupDate, setPickupDate] = useState<Date>(() => {
     if (initialOrder?.pickupDate) {
@@ -181,9 +196,21 @@ export function BookForm({
     return prev.slice(0, count);
   }
 
+  function resizeBulkyItemsForCount(prev: BulkyItems[], count: number): BulkyItems[] {
+    if (prev.length === count) return prev;
+    if (prev.length < count) {
+      return [
+        ...prev,
+        ...Array.from({ length: count - prev.length }, () => ({ ...emptyBulkyItems })),
+      ];
+    }
+    return prev.slice(0, count);
+  }
+
   function setNumberOfLoadsAndResizeOptions(n: number) {
     setNumberOfLoads(n);
     setLoadOptions((prev) => resizeLoadOptionsForCount(prev, n));
+    setBulkyItemsPerLoad((prev) => resizeBulkyItemsForCount(prev, n));
   }
 
   // Keep delivery at least 24h after pickup (e.g. when pickup date changes)
@@ -356,6 +383,9 @@ export function BookForm({
       notes: notes || undefined,
       numberOfLoads,
       loadOptions: loadOptions.slice(0, numberOfLoads),
+      bulkyItems: bulkyItemsPerLoad
+        .slice(0, numberOfLoads)
+        .map((b) => normalizeBulkyItems(b)),
     };
     const url = editOrderId ? `/api/orders/${editOrderId}` : "/api/orders";
     const method = editOrderId ? "PATCH" : "POST";
@@ -430,6 +460,9 @@ export function BookForm({
         notes: notes || undefined,
         numberOfLoads,
         loadOptions: loadOptions.slice(0, numberOfLoads),
+        bulkyItems: bulkyItemsPerLoad
+          .slice(0, numberOfLoads)
+          .map((b) => normalizeBulkyItems(b)),
       };
       const url = editOrderId ? `/api/orders/${editOrderId}` : "/api/orders";
       const method = editOrderId ? "PATCH" : "POST";
@@ -532,6 +565,49 @@ export function BookForm({
                       {LOAD_OPTION_LABELS[key]}
                     </label>
                   ))}
+                </div>
+                <div className="mt-3 pt-3 border-t border-fern-100">
+                  <p className="text-xs font-medium text-fern-700 mb-2">
+                    Bulky items (optional)
+                  </p>
+                  <p className="text-xs text-fern-500 mb-2">
+                    Bedding sets and comforters—priced separately. See{" "}
+                    <a href="/app/pricing" className="text-fern-700 underline hover:text-fern-900">
+                      Pricing
+                    </a>
+                    .
+                  </p>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    {BULKY_ITEM_KEYS.map((key) => (
+                      <label
+                        key={key}
+                        className="flex items-center justify-between gap-2 text-xs text-fern-700"
+                      >
+                        <span className="truncate">{BULKY_ITEM_LABELS[key]}</span>
+                        <select
+                          value={bulkyItemsPerLoad[i]?.[key] ?? 0}
+                          onChange={(e) => {
+                            const v = Number(e.target.value);
+                            setBulkyItemsPerLoad((prev) => {
+                              const next = [...prev];
+                              const row = { ...(next[i] ?? {}) };
+                              if (v <= 0) delete row[key];
+                              else row[key] = v;
+                              next[i] = row;
+                              return next;
+                            });
+                          }}
+                          className="rounded border border-fern-200 bg-white px-1.5 py-1 text-fern-900 text-xs shrink-0"
+                        >
+                          {[0, 1, 2, 3, 4, 5].map((n) => (
+                            <option key={n} value={n}>
+                              {n}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                    ))}
+                  </div>
                 </div>
               </div>
             ))}

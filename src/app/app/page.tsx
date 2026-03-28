@@ -51,6 +51,12 @@ export default async function AppHomePage() {
             </Link>
             <nav className="flex items-center gap-4">
               <Link
+                href="/app/pricing"
+                className="text-sm font-medium text-fern-600 hover:text-fern-900 transition-colors"
+              >
+                Pricing
+              </Link>
+              <Link
                 href="/login"
                 className="text-sm font-medium text-fern-600 hover:text-fern-900 transition-colors"
               >

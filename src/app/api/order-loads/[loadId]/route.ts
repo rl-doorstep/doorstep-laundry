@@ -181,19 +181,24 @@ async function handleWaitingForPayment(
   });
   const baseUrl = process.env.NEXTAUTH_URL ?? "http://localhost:3000";
   let paymentUrl = `${baseUrl}/orders/${orderId}`;
-  const lineItems = [
+  const { buildWashAndBulkyStripeLineItems } = await import(
+    "@/lib/checkout-line-items"
+  );
+  const lineItems = buildWashAndBulkyStripeLineItems(
     {
-      price_data: {
-        currency: "usd",
-        product_data: {
-          name: "Wash and fold delivery service",
-          description: `Order ${order.orderNumber} · Pickup ${new Date(order.pickupDate).toLocaleDateString()}, delivery ${new Date(order.deliveryDate).toLocaleDateString()}`,
-        },
-        unit_amount: subtotalCents,
-      },
-      quantity: 1,
+      orderNumber: order.orderNumber,
+      pickupDate: order.pickupDate,
+      deliveryDate: order.deliveryDate,
     },
-  ];
+    loads,
+    pricePerPoundCents
+  );
+  if (lineItems.length === 0) {
+    console.warn(
+      "[handleWaitingForPayment] No Stripe line items (no weight/bulky):",
+      order.orderNumber
+    );
+  }
   if (!nmgrtExempt && taxCents > 0) {
     lineItems.push({
       price_data: {
@@ -205,7 +210,7 @@ async function handleWaitingForPayment(
         unit_amount: taxCents,
       },
       quantity: 1,
-    } as (typeof lineItems)[0]);
+    });
   }
   try {
     const { getStripe } = await import("@/lib/stripe");

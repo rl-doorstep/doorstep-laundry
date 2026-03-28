@@ -7,6 +7,12 @@ import { PDFDocument, StandardFonts, rgb, degrees } from "pdf-lib";
 import type { CompanyInfo } from "./settings";
 import type { LoadOptionsInput } from "./load-options";
 import { getEnabledLoadOptionLabels } from "./load-options";
+import type { BulkyItems } from "./bulky-items";
+import {
+  computeBulkyItemsCents,
+  getAggregatedBulkyLineItems,
+  normalizeBulkyItems,
+} from "./bulky-items";
 
 export type ReceiptOrder = {
   orderNumber: string;
@@ -22,6 +28,7 @@ export type ReceiptOrder = {
   orderLoads: Array<{
     loadNumber: number;
     weightLbs: number | null;
+    bulkyItems?: BulkyItems | unknown | null;
   } & Partial<LoadOptionsInput>>;
 };
 
@@ -60,6 +67,30 @@ function formatDate(d: Date): string {
 
 function formatDollars(cents: number): string {
   return (Math.round(cents) / 100).toFixed(2);
+}
+
+/** Allocate weight-based cents per load so the column sums to targetTotalCents. */
+function allocateWeightCentsPerLoad(
+  loads: Array<{ weightLbs: number | null }>,
+  pricePerPoundCents: number,
+  targetTotalCents: number
+): number[] {
+  const n = loads.length;
+  if (n === 0) return [];
+  const raw = loads.map((l) =>
+    Math.round((Number(l.weightLbs) || 0) * pricePerPoundCents)
+  );
+  const sum = raw.reduce((a, b) => a + b, 0);
+  const diff = targetTotalCents - sum;
+  if (diff !== 0) {
+    for (let i = n - 1; i >= 0; i--) {
+      if ((Number(loads[i].weightLbs) || 0) > 0 || i === 0) {
+        raw[i] += diff;
+        break;
+      }
+    }
+  }
+  return raw;
 }
 
 async function fetchLogoImage(
@@ -149,7 +180,23 @@ export async function generateReceiptPdf(
   );
   const totalCents = order.totalCents;
   const unitPricePerLbDollars = pricePerPoundCents / 100;
-  const description = "Wash and fold delivery service";
+  const washDescription = "Wash and fold (by weight)";
+  const loads = order.orderLoads;
+  const bulkySubtotalCents = loads.reduce(
+    (s, l) => s + computeBulkyItemsCents(l.bulkyItems as BulkyItems | null),
+    0
+  );
+  const weightSubtotalFromLoads = Math.round(totalLbs * pricePerPoundCents);
+  let weightTargetCents = weightSubtotalFromLoads;
+  const combinedFromLoads = weightSubtotalFromLoads + bulkySubtotalCents;
+  if (combinedFromLoads !== subtotalCents) {
+    weightTargetCents = subtotalCents - bulkySubtotalCents;
+  }
+  const weightCentsPerLoad = allocateWeightCentsPerLoad(
+    loads,
+    pricePerPoundCents,
+    weightTargetCents
+  );
 
   const doc = await PDFDocument.create();
   const font = await doc.embedFont(StandardFonts.Helvetica);
@@ -247,15 +294,15 @@ export async function generateReceiptPdf(
   page.drawText("TOTAL", { x: totalColRight - fontBold.widthOfTextAtSize("TOTAL", FONT_SIZE_SMALL), y, size: FONT_SIZE_SMALL, font: fontBold, color: LABEL_GRAY });
   y -= TABLE_HEADER_HEIGHT;
 
-  for (const load of order.orderLoads) {
+  for (let idx = 0; idx < loads.length; idx++) {
+    const load = loads[idx];
     const lbs = Number(load.weightLbs) || 0;
-    const loadSubtotalCents = totalLbs > 0 ? Math.round((lbs / totalLbs) * subtotalCents) : 0;
-    const unitPrice = totalLbs > 0 ? unitPricePerLbDollars : 0;
-    const totalText = `$ ${formatDollars(loadSubtotalCents)}`;
+    const loadWeightCents = weightCentsPerLoad[idx] ?? 0;
+    const totalText = `$ ${formatDollars(loadWeightCents)}`;
     page.drawText(String(load.loadNumber), { x: colItem, y, size: FONT_SIZE_SMALL, font: font, color: BLACK });
-    page.drawText(description, { x: colDesc, y, size: FONT_SIZE_SMALL, font: font, color: BLACK });
+    page.drawText(washDescription, { x: colDesc, y, size: FONT_SIZE_SMALL, font: font, color: BLACK });
     page.drawText(`${lbs.toFixed(1)} lbs`, { x: colQty, y, size: FONT_SIZE_SMALL, font: font, color: BLACK });
-    page.drawText(`$ ${unitPrice.toFixed(2)}`, { x: colUnit, y, size: FONT_SIZE_SMALL, font: font, color: BLACK });
+    page.drawText(`$ ${unitPricePerLbDollars.toFixed(2)}`, { x: colUnit, y, size: FONT_SIZE_SMALL, font: font, color: BLACK });
     page.drawText(totalText, { x: totalColRight - font.widthOfTextAtSize(totalText, FONT_SIZE_SMALL), y, size: FONT_SIZE_SMALL, font: font, color: BLACK });
     y -= ROW_HEIGHT;
     const optionLabels = getEnabledLoadOptionLabels(load);
@@ -263,6 +310,27 @@ export async function generateReceiptPdf(
       const optsText = optionLabels.join(", ");
       page.drawText(optsText, { x: colDesc, y, size: FONT_SIZE_SMALL - 1, font: font, color: LABEL_GRAY });
       y -= ROW_HEIGHT * 0.75;
+    }
+    const bulkyLines = getAggregatedBulkyLineItems(
+      normalizeBulkyItems(load.bulkyItems as BulkyItems | null)
+    );
+    for (const bl of bulkyLines) {
+      const bulkyDesc = `${bl.name} (bulky)`;
+      const qtyStr = String(bl.qty);
+      const unitStr = `$ ${formatDollars(bl.unitCents)}`;
+      const lineTotalStr = `$ ${formatDollars(bl.lineCents)}`;
+      page.drawText("", { x: colItem, y, size: FONT_SIZE_SMALL, font: font, color: BLACK });
+      page.drawText(bulkyDesc, { x: colDesc, y, size: FONT_SIZE_SMALL, font: font, color: BLACK });
+      page.drawText(qtyStr, { x: colQty, y, size: FONT_SIZE_SMALL, font: font, color: BLACK });
+      page.drawText(unitStr, { x: colUnit, y, size: FONT_SIZE_SMALL, font: font, color: BLACK });
+      page.drawText(lineTotalStr, {
+        x: totalColRight - font.widthOfTextAtSize(lineTotalStr, FONT_SIZE_SMALL),
+        y,
+        size: FONT_SIZE_SMALL,
+        font: font,
+        color: BLACK,
+      });
+      y -= ROW_HEIGHT;
     }
   }
 

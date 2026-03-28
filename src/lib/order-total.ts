@@ -1,11 +1,19 @@
 /**
- * Order totals: base price per pound (order override > customer override > global) + NMGRT unless exempt.
- * subtotalCents = totalLbs × pricePerPoundCents (base)
+ * Order totals: weight × $/lb + bulky fixed add-ons; NMGRT on subtotal unless exempt.
+ * subtotalCents = weightSubtotalCents + bulkySubtotalCents
  * taxCents = exempt ? 0 : round(subtotalCents × grtPercent / 100)
  * totalCents = subtotalCents + taxCents
  */
 
-export type LoadWithWeight = { weightLbs?: number | null };
+import {
+  computeBulkyItemsCents,
+  type BulkyItems,
+} from "./bulky-items";
+
+export type LoadWithWeight = {
+  weightLbs?: number | null;
+  bulkyItems?: BulkyItems | unknown | null;
+};
 
 export type OrderPricingSource = {
   orderPricePerPoundCents?: number | null;
@@ -35,25 +43,42 @@ export function getEffectivePricing(
 }
 
 /**
- * Compute subtotal (base), tax (NMGRT unless exempt), and total from load weights and price per pound.
- * Use this when setting order.totalCents (weigh-in, checkout, resend payment).
+ * Compute subtotal (weight + bulky), tax (NMGRT unless exempt), and total.
+ * Use when setting order.totalCents (weigh-in, checkout, resend payment).
  */
 export function computeOrderTotalWithTax(
   loads: LoadWithWeight[],
   pricePerPoundCents: number,
   grtPercent: number,
   nmgrtExempt = false
-): { subtotalCents: number; taxCents: number; totalCents: number } {
+): {
+  subtotalCents: number;
+  taxCents: number;
+  totalCents: number;
+  weightSubtotalCents: number;
+  bulkySubtotalCents: number;
+} {
   const totalLbs = loads.reduce(
     (sum, l) => sum + (Number(l.weightLbs) || 0),
     0
   );
-  const subtotalCents = Math.round(totalLbs * pricePerPoundCents);
+  const weightSubtotalCents = Math.round(totalLbs * pricePerPoundCents);
+  const bulkySubtotalCents = loads.reduce(
+    (sum, l) => sum + computeBulkyItemsCents(l.bulkyItems as BulkyItems | null),
+    0
+  );
+  const subtotalCents = weightSubtotalCents + bulkySubtotalCents;
   const taxCents = nmgrtExempt
     ? 0
     : Math.round(subtotalCents * (grtPercent / 100));
   const totalCents = subtotalCents + taxCents;
-  return { subtotalCents, taxCents, totalCents };
+  return {
+    subtotalCents,
+    taxCents,
+    totalCents,
+    weightSubtotalCents,
+    bulkySubtotalCents,
+  };
 }
 
 /**
