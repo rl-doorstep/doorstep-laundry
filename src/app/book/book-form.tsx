@@ -59,17 +59,35 @@ export function BookForm({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  // Step 1 state
-  const [numberOfLoads] = useState(initialOrder?.numberOfLoads ?? 1);
-
-  // Per-load options: array of length numberOfLoads, each element is LoadOptionsInput
+  // Step 1 state — one preferences block per load (length = numberOfLoads)
   const [loadOptions, setLoadOptions] = useState<LoadOptionsInput[]>(() => {
-    if (initialOrder?.loadOptions && initialOrder.loadOptions.length > 0) {
-      return initialOrder.loadOptions;
-    }
     const defaults = defaultLoadOptions ?? emptyLoadOptions;
-    return [defaults];
+    if (initialOrder?.loadOptions && initialOrder.loadOptions.length > 0) {
+      return initialOrder.loadOptions.map((row) => ({ ...defaults, ...row }));
+    }
+    const n =
+      initialOrder?.numberOfLoads != null && initialOrder.numberOfLoads >= 1
+        ? initialOrder.numberOfLoads
+        : 1;
+    return Array.from({ length: n }, () => ({ ...defaults }));
   });
+
+  const numberOfLoads = loadOptions.length;
+
+  function addLoadPreferences() {
+    const defaults = defaultLoadOptions ?? emptyLoadOptions;
+    setLoadOptions((prev) => {
+      if (prev.length >= 10) return prev;
+      return [...prev, { ...defaults }];
+    });
+  }
+
+  function removeLoadPreferences(index: number) {
+    setLoadOptions((prev) => {
+      if (prev.length <= 1) return prev;
+      return prev.filter((_, j) => j !== index);
+    });
+  }
   const [pickupDate, setPickupDate] = useState<Date>(() => {
     if (initialOrder?.pickupDate) {
       const d = new Date(initialOrder.pickupDate);
@@ -413,8 +431,8 @@ export function BookForm({
       pickupTimeSlot,
       deliveryTimeSlot,
       notes: notes || undefined,
-      numberOfLoads,
-      loadOptions: loadOptions.slice(0, numberOfLoads),
+      numberOfLoads: loadOptions.length,
+      loadOptions,
     };
     const url = editOrderId ? `/api/orders/${editOrderId}` : "/api/orders";
     const method = editOrderId ? "PATCH" : "POST";
@@ -487,8 +505,8 @@ export function BookForm({
         pickupTimeSlot,
         deliveryTimeSlot,
         notes: notes || undefined,
-        numberOfLoads,
-        loadOptions: loadOptions.slice(0, numberOfLoads),
+        numberOfLoads: loadOptions.length,
+        loadOptions,
       };
       const url = editOrderId ? `/api/orders/${editOrderId}` : "/api/orders";
       const method = editOrderId ? "PATCH" : "POST";
@@ -530,12 +548,23 @@ export function BookForm({
             Set wash preferences for each load (e.g. hot water, hypoallergenic).
           </p>
           <div className="space-y-4">
-            {Array.from({ length: numberOfLoads }, (_, i) => (
+            {loadOptions.map((_, i) => (
               <div
                 key={i}
                 className="rounded-lg border border-fern-200 bg-fern-50/30 p-3"
               >
-                <p className="text-sm font-medium text-fern-800 mb-2">Load {i + 1}</p>
+                <div className="flex items-start justify-between gap-2 mb-2">
+                  <p className="text-sm font-medium text-fern-800">Load {i + 1}</p>
+                  {loadOptions.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => removeLoadPreferences(i)}
+                      className="text-xs font-medium text-fern-600 hover:text-red-700 shrink-0"
+                    >
+                      Remove
+                    </button>
+                  )}
+                </div>
                 <div className="flex flex-wrap gap-x-4 gap-y-1">
                   {LOAD_OPTION_KEYS.map((key) => (
                     <label
@@ -563,6 +592,14 @@ export function BookForm({
               </div>
             ))}
           </div>
+          <button
+            type="button"
+            onClick={addLoadPreferences}
+            disabled={loadOptions.length >= 10}
+            className="mt-4 w-full rounded-lg border-2 border-dashed border-fern-300 bg-fern-50/50 py-2.5 text-sm font-medium text-fern-700 hover:bg-fern-100 hover:border-fern-400 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Add load preferences
+          </button>
         </div>
 
         {/* Pickup date */}
