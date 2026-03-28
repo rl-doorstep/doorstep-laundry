@@ -18,6 +18,7 @@ async function main() {
       role: "staff",
       passwordHash,
       authProvider: "credentials",
+      emailVerifiedAt: new Date(),
     },
   });
   console.log("Created staff user:", staffEmail, "(password: staff123)");

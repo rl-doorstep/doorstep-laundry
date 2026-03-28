@@ -15,10 +15,16 @@ export function LoginForm() {
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get("callbackUrl") ?? "/welcome";
   const resetSuccess = searchParams.get("reset") === "1";
+  const registered = searchParams.get("registered") === "1";
+  const verified = searchParams.get("verified") === "1";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [resendEmail, setResendEmail] = useState("");
+  const [resendLoading, setResendLoading] = useState(false);
+  const [resendMessage, setResendMessage] = useState("");
 
   async function handleCredentials(e: React.FormEvent) {
     e.preventDefault();
@@ -58,6 +64,16 @@ export function LoginForm() {
           </h1>
         </div>
         <form onSubmit={handleCredentials} className="space-y-5">
+          {verified && (
+            <p className="text-sm text-fern-700 bg-fern-50 rounded-lg px-3 py-2">
+              Your email is verified. You can sign in below.
+            </p>
+          )}
+          {registered && (
+            <p className="text-sm text-fern-700 bg-fern-50 rounded-lg px-3 py-2">
+              Account created. Check your inbox for a link to verify your email before signing in with your password.
+            </p>
+          )}
           {resetSuccess && (
             <p className="text-sm text-fern-700 bg-fern-50 rounded-lg px-3 py-2">
               Your password has been updated. Sign in with your new password.
@@ -96,13 +112,22 @@ export function LoginForm() {
             <input
               id="password"
               name="password"
-              type="password"
+              type={showPassword ? "text" : "password"}
               autoComplete="current-password"
               required
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className={inputClass}
             />
+            <label className="mt-2 flex cursor-pointer items-center gap-2 text-sm text-fern-700">
+              <input
+                type="checkbox"
+                checked={showPassword}
+                onChange={(e) => setShowPassword(e.target.checked)}
+                className="rounded border-fern-200 text-fern-500 focus:ring-fern-500"
+              />
+              Show password
+            </label>
           </div>
           <button
             type="submit"
@@ -112,6 +137,60 @@ export function LoginForm() {
             {loading ? "Signing in…" : "Sign in"}
           </button>
         </form>
+
+        <details className="rounded-lg border border-fern-200 bg-fern-50/50 p-3 text-sm">
+          <summary className="cursor-pointer font-medium text-fern-800 select-none">
+            Resend verification email
+          </summary>
+          <div className="mt-3 space-y-2 pt-1">
+            <p className="text-xs text-fern-600">
+              If you signed up with email and password, we can send a new verification link.
+            </p>
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <input
+                type="email"
+                autoComplete="email"
+                placeholder="Your email"
+                value={resendEmail}
+                onChange={(e) => {
+                  setResendEmail(e.target.value);
+                  setResendMessage("");
+                }}
+                className={inputClass}
+              />
+              <button
+                type="button"
+                disabled={resendLoading || !resendEmail.trim()}
+                onClick={async () => {
+                  setResendLoading(true);
+                  setResendMessage("");
+                  try {
+                    const res = await fetch("/api/auth/resend-verification", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ email: resendEmail.trim() }),
+                    });
+                    const data = await res.json().catch(() => ({}));
+                    setResendMessage(
+                      typeof data.message === "string"
+                        ? data.message
+                        : "Request sent."
+                    );
+                  } catch {
+                    setResendMessage("Something went wrong.");
+                  }
+                  setResendLoading(false);
+                }}
+                className="shrink-0 rounded-lg border border-fern-200 bg-white px-4 py-2.5 text-sm font-medium text-fern-700 hover:bg-fern-50 disabled:opacity-50"
+              >
+                {resendLoading ? "Sending…" : "Send link"}
+              </button>
+            </div>
+            {resendMessage ? (
+              <p className="text-xs text-fern-600">{resendMessage}</p>
+            ) : null}
+          </div>
+        </details>
         {process.env.NEXT_PUBLIC_GOOGLE_ENABLED === "true" && (
           <div className="relative my-4">
             <div className="absolute inset-0 flex items-center">

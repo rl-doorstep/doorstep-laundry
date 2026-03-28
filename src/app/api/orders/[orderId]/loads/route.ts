@@ -113,8 +113,6 @@ export async function POST(
   return NextResponse.json(finalOrder);
 }
 
-const REMOVABLE_LOAD_STATUSES: LoadStatus[] = ["ready_for_pickup", "incoming"];
-
 /**
  * DELETE: Remove the highest-numbered load (driver only use case; no UI for washers).
  * Allowed only when order is scheduled or picked_up and the last load is still pre-wash.
