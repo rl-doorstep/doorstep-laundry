@@ -965,7 +965,7 @@ export function BookForm({
             ? (isEdit ? "Saving…" : "Verifying…")
             : isEdit
               ? "Save changes"
-              : "Create order & continue to payment"}
+              : "Create order"}
         </button>
       </form>
     </div>
