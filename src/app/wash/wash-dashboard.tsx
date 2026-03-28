@@ -278,10 +278,7 @@ export function WashDashboard({
                 Weight (lbs)
               </th>
               <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-fern-500">
-                Time / Dates
-              </th>
-              <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-fern-500">
-                Loads
+                DUE
               </th>
             </tr>
           </thead>
@@ -299,7 +296,7 @@ export function WashDashboard({
               if (rows.length === 0) {
                 return (
                   <tr>
-                    <td colSpan={8} className="px-4 py-10 text-center text-fern-500">
+                    <td colSpan={7} className="px-4 py-10 text-center text-fern-500">
                       No orders for this filter.
                     </td>
                   </tr>
@@ -421,93 +418,123 @@ export function WashDashboard({
                     )}
                   </td>
                   <td className="px-4 py-3">
-                    {load ? (
-                      (() => {
-                        const orderPaid = ["ready_for_delivery", "out_for_delivery", "delivered"].includes(order.status);
-                        if (orderPaid) {
-                          return (
-                            <span className="text-fern-600 text-sm">
-                              {load.weightLbs != null ? `${load.weightLbs.toFixed(1)} lbs` : "—"}
-                            </span>
-                          );
-                        }
-                        return load.status === "cleaned" ? (
-                        <div className="flex items-center gap-1.5">
-                          <input
-                            type="number"
-                            min="0"
-                            step="0.1"
-                            value={weightDraft[load.id] ?? (load.weightLbs != null ? String(load.weightLbs) : "")}
-                            onChange={(e) =>
-                              setWeightDraft((prev) => ({ ...prev, [load.id]: e.target.value }))
-                            }
-                            disabled={updatingLoadId === load.id}
-                            className={`${inputClass} w-20`}
-                            placeholder="0"
-                            aria-label={`Weight for load ${load.loadNumber} (lbs)`}
-                          />
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const raw = weightDraft[load.id] ?? (load.weightLbs != null ? String(load.weightLbs) : "");
-                              const v = parseFloat(raw);
-                              if (raw !== "" && !Number.isNaN(v) && v >= 0) {
-                                updateLoad(load.id, { weightLbs: v });
-                              }
-                            }}
-                            disabled={updatingLoadId === load.id}
-                            className="rounded-lg border border-fern-300 bg-fern-100 px-2 py-1.5 text-xs font-medium text-fern-800 hover:bg-fern-200 disabled:opacity-50"
-                          >
-                            Save
-                          </button>
-                        </div>
-                      ) : (
+                    {(() => {
+                      const loads = order.orderLoads ?? [];
+                      const lastLoad =
+                        loads.length > 0 ? loads[loads.length - 1] : null;
+                      const isLastLoadRow =
+                        load == null ||
+                        (lastLoad != null && load.id === lastLoad.id);
+                      const orderPaid = [
+                        "ready_for_delivery",
+                        "out_for_delivery",
+                        "delivered",
+                      ].includes(order.status);
+                      const needsWeightEntry =
+                        load != null && !orderPaid && load.status === "cleaned";
+                      const showAddLoad =
+                        order.status === "in_progress" &&
+                        isLastLoadRow &&
+                        !needsWeightEntry;
+
+                      const addLoadBtn = showAddLoad ? (
+                        <button
+                          type="button"
+                          onClick={() => addLoadToOrder(order.id)}
+                          disabled={addingLoadOrderId === order.id}
+                          className="rounded-lg border border-fern-300 bg-fern-50 px-2.5 py-1.5 text-xs font-medium text-fern-800 hover:bg-fern-100 disabled:opacity-50 shrink-0"
+                        >
+                          {addingLoadOrderId === order.id ? "Adding…" : "+ Add load"}
+                        </button>
+                      ) : null;
+
+                      if (showAddLoad && addLoadBtn) {
+                        return (
+                          <div className="flex items-start">{addLoadBtn}</div>
+                        );
+                      }
+
+                      if (!load) {
+                        return (
+                          <span className="text-fern-400 text-sm">—</span>
+                        );
+                      }
+
+                      if (orderPaid) {
+                        return (
+                          <span className="text-fern-600 text-sm">
+                            {load.weightLbs != null
+                              ? `${load.weightLbs.toFixed(1)} lbs`
+                              : "—"}
+                          </span>
+                        );
+                      }
+
+                      if (load.status === "cleaned") {
+                        return (
+                          <div className="flex flex-col gap-1.5 items-start">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <input
+                                type="number"
+                                min="0"
+                                step="0.1"
+                                value={
+                                  weightDraft[load.id] ??
+                                  (load.weightLbs != null ? String(load.weightLbs) : "")
+                                }
+                                onChange={(e) =>
+                                  setWeightDraft((prev) => ({
+                                    ...prev,
+                                    [load.id]: e.target.value,
+                                  }))
+                                }
+                                disabled={updatingLoadId === load.id}
+                                className={`${inputClass} w-20`}
+                                placeholder="0"
+                                aria-label={`Weight for load ${load.loadNumber} (lbs)`}
+                              />
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const raw =
+                                    weightDraft[load.id] ??
+                                    (load.weightLbs != null
+                                      ? String(load.weightLbs)
+                                      : "");
+                                  const v = parseFloat(raw);
+                                  if (raw !== "" && !Number.isNaN(v) && v >= 0) {
+                                    updateLoad(load.id, { weightLbs: v });
+                                  }
+                                }}
+                                disabled={updatingLoadId === load.id}
+                                className="rounded-lg border border-fern-300 bg-fern-100 px-2 py-1.5 text-xs font-medium text-fern-800 hover:bg-fern-200 disabled:opacity-50"
+                              >
+                                Save
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      }
+
+                      return (
                         <span className="text-fern-600 text-sm">
-                          {load.weightLbs != null ? `${load.weightLbs.toFixed(1)} lbs` : "—"}
+                          {load.weightLbs != null
+                            ? `${load.weightLbs.toFixed(1)} lbs`
+                            : "—"}
                         </span>
                       );
-                      })()
-                    ) : (
-                      <span className="text-fern-400 text-sm">—</span>
-                    )}
+                    })()}
                   </td>
-                  <td className="px-4 py-3 text-sm text-fern-600">
+                  <td className="px-4 py-3 text-sm text-fern-700">
                     <div>
-                      {order.pickupTimeSlot
-                        ? getTimeSlotById(order.pickupTimeSlot)?.label ??
-                          order.pickupTimeSlot
-                        : "—"}{" "}
-                      /{" "}
+                      {new Date(order.deliveryDate as string).toLocaleDateString()}
+                    </div>
+                    <div className="text-fern-500 text-xs mt-0.5">
                       {order.deliveryTimeSlot
                         ? getTimeSlotById(order.deliveryTimeSlot)?.label ??
                           order.deliveryTimeSlot
                         : "—"}
                     </div>
-                    <div className="text-fern-500 text-xs mt-0.5">
-                      {new Date(order.pickupDate as string).toLocaleDateString()} /{" "}
-                      {new Date(order.deliveryDate as string).toLocaleDateString()}
-                    </div>
-                  </td>
-                  <td className="px-4 py-3">
-                    {(() => {
-                      const loads = order.orderLoads ?? [];
-                      const lastLoad = loads.length > 0 ? loads[loads.length - 1] : null;
-                      const isLastLoadRow =
-                        load == null || (lastLoad != null && load.id === lastLoad.id);
-                      if (order.status !== "in_progress" || !isLastLoadRow) {
-                        return <span className="text-fern-400 text-sm">—</span>;
-                      }
-                      return (
-                        <button
-                          type="button"
-                          onClick={() => addLoadToOrder(order.id)}
-                          disabled={addingLoadOrderId === order.id}
-                          className="rounded-lg border border-fern-300 bg-fern-50 px-2.5 py-1.5 text-xs font-medium text-fern-800 hover:bg-fern-100 disabled:opacity-50"
-                        >
-                          {addingLoadOrderId === order.id ? "Adding…" : "+ Add load"}
-                        </button>
-                      );
-                    })()}
                   </td>
                 </tr>
               ));
