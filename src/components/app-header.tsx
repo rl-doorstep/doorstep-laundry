@@ -6,6 +6,8 @@ import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
 
+const pricingNav = { href: "/app/pricing", label: "Pricing" } as const;
+
 const allNavLinks = [
   { href: "/dashboard", label: "Dashboard" },
   { href: "/book", label: "Book a pickup" },
@@ -33,6 +35,7 @@ export function AppHeader() {
   const navLinks =
     role === "admin"
       ? [
+          pricingNav,
           { href: "/wash", label: "Wash" },
           { href: "/orders", label: "Orders" },
           { href: "/driver", label: "Driver" },
@@ -40,17 +43,19 @@ export function AppHeader() {
         ]
       : isStaffOrAdmin
         ? [
+            pricingNav,
             { href: "/wash", label: "Wash" },
             { href: "/orders", label: "Orders" },
             { href: "/driver", label: "Driver" },
           ]
-        : allNavLinks;
+        : [pricingNav, ...allNavLinks];
 
   const [menuOpen, setMenuOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
 
   const isActive = (href: string) =>
     pathname === href ||
+    (href === "/app/pricing" && pathname.startsWith("/app/pricing")) ||
     (href === "/dashboard" && pathname === "/wash") ||
     (href === "/admin" && pathname.startsWith("/admin")) ||
     (href === "/orders" && pathname === "/orders") ||
