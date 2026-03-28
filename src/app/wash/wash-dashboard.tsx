@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { getTimeSlotById } from "@/lib/slots";
 import { getEnabledLoadOptionLabels } from "@/lib/load-options";
 import { LoadTagPrintButton } from "@/components/load-tag-print";
+import { WASH_VISIBLE_ORDER_STATUSES } from "@/lib/wash-orders";
 
 const POLL_INTERVAL_MS = 15_000;
 
@@ -231,9 +232,9 @@ export function WashDashboard({
             className={inputClass}
           >
             <option value="">All</option>
-            {Object.entries(STATUS_LABEL).map(([v, l]) => (
+            {WASH_VISIBLE_ORDER_STATUSES.map((v) => (
               <option key={v} value={v}>
-                {l}
+                {STATUS_LABEL[v] ?? v}
               </option>
             ))}
           </select>

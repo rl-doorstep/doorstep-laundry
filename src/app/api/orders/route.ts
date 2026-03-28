@@ -7,6 +7,11 @@ import { sendOrderNotification } from "@/lib/notify";
 import { toOrderLoadOptions, type LoadOptionsInput } from "@/lib/load-options";
 import type { OrderStatus } from "@prisma/client";
 import { checkAddressWithinServiceArea } from "@/lib/service-area";
+import {
+  isWashVisibleOrderStatus,
+  sortOrdersForWash,
+  WASH_VISIBLE_ORDER_STATUSES,
+} from "@/lib/wash-orders";
 
 export async function GET(request: Request) {
   const session = await getServerSession(authOptions);
@@ -25,7 +30,7 @@ export async function GET(request: Request) {
     const forWash = ["1", "true"].includes(searchParams.get("forWash") ?? "");
     const where: {
       pickupDate?: { gte: Date; lte: Date };
-      status?: OrderStatus | { notIn: OrderStatus[] };
+      status?: OrderStatus | { notIn: OrderStatus[] } | { in: OrderStatus[] };
       AND?: Array<
         | { status: OrderStatus }
         | { NOT: { status: OrderStatus } }
@@ -42,19 +47,19 @@ export async function GET(request: Request) {
       end.setHours(23, 59, 59, 999);
       where.pickupDate = { gte: start, lte: end };
     }
-    if (forWash && status) {
-      where.AND = [
-        { status: status as OrderStatus },
-        { NOT: { status: "out_for_delivery" } },
-      ];
+    if (forWash) {
+      if (status && isWashVisibleOrderStatus(status)) {
+        where.status = status;
+      } else {
+        where.status = { in: WASH_VISIBLE_ORDER_STATUSES };
+      }
     } else if (status) {
       where.status = status as OrderStatus;
     } else {
       const excludedStatuses: OrderStatus[] = showDelivered ? ["cancelled"] : ["cancelled", "delivered"];
-      if (forWash) excludedStatuses.push("out_for_delivery");
       where.status = { notIn: excludedStatuses };
     }
-    const orders = await prisma.order.findMany({
+    let orders = await prisma.order.findMany({
       where,
       orderBy: { pickupDate: "asc" },
       include: {
@@ -64,6 +69,9 @@ export async function GET(request: Request) {
         orderLoads: { orderBy: { loadNumber: "asc" } },
       },
     });
+    if (forWash) {
+      orders = sortOrdersForWash(orders);
+    }
     const orderIdsNeedingLoads = orders
       .filter(
         (o) =>
@@ -89,7 +97,7 @@ export async function GET(request: Request) {
       }
     }
     if (orderIdsNeedingLoads.length > 0) {
-      const refreshed = await prisma.order.findMany({
+      let refreshed = await prisma.order.findMany({
         where: { id: { in: orders.map((o) => o.id) } },
         orderBy: { pickupDate: "asc" },
         include: {
@@ -99,6 +107,9 @@ export async function GET(request: Request) {
           orderLoads: { orderBy: { loadNumber: "asc" } },
         },
       });
+      if (forWash) {
+        refreshed = sortOrdersForWash(refreshed);
+      }
       return NextResponse.json(refreshed);
     }
     return NextResponse.json(orders);
