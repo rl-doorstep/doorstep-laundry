@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { AppHeader } from "@/components/app-header";
+import { getBookingAvailability } from "@/lib/settings";
 import { BookForm } from "./book-form";
 
 export default async function BookPage() {
@@ -28,6 +29,8 @@ export default async function BookPage() {
       ? (user.defaultLoadOptions as Record<string, boolean>)
       : null;
 
+  const bookingAvailability = await getBookingAvailability();
+
   return (
     <div className="min-h-screen bg-fern-50">
       <AppHeader />
@@ -35,16 +38,19 @@ export default async function BookPage() {
         <h1 className="text-xl font-semibold text-fern-900 mb-6">
           Book a pickup
         </h1>
-        {addresses.length === 0 ? (
-          <div>
+        {/* Wrapper keeps BookForm as a stable second child so React does not remount it when the empty-state hint appears/disappears after refresh */}
+        <div className="mb-4 min-h-0">
+          {addresses.length === 0 && (
             <p className="text-fern-600 mb-4">
               Add an address when you continue, or use an existing one from your account.
             </p>
-            <BookForm addresses={[]} defaultLoadOptions={defaultLoadOptions} />
-          </div>
-        ) : (
-          <BookForm addresses={addresses} defaultLoadOptions={defaultLoadOptions} />
-        )}
+          )}
+        </div>
+        <BookForm
+          addresses={addresses}
+          defaultLoadOptions={defaultLoadOptions}
+          bookingAvailability={bookingAvailability}
+        />
       </main>
     </div>
   );

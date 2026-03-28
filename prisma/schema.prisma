@@ -153,6 +153,7 @@ model OrderLoad {
   delicateCycle  Boolean    @default(false) @map("delicate_cycle")
   scentFree      Boolean    @default(false) @map("scent_free")
   coldWaterOnly  Boolean    @default(false) @map("cold_water_only")
+  bulkyItems     Json?      @map("bulky_items")
   createdAt      DateTime   @default(now()) @map("created_at")
   updatedAt      DateTime   @updatedAt @map("updated_at")
 

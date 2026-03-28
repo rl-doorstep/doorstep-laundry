@@ -72,6 +72,7 @@ export async function GET(
       orderLoads: order.orderLoads.map((l) => ({
         loadNumber: l.loadNumber,
         weightLbs: l.weightLbs,
+        bulkyItems: l.bulkyItems ?? null,
         hotWater: l.hotWater,
         bleach: l.bleach,
         hypoallergenic: l.hypoallergenic,

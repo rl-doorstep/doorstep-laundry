@@ -82,19 +82,24 @@ export async function POST(
   const totalLbs = loads.reduce((sum: number, l: { weightLbs?: number | null }) => sum + (Number(l.weightLbs) || 0), 0);
   const baseUrl = process.env.NEXTAUTH_URL ?? "http://localhost:3000";
   let paymentUrl = `${baseUrl}/orders/${orderId}`;
-  const lineItems = [
+  const { buildWashAndBulkyStripeLineItems } = await import(
+    "@/lib/checkout-line-items"
+  );
+  const lineItems = buildWashAndBulkyStripeLineItems(
     {
-      price_data: {
-        currency: "usd",
-        product_data: {
-          name: "Wash and fold delivery service",
-          description: `Order ${order.orderNumber} · Pickup ${new Date(order.pickupDate).toLocaleDateString()}, delivery ${new Date(order.deliveryDate).toLocaleDateString()}`,
-        },
-        unit_amount: subtotalCents,
-      },
-      quantity: 1,
+      orderNumber: order.orderNumber,
+      pickupDate: order.pickupDate,
+      deliveryDate: order.deliveryDate,
     },
-  ];
+    loads,
+    pricePerPoundCents
+  );
+  if (lineItems.length === 0) {
+    return NextResponse.json(
+      { error: "Order has no billable weight or bulky items" },
+      { status: 400 }
+    );
+  }
   if (!nmgrtExempt && taxCents > 0) {
     lineItems.push({
       price_data: {
@@ -106,7 +111,7 @@ export async function POST(
         unit_amount: taxCents,
       },
       quantity: 1,
-    } as (typeof lineItems)[0]);
+    });
   }
   try {
     const stripe = getStripe();

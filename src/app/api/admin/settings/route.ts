@@ -4,6 +4,13 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { isValidPhone, normalizePhone, formatPhoneForStorage } from "@/lib/phone";
 import { MAX_SERVICE_DISTANCE_MILES_KEY } from "@/lib/settings";
+import {
+  BOOKING_AVAILABILITY_KEY,
+  parseBookingAvailabilityJson,
+  serializeBookingAvailability,
+  isValidBookingAvailability,
+  type BookingAvailability,
+} from "@/lib/booking-availability";
 
 const PRICE_PER_POUND_KEY = "price_per_pound_cents";
 const DEFAULT_PRICE_PER_POUND_CENTS = 150;
@@ -34,11 +41,12 @@ export async function GET() {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const [priceRow, grtRow, companyRows, maxDistRow] = await Promise.all([
+    const [priceRow, grtRow, companyRows, maxDistRow, bookingRow] = await Promise.all([
       prisma.setting.findUnique({ where: { key: PRICE_PER_POUND_KEY } }),
       prisma.setting.findUnique({ where: { key: GRT_PERCENT_KEY } }),
       prisma.setting.findMany({ where: { key: { in: Object.values(COMPANY_KEYS) } } }),
       prisma.setting.findUnique({ where: { key: MAX_SERVICE_DISTANCE_MILES_KEY } }),
+      prisma.setting.findUnique({ where: { key: BOOKING_AVAILABILITY_KEY } }),
     ]);
     const pricePerPoundCents = priceRow
       ? parseInt(priceRow.value, 10) || DEFAULT_PRICE_PER_POUND_CENTS
@@ -57,6 +65,7 @@ export async function GET() {
     const maxServiceDistanceMiles = maxDistRow?.value?.trim()
       ? parseFloat(maxDistRow.value)
       : null;
+    const bookingAvailability = parseBookingAvailabilityJson(bookingRow?.value);
     return NextResponse.json({
       pricePerPoundCents,
       grtPercent,
@@ -66,6 +75,7 @@ export async function GET() {
         maxServiceDistanceMiles >= 0
           ? maxServiceDistanceMiles
           : null,
+      bookingAvailability,
       ...company,
     });
   } catch (e) {
@@ -106,6 +116,7 @@ export async function PATCH(request: Request) {
     companyEmail?: string;
     companyLogoUrl?: string;
     maxServiceDistanceMiles?: number | null;
+    bookingAvailability?: BookingAvailability;
   };
   try {
     body = await request.json();
@@ -184,6 +195,36 @@ export async function PATCH(request: Request) {
         { status: 400 }
       );
     }
+  }
+
+  if (body.bookingAvailability !== undefined) {
+    const a = body.bookingAvailability;
+    if (
+      !a ||
+      !Array.isArray(a.morningByDay) ||
+      a.morningByDay.length !== 7 ||
+      !Array.isArray(a.eveningByDay) ||
+      a.eveningByDay.length !== 7
+    ) {
+      return NextResponse.json(
+        { error: "bookingAvailability must include morningByDay and eveningByDay (each 7 booleans)" },
+        { status: 400 }
+      );
+    }
+    const normalized: BookingAvailability = {
+      morningByDay: a.morningByDay.map((x) => Boolean(x)),
+      eveningByDay: a.eveningByDay.map((x) => Boolean(x)),
+    };
+    const check = isValidBookingAvailability(normalized);
+    if (!check.ok) {
+      return NextResponse.json({ error: check.error ?? "Invalid booking availability" }, { status: 400 });
+    }
+    await upsertSetting(
+      BOOKING_AVAILABILITY_KEY,
+      serializeBookingAvailability(normalized),
+      "setting-booking-availability"
+    );
+    result.bookingAvailability = normalized;
   }
 
   if (Object.keys(result).length === 0) {

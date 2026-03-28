@@ -8,8 +8,17 @@ import type { LoadOptionsInput } from "@/lib/load-options";
 import { LOAD_OPTION_KEYS, LOAD_OPTION_LABELS } from "@/lib/load-options";
 import { useGoogleMapsScript } from "@/hooks/use-google-maps";
 import { AddressAutocomplete } from "@/components/address-autocomplete";
+import type { BookingAvailability } from "@/lib/booking-availability";
+import {
+  firstAllowedTimeSlotId,
+  findNextValidDeliveryDate,
+  findNextValidPickupDate,
+  isAnySlotEnabledOnDay,
+  isDeliveryDateUnavailable,
+  isPickupDateUnavailable,
+  isSlotEnabledForDay,
+} from "@/lib/booking-availability";
 
-const PRICE_PER_LOAD_CENTS = 2500;
 const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 const emptyLoadOptions: LoadOptionsInput = {};
@@ -31,6 +40,7 @@ export function BookForm({
   editOrderId,
   initialOrder,
   defaultLoadOptions,
+  bookingAvailability,
 }: {
   addresses: Address[];
   defaultTotalCents?: number;
@@ -38,6 +48,8 @@ export function BookForm({
   initialOrder?: BookFormInitialOrder;
   /** Customer default load options (for new orders); applied to each load when creating. */
   defaultLoadOptions?: LoadOptionsInput | null;
+  /** Admin-configured days and morning/evening windows for pickup & delivery. */
+  bookingAvailability: BookingAvailability;
 }) {
   const router = useRouter();
   const timeSlots = getTimeSlots();
@@ -47,17 +59,35 @@ export function BookForm({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  // Step 1 state
-  const [numberOfLoads, setNumberOfLoads] = useState(initialOrder?.numberOfLoads ?? 1);
-
-  // Per-load options: array of length numberOfLoads, each element is LoadOptionsInput
+  // Step 1 state — one preferences block per load (length = numberOfLoads)
   const [loadOptions, setLoadOptions] = useState<LoadOptionsInput[]>(() => {
-    if (initialOrder?.loadOptions && initialOrder.loadOptions.length > 0) {
-      return initialOrder.loadOptions;
-    }
     const defaults = defaultLoadOptions ?? emptyLoadOptions;
-    return [defaults];
+    if (initialOrder?.loadOptions && initialOrder.loadOptions.length > 0) {
+      return initialOrder.loadOptions.map((row) => ({ ...defaults, ...row }));
+    }
+    const n =
+      initialOrder?.numberOfLoads != null && initialOrder.numberOfLoads >= 1
+        ? initialOrder.numberOfLoads
+        : 1;
+    return Array.from({ length: n }, () => ({ ...defaults }));
   });
+
+  const numberOfLoads = loadOptions.length;
+
+  function addLoadPreferences() {
+    const defaults = defaultLoadOptions ?? emptyLoadOptions;
+    setLoadOptions((prev) => {
+      if (prev.length >= 10) return prev;
+      return [...prev, { ...defaults }];
+    });
+  }
+
+  function removeLoadPreferences(index: number) {
+    setLoadOptions((prev) => {
+      if (prev.length <= 1) return prev;
+      return prev.filter((_, j) => j !== index);
+    });
+  }
   const [pickupDate, setPickupDate] = useState<Date>(() => {
     if (initialOrder?.pickupDate) {
       const d = new Date(initialOrder.pickupDate);
@@ -139,6 +169,7 @@ export function BookForm({
 
   const pickupDateStr = pickupDate.toISOString().slice(0, 10);
   const deliveryDateStr = deliveryDate.toISOString().slice(0, 10);
+  const bookingDaysKey = `${bookingAvailability.morningByDay.join(",")}|${bookingAvailability.eveningByDay.join(",")}`;
 
   const today = useMemo(() => {
     const d = new Date();
@@ -161,30 +192,25 @@ export function BookForm({
     pickupDate.getDate() === now.getDate();
   const currentHourLocal = now.getHours() + now.getMinutes() / 60;
 
+  const pickupDow = pickupDate.getDay();
+  const deliveryDow = deliveryDate.getDay();
+
   function isPickupSlotDisabled(slot: TimeSlot): boolean {
+    if (!isSlotEnabledForDay(slot.id, pickupDow, bookingAvailability)) return true;
     if (!isPickupToday) return false;
     const cutoffHour = slot.startHour - 1;
     return currentHourLocal >= cutoffHour;
   }
 
-  const hasValidSlotForToday = timeSlots.some((slot) => currentHourLocal < slot.startHour - 1);
-
-  function resizeLoadOptionsForCount(prev: LoadOptionsInput[], count: number): LoadOptionsInput[] {
-    const defaults = defaultLoadOptions ?? emptyLoadOptions;
-    if (prev.length === count) return prev;
-    if (prev.length < count) {
-      return [
-        ...prev,
-        ...Array.from({ length: count - prev.length }, () => ({ ...defaults })),
-      ];
-    }
-    return prev.slice(0, count);
+  function isDeliverySlotDisabled(slot: TimeSlot): boolean {
+    return !isSlotEnabledForDay(slot.id, deliveryDow, bookingAvailability);
   }
 
-  function setNumberOfLoadsAndResizeOptions(n: number) {
-    setNumberOfLoads(n);
-    setLoadOptions((prev) => resizeLoadOptionsForCount(prev, n));
-  }
+  const hasValidSlotForToday = timeSlots.some(
+    (slot) =>
+      isSlotEnabledForDay(slot.id, today.getDay(), bookingAvailability) &&
+      currentHourLocal < slot.startHour - 1
+  );
 
   // Keep delivery at least 24h after pickup (e.g. when pickup date changes)
   useEffect(() => {
@@ -194,18 +220,52 @@ export function BookForm({
     }
   }, [pickupDateStr, deliveryDate, earliestDeliveryDate]);
 
-  // If today has no valid pickup slots, bump pickup to tomorrow
+  // Clamp pickup to next admin-allowed day (and not “today” when no slot left)
   useEffect(() => {
-    const isPickupToday =
-      pickupDate.getFullYear() === today.getFullYear() &&
-      pickupDate.getMonth() === today.getMonth() &&
-      pickupDate.getDate() === today.getDate();
-    if (isPickupToday && !hasValidSlotForToday) {
-      const tomorrow = new Date(today);
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      queueMicrotask(() => setPickupDate(tomorrow));
+    const now = new Date();
+    if (isPickupDateUnavailable(pickupDate, now, bookingAvailability, timeSlots)) {
+      const next = findNextValidPickupDate(pickupDate, now, bookingAvailability, timeSlots);
+      const cur = new Date(pickupDate);
+      cur.setHours(0, 0, 0, 0);
+      if (cur.getTime() !== next.getTime()) {
+        queueMicrotask(() => setPickupDate(next));
+      }
     }
-  }, [hasValidSlotForToday, pickupDateStr, pickupDate, today]);
+  }, [pickupDateStr, pickupDate, bookingDaysKey, timeSlots, bookingAvailability]);
+
+  // Clamp delivery to allowed days on/after earliest day
+  useEffect(() => {
+    const now = new Date();
+    if (isDeliveryDateUnavailable(deliveryDate, earliestDeliveryDate, now, bookingAvailability)) {
+      const next = findNextValidDeliveryDate(
+        deliveryDate,
+        earliestDeliveryDate,
+        now,
+        bookingAvailability
+      );
+      const cur = new Date(deliveryDate);
+      cur.setHours(0, 0, 0, 0);
+      if (cur.getTime() !== next.getTime()) {
+        queueMicrotask(() => setDeliveryDate(next));
+      }
+    }
+  }, [deliveryDateStr, deliveryDate, earliestDeliveryDate, bookingDaysKey, bookingAvailability]);
+
+  useEffect(() => {
+    const dow = pickupDate.getDay();
+    if (!isSlotEnabledForDay(pickupTimeSlot, dow, bookingAvailability)) {
+      const id = firstAllowedTimeSlotId(bookingAvailability, timeSlots, dow);
+      queueMicrotask(() => setPickupTimeSlot(id));
+    }
+  }, [pickupTimeSlot, pickupDateStr, bookingDaysKey, bookingAvailability, timeSlots]);
+
+  useEffect(() => {
+    const dow = deliveryDate.getDay();
+    if (!isSlotEnabledForDay(deliveryTimeSlot, dow, bookingAvailability)) {
+      const id = firstAllowedTimeSlotId(bookingAvailability, timeSlots, dow);
+      queueMicrotask(() => setDeliveryTimeSlot(id));
+    }
+  }, [deliveryTimeSlot, deliveryDateStr, bookingDaysKey, bookingAvailability, timeSlots]);
 
   const dayPickerDates = Array.from({ length: 7 }, (_, i) => {
     const d = new Date(today);
@@ -221,8 +281,25 @@ export function BookForm({
   }
 
   function handleStep1Continue() {
+    const now = new Date();
     if (deliveryDate < earliestDeliveryDate) {
       setError("Delivery must be at least 24 hours after pickup (next day or later).");
+      return;
+    }
+    if (isPickupDateUnavailable(pickupDate, now, bookingAvailability, timeSlots)) {
+      setError("That pickup day or time isn’t available. Choose another date or window.");
+      return;
+    }
+    if (isDeliveryDateUnavailable(deliveryDate, earliestDeliveryDate, now, bookingAvailability)) {
+      setError("That delivery day isn’t available. Choose another date.");
+      return;
+    }
+    if (!isSlotEnabledForDay(pickupTimeSlot, pickupDate.getDay(), bookingAvailability)) {
+      setError("Choose an available pickup time.");
+      return;
+    }
+    if (!isSlotEnabledForDay(deliveryTimeSlot, deliveryDate.getDay(), bookingAvailability)) {
+      setError("Choose an available delivery time.");
       return;
     }
     const selectedPickupSlot = timeSlots.find((s) => s.id === pickupTimeSlot);
@@ -354,8 +431,8 @@ export function BookForm({
       pickupTimeSlot,
       deliveryTimeSlot,
       notes: notes || undefined,
-      numberOfLoads,
-      loadOptions: loadOptions.slice(0, numberOfLoads),
+      numberOfLoads: loadOptions.length,
+      loadOptions,
     };
     const url = editOrderId ? `/api/orders/${editOrderId}` : "/api/orders";
     const method = editOrderId ? "PATCH" : "POST";
@@ -428,8 +505,8 @@ export function BookForm({
         pickupTimeSlot,
         deliveryTimeSlot,
         notes: notes || undefined,
-        numberOfLoads,
-        loadOptions: loadOptions.slice(0, numberOfLoads),
+        numberOfLoads: loadOptions.length,
+        loadOptions,
       };
       const url = editOrderId ? `/api/orders/${editOrderId}` : "/api/orders";
       const method = editOrderId ? "PATCH" : "POST";
@@ -464,38 +541,6 @@ export function BookForm({
           {isEdit ? "Edit pickup & delivery" : "Book your pickup"}
         </h2>
 
-        {/* Service card */}
-        <div className="rounded-xl border border-fern-200 bg-fern-50/50 p-4 mb-6 flex items-start gap-4">
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-fern-200 text-fern-700">
-            <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M20 7l-8 4-8-4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-            </svg>
-          </div>
-          <div className="flex-1 min-w-0">
-            <h3 className="font-semibold text-fern-900">Laundry Service</h3>
-            <p className="text-sm text-fern-600 mt-0.5">
-              We pick up your laundry, wash and fold, then deliver it back to your door.
-            </p>
-            <div className="mt-3 flex items-center gap-4">
-              <label className="flex items-center gap-2 text-sm text-fern-700">
-                <span>Number of loads</span>
-                <select
-                  value={numberOfLoads}
-                  onChange={(e) => setNumberOfLoadsAndResizeOptions(Number(e.target.value))}
-                  className="rounded-lg border border-fern-200 bg-white px-2 py-1 text-fern-900"
-                >
-                  {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
-                    <option key={n} value={n}>{n}</option>
-                  ))}
-                </select>
-              </label>
-              <span className="text-sm text-fern-500">
-                ${((numberOfLoads * PRICE_PER_LOAD_CENTS) / 100).toFixed(0)} total
-              </span>
-            </div>
-          </div>
-        </div>
-
         {/* Per-load options */}
         <div className="mb-6">
           <p className="font-semibold text-fern-900 mb-2">Options per load</p>
@@ -503,12 +548,23 @@ export function BookForm({
             Set wash preferences for each load (e.g. hot water, hypoallergenic).
           </p>
           <div className="space-y-4">
-            {Array.from({ length: numberOfLoads }, (_, i) => (
+            {loadOptions.map((_, i) => (
               <div
                 key={i}
                 className="rounded-lg border border-fern-200 bg-fern-50/30 p-3"
               >
-                <p className="text-sm font-medium text-fern-800 mb-2">Load {i + 1}</p>
+                <div className="flex items-start justify-between gap-2 mb-2">
+                  <p className="text-sm font-medium text-fern-800">Load {i + 1}</p>
+                  {loadOptions.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => removeLoadPreferences(i)}
+                      className="text-xs font-medium text-fern-600 hover:text-red-700 shrink-0"
+                    >
+                      Remove
+                    </button>
+                  )}
+                </div>
                 <div className="flex flex-wrap gap-x-4 gap-y-1">
                   {LOAD_OPTION_KEYS.map((key) => (
                     <label
@@ -536,6 +592,14 @@ export function BookForm({
               </div>
             ))}
           </div>
+          <button
+            type="button"
+            onClick={addLoadPreferences}
+            disabled={loadOptions.length >= 10}
+            className="mt-4 w-full rounded-lg border-2 border-dashed border-fern-300 bg-fern-50/50 py-2.5 text-sm font-medium text-fern-700 hover:bg-fern-100 hover:border-fern-400 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Add load preferences
+          </button>
         </div>
 
         {/* Pickup date */}
@@ -570,7 +634,8 @@ export function BookForm({
               const isPast = d < today;
               const isToday = d.getTime() === today.getTime();
               const todayUnavailable = isToday && !hasValidSlotForToday;
-              const disabled = isPast || todayUnavailable;
+              const dayClosed = !isAnySlotEnabledOnDay(d.getDay(), bookingAvailability);
+              const disabled = isPast || todayUnavailable || dayClosed;
               return (
                 <button
                   key={d.toISOString().slice(0, 10)}
@@ -603,9 +668,6 @@ export function BookForm({
         {/* Pickup time */}
         <div className="mb-6">
           <p className="font-semibold text-fern-900 mb-2">Pickup time</p>
-          <p className="text-sm text-fern-500 mb-2">
-            Slots within 1 hour of their start are disabled for today.
-          </p>
           <div className="grid grid-cols-2 gap-2">
             {timeSlots.map((slot) => {
               const disabled = isPickupSlotDisabled(slot);
@@ -641,16 +703,18 @@ export function BookForm({
               const isSelected = d.getTime() === deliveryDate.getTime();
               const isPast = d < today;
               const beforeEarliest = d < earliestDeliveryDate;
+              const dayClosed = !isAnySlotEnabledOnDay(d.getDay(), bookingAvailability);
+              const disabled = isPast || beforeEarliest || dayClosed;
               return (
                 <button
                   key={d.toISOString().slice(0, 10)}
                   type="button"
-                  onClick={() => !isPast && !beforeEarliest && setDeliveryDate(new Date(d))}
-                  disabled={isPast || beforeEarliest}
+                  onClick={() => !disabled && setDeliveryDate(new Date(d))}
+                  disabled={disabled}
                   className={`min-w-[4rem] rounded-lg border-2 py-2 px-3 text-sm font-medium transition-colors ${
                     isSelected
                       ? "border-fern-500 bg-fern-500 text-white"
-                      : isPast || beforeEarliest
+                      : disabled
                         ? "border-fern-100 bg-fern-50 text-fern-400 cursor-not-allowed"
                         : "border-fern-200 bg-white text-fern-800 hover:border-fern-300"
                   }`}
@@ -666,20 +730,26 @@ export function BookForm({
         <div className="mb-6">
           <p className="font-semibold text-fern-900 mb-2">Delivery time</p>
           <div className="grid grid-cols-2 gap-2">
-            {timeSlots.map((slot) => (
-              <button
-                key={slot.id}
-                type="button"
-                onClick={() => setDeliveryTimeSlot(slot.id)}
-                className={`rounded-xl border-2 py-2.5 px-3 text-sm font-medium transition-colors ${
-                  deliveryTimeSlot === slot.id
-                    ? "border-fern-500 bg-fern-50 text-fern-800"
-                    : "border-fern-200 bg-white text-fern-700 hover:border-fern-300"
-                }`}
-              >
-                {slot.label}
-              </button>
-            ))}
+            {timeSlots.map((slot) => {
+              const disabled = isDeliverySlotDisabled(slot);
+              return (
+                <button
+                  key={slot.id}
+                  type="button"
+                  onClick={() => !disabled && setDeliveryTimeSlot(slot.id)}
+                  disabled={disabled}
+                  className={`rounded-xl border-2 py-2.5 px-3 text-sm font-medium transition-colors ${
+                    disabled
+                      ? "border-fern-100 bg-fern-50 text-fern-400 cursor-not-allowed"
+                      : deliveryTimeSlot === slot.id
+                        ? "border-fern-500 bg-fern-50 text-fern-800"
+                        : "border-fern-200 bg-white text-fern-700 hover:border-fern-300"
+                  }`}
+                >
+                  {slot.label}
+                </button>
+              );
+            })}
           </div>
         </div>
 
@@ -895,7 +965,7 @@ export function BookForm({
             ? (isEdit ? "Saving…" : "Verifying…")
             : isEdit
               ? "Save changes"
-              : "Create order & continue to payment"}
+              : "Create order"}
         </button>
       </form>
     </div>

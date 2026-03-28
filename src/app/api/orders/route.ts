@@ -5,6 +5,10 @@ import { prisma } from "@/lib/db";
 import { generateOrderNumber } from "@/lib/order-number";
 import { sendOrderNotification } from "@/lib/notify";
 import { toOrderLoadOptions, type LoadOptionsInput } from "@/lib/load-options";
+import {
+  normalizeBulkyItems,
+  type BulkyItems,
+} from "@/lib/bulky-items";
 import type { OrderStatus } from "@prisma/client";
 import { checkAddressWithinServiceArea } from "@/lib/service-area";
 import {
@@ -159,6 +163,7 @@ export async function POST(request: Request) {
       numberOfLoads,
       totalCents,
       loadOptions,
+      bulkyItems: bulkyItemsPayload,
     } = body as {
       pickupAddressId?: string;
       deliveryAddressId?: string;
@@ -170,6 +175,7 @@ export async function POST(request: Request) {
       numberOfLoads?: number;
       totalCents?: number;
       loadOptions?: LoadOptionsInput[];
+      bulkyItems?: BulkyItems[];
     };
     const loads = numberOfLoads != null && numberOfLoads >= 1 ? numberOfLoads : 1;
     // Total computed after weigh-in (post-weigh payment); use 0 until then
@@ -244,6 +250,7 @@ export async function POST(request: Request) {
 
     for (let n = 1; n <= loads; n++) {
       const opts = toOrderLoadOptions(loadOptions?.[n - 1]);
+      const bulkyNorm = normalizeBulkyItems(bulkyItemsPayload?.[n - 1]);
       await prisma.orderLoad.create({
         data: {
           orderId: order.id,
@@ -251,6 +258,10 @@ export async function POST(request: Request) {
           loadCode: `${order.orderNumber}-L${n}`,
           status: "ready_for_pickup",
           ...opts,
+          bulkyItems:
+            Object.keys(bulkyNorm).length > 0
+              ? (bulkyNorm as object)
+              : undefined,
         },
       });
     }

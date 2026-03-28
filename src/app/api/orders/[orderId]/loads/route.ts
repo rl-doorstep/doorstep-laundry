@@ -8,13 +8,14 @@ import {
   canDeleteLastOrderLoad,
   initialLoadStatusForOrder,
 } from "@/lib/order-loads-policy";
+import { normalizeBulkyItems, type BulkyItems } from "@/lib/bulky-items";
 
 /**
  * POST: Add one load to an order (driver at pickup or washer splitting a load).
  * Increments numberOfLoads and creates OrderLoad with next loadNumber.
  */
 export async function POST(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ orderId: string }> }
 ) {
   const session = await getServerSession(authOptions);
@@ -28,6 +29,17 @@ export async function POST(
 
   const { orderId } = await params;
   const userId = (session.user as { id: string }).id;
+
+  let bulkyForNewLoad: BulkyItems | undefined;
+  try {
+    const body = (await request.json()) as { bulkyItems?: BulkyItems };
+    if (body?.bulkyItems && typeof body.bulkyItems === "object") {
+      const norm = normalizeBulkyItems(body.bulkyItems);
+      if (Object.keys(norm).length > 0) bulkyForNewLoad = norm;
+    }
+  } catch {
+    /* empty or invalid body */
+  }
 
   const order = await prisma.order.findUnique({
     where: { id: orderId },
@@ -74,6 +86,10 @@ export async function POST(
         loadNumber: nextLoadNumber,
         loadCode: `${order.orderNumber}-L${nextLoadNumber}`,
         status,
+        bulkyItems:
+          bulkyForNewLoad && Object.keys(bulkyForNewLoad).length > 0
+            ? (bulkyForNewLoad as object)
+            : undefined,
       },
     });
     await tx.order.update({
