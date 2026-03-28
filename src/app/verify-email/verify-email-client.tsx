@@ -8,15 +8,15 @@ export function VerifyEmailClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const token = searchParams.get("token")?.trim() ?? "";
-  const [status, setStatus] = useState<"loading" | "ok" | "error">("loading");
-  const [errorMessage, setErrorMessage] = useState("");
+  const [status, setStatus] = useState<"loading" | "ok" | "error">(() =>
+    token ? "loading" : "error"
+  );
+  const [errorMessage, setErrorMessage] = useState(() =>
+    token ? "" : "This verification link is missing a token."
+  );
 
   useEffect(() => {
-    if (!token) {
-      setStatus("error");
-      setErrorMessage("This verification link is missing a token.");
-      return;
-    }
+    if (!token) return;
 
     let cancelled = false;
     (async () => {
