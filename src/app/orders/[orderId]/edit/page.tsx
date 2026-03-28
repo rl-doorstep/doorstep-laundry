@@ -6,7 +6,6 @@ import { prisma } from "@/lib/db";
 import { AppHeader } from "@/components/app-header";
 import { BookForm, type BookFormInitialOrder } from "@/app/book/book-form";
 import type { LoadOptionsInput } from "@/lib/load-options";
-import { normalizeBulkyItems, type BulkyItems } from "@/lib/bulky-items";
 import type { Address } from "@prisma/client";
 
 export default async function OrderEditPage({
@@ -66,18 +65,6 @@ export default async function OrderEditPage({
     }
   );
 
-  const bulkyItems: BulkyItems[] = Array.from(
-    { length: order.numberOfLoads },
-    (_, i) => {
-      const load = orderLoads[i];
-      const raw = load?.bulkyItems;
-      if (raw && typeof raw === "object" && !Array.isArray(raw)) {
-        return normalizeBulkyItems(raw as BulkyItems);
-      }
-      return {};
-    }
-  );
-
   const initialOrder: BookFormInitialOrder = {
     numberOfLoads: order.numberOfLoads,
     pickupDate: order.pickupDate,
@@ -88,7 +75,6 @@ export default async function OrderEditPage({
     deliveryAddressId: order.deliveryAddressId,
     notes: order.notes ?? "",
     loadOptions,
-    bulkyItems,
   };
 
   return (

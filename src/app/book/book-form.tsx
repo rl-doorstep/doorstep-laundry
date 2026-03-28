@@ -6,20 +6,12 @@ import type { Address } from "@prisma/client";
 import { getTimeSlots, type TimeSlot } from "@/lib/slots";
 import type { LoadOptionsInput } from "@/lib/load-options";
 import { LOAD_OPTION_KEYS, LOAD_OPTION_LABELS } from "@/lib/load-options";
-import type { BulkyItems } from "@/lib/bulky-items";
-import {
-  BULKY_ITEM_KEYS,
-  BULKY_ITEM_LABELS,
-  normalizeBulkyItems,
-} from "@/lib/bulky-items";
 import { useGoogleMapsScript } from "@/hooks/use-google-maps";
 import { AddressAutocomplete } from "@/components/address-autocomplete";
 
-const PRICE_PER_LOAD_CENTS = 2500;
 const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 const emptyLoadOptions: LoadOptionsInput = {};
-const emptyBulkyItems: BulkyItems = {};
 
 export type BookFormInitialOrder = {
   numberOfLoads: number;
@@ -31,8 +23,6 @@ export type BookFormInitialOrder = {
   deliveryAddressId: string;
   notes: string;
   loadOptions?: LoadOptionsInput[];
-  /** Per-load bulky item counts (same length as numberOfLoads when editing). */
-  bulkyItems?: BulkyItems[];
 };
 
 export function BookForm({
@@ -57,7 +47,7 @@ export function BookForm({
   const [error, setError] = useState("");
 
   // Step 1 state
-  const [numberOfLoads, setNumberOfLoads] = useState(initialOrder?.numberOfLoads ?? 1);
+  const [numberOfLoads] = useState(initialOrder?.numberOfLoads ?? 1);
 
   // Per-load options: array of length numberOfLoads, each element is LoadOptionsInput
   const [loadOptions, setLoadOptions] = useState<LoadOptionsInput[]>(() => {
@@ -66,12 +56,6 @@ export function BookForm({
     }
     const defaults = defaultLoadOptions ?? emptyLoadOptions;
     return [defaults];
-  });
-  const [bulkyItemsPerLoad, setBulkyItemsPerLoad] = useState<BulkyItems[]>(() => {
-    if (initialOrder?.bulkyItems && initialOrder.bulkyItems.length > 0) {
-      return initialOrder.bulkyItems.map((b) => normalizeBulkyItems(b));
-    }
-    return [{ ...emptyBulkyItems }];
   });
   const [pickupDate, setPickupDate] = useState<Date>(() => {
     if (initialOrder?.pickupDate) {
@@ -183,35 +167,6 @@ export function BookForm({
   }
 
   const hasValidSlotForToday = timeSlots.some((slot) => currentHourLocal < slot.startHour - 1);
-
-  function resizeLoadOptionsForCount(prev: LoadOptionsInput[], count: number): LoadOptionsInput[] {
-    const defaults = defaultLoadOptions ?? emptyLoadOptions;
-    if (prev.length === count) return prev;
-    if (prev.length < count) {
-      return [
-        ...prev,
-        ...Array.from({ length: count - prev.length }, () => ({ ...defaults })),
-      ];
-    }
-    return prev.slice(0, count);
-  }
-
-  function resizeBulkyItemsForCount(prev: BulkyItems[], count: number): BulkyItems[] {
-    if (prev.length === count) return prev;
-    if (prev.length < count) {
-      return [
-        ...prev,
-        ...Array.from({ length: count - prev.length }, () => ({ ...emptyBulkyItems })),
-      ];
-    }
-    return prev.slice(0, count);
-  }
-
-  function setNumberOfLoadsAndResizeOptions(n: number) {
-    setNumberOfLoads(n);
-    setLoadOptions((prev) => resizeLoadOptionsForCount(prev, n));
-    setBulkyItemsPerLoad((prev) => resizeBulkyItemsForCount(prev, n));
-  }
 
   // Keep delivery at least 24h after pickup (e.g. when pickup date changes)
   useEffect(() => {
@@ -383,9 +338,6 @@ export function BookForm({
       notes: notes || undefined,
       numberOfLoads,
       loadOptions: loadOptions.slice(0, numberOfLoads),
-      bulkyItems: bulkyItemsPerLoad
-        .slice(0, numberOfLoads)
-        .map((b) => normalizeBulkyItems(b)),
     };
     const url = editOrderId ? `/api/orders/${editOrderId}` : "/api/orders";
     const method = editOrderId ? "PATCH" : "POST";
@@ -460,9 +412,6 @@ export function BookForm({
         notes: notes || undefined,
         numberOfLoads,
         loadOptions: loadOptions.slice(0, numberOfLoads),
-        bulkyItems: bulkyItemsPerLoad
-          .slice(0, numberOfLoads)
-          .map((b) => normalizeBulkyItems(b)),
       };
       const url = editOrderId ? `/api/orders/${editOrderId}` : "/api/orders";
       const method = editOrderId ? "PATCH" : "POST";
@@ -496,38 +445,6 @@ export function BookForm({
         <h2 className="text-2xl font-bold text-fern-900 mb-6">
           {isEdit ? "Edit pickup & delivery" : "Book your pickup"}
         </h2>
-
-        {/* Service card */}
-        <div className="rounded-xl border border-fern-200 bg-fern-50/50 p-4 mb-6 flex items-start gap-4">
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-fern-200 text-fern-700">
-            <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M20 7l-8 4-8-4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-            </svg>
-          </div>
-          <div className="flex-1 min-w-0">
-            <h3 className="font-semibold text-fern-900">Laundry Service</h3>
-            <p className="text-sm text-fern-600 mt-0.5">
-              We pick up your laundry, wash and fold, then deliver it back to your door.
-            </p>
-            <div className="mt-3 flex items-center gap-4">
-              <label className="flex items-center gap-2 text-sm text-fern-700">
-                <span>Number of loads</span>
-                <select
-                  value={numberOfLoads}
-                  onChange={(e) => setNumberOfLoadsAndResizeOptions(Number(e.target.value))}
-                  className="rounded-lg border border-fern-200 bg-white px-2 py-1 text-fern-900"
-                >
-                  {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
-                    <option key={n} value={n}>{n}</option>
-                  ))}
-                </select>
-              </label>
-              <span className="text-sm text-fern-500">
-                ${((numberOfLoads * PRICE_PER_LOAD_CENTS) / 100).toFixed(0)} total
-              </span>
-            </div>
-          </div>
-        </div>
 
         {/* Per-load options */}
         <div className="mb-6">
@@ -565,49 +482,6 @@ export function BookForm({
                       {LOAD_OPTION_LABELS[key]}
                     </label>
                   ))}
-                </div>
-                <div className="mt-3 pt-3 border-t border-fern-100">
-                  <p className="text-xs font-medium text-fern-700 mb-2">
-                    Bulky items (optional)
-                  </p>
-                  <p className="text-xs text-fern-500 mb-2">
-                    Bedding sets and comforters—priced separately. See{" "}
-                    <a href="/app/pricing" className="text-fern-700 underline hover:text-fern-900">
-                      Pricing
-                    </a>
-                    .
-                  </p>
-                  <div className="grid gap-2 sm:grid-cols-2">
-                    {BULKY_ITEM_KEYS.map((key) => (
-                      <label
-                        key={key}
-                        className="flex items-center justify-between gap-2 text-xs text-fern-700"
-                      >
-                        <span className="truncate">{BULKY_ITEM_LABELS[key]}</span>
-                        <select
-                          value={bulkyItemsPerLoad[i]?.[key] ?? 0}
-                          onChange={(e) => {
-                            const v = Number(e.target.value);
-                            setBulkyItemsPerLoad((prev) => {
-                              const next = [...prev];
-                              const row = { ...(next[i] ?? {}) };
-                              if (v <= 0) delete row[key];
-                              else row[key] = v;
-                              next[i] = row;
-                              return next;
-                            });
-                          }}
-                          className="rounded border border-fern-200 bg-white px-1.5 py-1 text-fern-900 text-xs shrink-0"
-                        >
-                          {[0, 1, 2, 3, 4, 5].map((n) => (
-                            <option key={n} value={n}>
-                              {n}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-                    ))}
-                  </div>
                 </div>
               </div>
             ))}
