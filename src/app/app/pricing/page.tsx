@@ -8,8 +8,8 @@ import { getPricePerPoundCents } from "@/lib/settings";
 import {
   BULKY_ITEM_KEYS,
   BULKY_ITEM_LABELS,
-  BULKY_ITEM_PRICES_CENTS,
   BULKY_SET_DESCRIPTION,
+  getBulkyUnitPriceCents,
 } from "@/lib/bulky-items";
 
 export const metadata: Metadata = {
@@ -127,7 +127,11 @@ export default async function PricingPage() {
                   {BULKY_ITEM_LABELS[key]}
                 </span>
                 <span className="text-fern-800 font-semibold tabular-nums">
-                  ${(BULKY_ITEM_PRICES_CENTS[key] / 100).toFixed(0)} each
+                  $
+                  {(getBulkyUnitPriceCents(pricePerPoundCents, key) / 100).toFixed(
+                    2
+                  )}{" "}
+                  each
                 </span>
               </li>
             ))}

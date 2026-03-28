@@ -1,5 +1,5 @@
 /**
- * Order totals: weight × $/lb + bulky fixed add-ons; NMGRT on subtotal unless exempt.
+ * Order totals: weight × $/lb + bulky (×20 lb equivalent / n per item type); NMGRT on subtotal unless exempt.
  * subtotalCents = weightSubtotalCents + bulkySubtotalCents
  * taxCents = exempt ? 0 : round(subtotalCents × grtPercent / 100)
  * totalCents = subtotalCents + taxCents
@@ -64,7 +64,12 @@ export function computeOrderTotalWithTax(
   );
   const weightSubtotalCents = Math.round(totalLbs * pricePerPoundCents);
   const bulkySubtotalCents = loads.reduce(
-    (sum, l) => sum + computeBulkyItemsCents(l.bulkyItems as BulkyItems | null),
+    (sum, l) =>
+      sum +
+      computeBulkyItemsCents(
+        l.bulkyItems as BulkyItems | null,
+        pricePerPoundCents
+      ),
     0
   );
   const subtotalCents = weightSubtotalCents + bulkySubtotalCents;

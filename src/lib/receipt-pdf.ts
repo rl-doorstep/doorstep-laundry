@@ -183,7 +183,12 @@ export async function generateReceiptPdf(
   const washDescription = "Wash and fold (by weight)";
   const loads = order.orderLoads;
   const bulkySubtotalCents = loads.reduce(
-    (s, l) => s + computeBulkyItemsCents(l.bulkyItems as BulkyItems | null),
+    (s, l) =>
+      s +
+      computeBulkyItemsCents(
+        l.bulkyItems as BulkyItems | null,
+        pricePerPoundCents
+      ),
     0
   );
   const weightSubtotalFromLoads = Math.round(totalLbs * pricePerPoundCents);
@@ -312,7 +317,8 @@ export async function generateReceiptPdf(
       y -= ROW_HEIGHT * 0.75;
     }
     const bulkyLines = getAggregatedBulkyLineItems(
-      normalizeBulkyItems(load.bulkyItems as BulkyItems | null)
+      normalizeBulkyItems(load.bulkyItems as BulkyItems | null),
+      pricePerPoundCents
     );
     for (const bl of bulkyLines) {
       const bulkyDesc = `${bl.name} (bulky)`;

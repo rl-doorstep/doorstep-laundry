@@ -48,7 +48,10 @@ export function buildWashAndBulkyStripeLineItems(
   const mergedBulky = mergeBulkyItemsAcrossLoads(
     loads.map((l) => ({ bulkyItems: l.bulkyItems as BulkyItems | null }))
   );
-  const bulkyLines = getAggregatedBulkyLineItems(mergedBulky);
+  const bulkyLines = getAggregatedBulkyLineItems(
+    mergedBulky,
+    pricePerPoundCents
+  );
 
   const items: StripeCheckoutLineItem[] = [];
   const ctx = formatOrderContext(order);

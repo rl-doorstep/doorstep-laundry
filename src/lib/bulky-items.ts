@@ -1,5 +1,6 @@
 /**
- * Bulky bedding items: scheduled per load, priced as fixed add-ons (not by pound).
+ * Bulky bedding items: scheduled per load, priced from effective $/lb:
+ * unit price (cents) = round(pricePerPoundCents × 20 / n), where n is per item type.
  */
 
 export type BulkyItemKey =
@@ -28,14 +29,26 @@ export const BULKY_ITEM_LABELS: Record<BulkyItemKey, string> = {
   comforter: "Comforter",
 };
 
-/** Fixed price per unit in cents. */
-export const BULKY_ITEM_PRICES_CENTS: Record<BulkyItemKey, number> = {
-  twinSet: 1000,
-  fullSet: 1500,
-  queenSet: 1500,
-  kingSet: 3000,
-  comforter: 3000,
+/**
+ * Divisor n in: unitCents = round(pricePerPoundCents × 20 / n).
+ * Twin counts as a third of a “20 lb hamper”; full/queen half; king/comforter a full unit.
+ */
+export const BULKY_ITEM_PRICE_DIVISOR_N: Record<BulkyItemKey, number> = {
+  twinSet: 3,
+  fullSet: 2,
+  queenSet: 2,
+  kingSet: 1,
+  comforter: 1,
 };
+
+/** Unit price in cents for one bulky item at the given per-pound rate. */
+export function getBulkyUnitPriceCents(
+  pricePerPoundCents: number,
+  key: BulkyItemKey
+): number {
+  const n = BULKY_ITEM_PRICE_DIVISOR_N[key];
+  return Math.round((pricePerPoundCents * 20) / n);
+}
 
 /** What we mean by a "set" (for pricing page copy). */
 export const BULKY_SET_DESCRIPTION =
@@ -60,12 +73,15 @@ export function normalizeBulkyItems(
   return out;
 }
 
-export function computeBulkyItemsCents(items: BulkyItems | null | undefined): number {
+export function computeBulkyItemsCents(
+  items: BulkyItems | null | undefined,
+  pricePerPoundCents: number
+): number {
   const norm = normalizeBulkyItems(items);
   let sum = 0;
   for (const key of BULKY_ITEM_KEYS) {
     const q = norm[key] ?? 0;
-    sum += q * BULKY_ITEM_PRICES_CENTS[key];
+    sum += q * getBulkyUnitPriceCents(pricePerPoundCents, key);
   }
   return sum;
 }
@@ -95,14 +111,15 @@ export type BulkyLineItem = {
 
 /** One entry per key with qty > 0 (for Stripe line items, receipts). */
 export function getAggregatedBulkyLineItems(
-  items: BulkyItems | null | undefined
+  items: BulkyItems | null | undefined,
+  pricePerPoundCents: number
 ): BulkyLineItem[] {
   const norm = normalizeBulkyItems(items);
   const lines: BulkyLineItem[] = [];
   for (const key of BULKY_ITEM_KEYS) {
     const qty = norm[key] ?? 0;
     if (qty <= 0) continue;
-    const unitCents = BULKY_ITEM_PRICES_CENTS[key];
+    const unitCents = getBulkyUnitPriceCents(pricePerPoundCents, key);
     lines.push({
       key,
       name: BULKY_ITEM_LABELS[key],
