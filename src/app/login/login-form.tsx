@@ -19,6 +19,7 @@ export function LoginForm() {
   const verified = searchParams.get("verified") === "1";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [resendEmail, setResendEmail] = useState("");
@@ -111,13 +112,22 @@ export function LoginForm() {
             <input
               id="password"
               name="password"
-              type="password"
+              type={showPassword ? "text" : "password"}
               autoComplete="current-password"
               required
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className={inputClass}
             />
+            <label className="mt-2 flex cursor-pointer items-center gap-2 text-sm text-fern-700">
+              <input
+                type="checkbox"
+                checked={showPassword}
+                onChange={(e) => setShowPassword(e.target.checked)}
+                className="rounded border-fern-200 text-fern-500 focus:ring-fern-500"
+              />
+              Show password
+            </label>
           </div>
           <button
             type="submit"

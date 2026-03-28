@@ -16,6 +16,7 @@ export function SignupForm() {
   const callbackUrl = searchParams.get("callbackUrl") ?? "/welcome";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [name, setName] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -97,7 +98,7 @@ export function SignupForm() {
             <input
               id="password"
               name="password"
-              type="password"
+              type={showPassword ? "text" : "password"}
               autoComplete="new-password"
               required
               minLength={8}
@@ -105,6 +106,15 @@ export function SignupForm() {
               onChange={(e) => setPassword(e.target.value)}
               className={inputClass}
             />
+            <label className="mt-2 flex cursor-pointer items-center gap-2 text-sm text-fern-700">
+              <input
+                type="checkbox"
+                checked={showPassword}
+                onChange={(e) => setShowPassword(e.target.checked)}
+                className="rounded border-fern-200 text-fern-500 focus:ring-fern-500"
+              />
+              Show password
+            </label>
           </div>
           <button
             type="submit"
