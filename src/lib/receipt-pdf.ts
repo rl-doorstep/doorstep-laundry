@@ -57,6 +57,67 @@ const PAID_STAMP_SIZE = 72;
 const LOGO_MAX_HEIGHT = 80;
 const LOGO_MAX_WIDTH = 240;
 
+/** Pre-rendered full mark; avoids SVG text rasterizing as tofu on the server. */
+const RECEIPT_V3_LOGO_PNG_PATH = "/doorstep/doorstep-laundry-logo-v3.png";
+
+/** Icon-only fallback when no PNG exists for smaller wordmark SVGs. */
+const RECEIPT_LOGO_ICON_PATH = "/doorstep/doorstep-logo-icon.svg";
+
+/** Full v3 logo: use PNG instead of SVG on receipts. */
+const SVG_LOGO_MAP_TO_PNG_SUFFIXES = ["doorstep-laundry-logo-v3.svg"] as const;
+
+/**
+ * Other SVGs that embed typography — Sharp/librsvg often has no glyphs.
+ * Use RECEIPT_LOGO_ICON_PATH and draw company name with standard PDF fonts.
+ */
+const SVG_LOGO_USE_ICON_ONLY_SUFFIXES = [
+  "doorstep-logo-wordmark.svg",
+  "doorstep-logo-subtext.svg",
+] as const;
+
+function pathnameFromLogoUrl(logoUrl: string): string {
+  try {
+    if (logoUrl.startsWith("http://") || logoUrl.startsWith("https://")) {
+      return new URL(logoUrl).pathname.toLowerCase();
+    }
+  } catch {
+    /* ignore */
+  }
+  return logoUrl.split("?")[0].toLowerCase();
+}
+
+function receiptRasterLogoUrl(companyLogoUrl: string): { fetchUrl: string; drawNameBeside: boolean } {
+  const path = pathnameFromLogoUrl(companyLogoUrl);
+  if (!path.endsWith(".svg")) {
+    return { fetchUrl: companyLogoUrl, drawNameBeside: false };
+  }
+  if (SVG_LOGO_MAP_TO_PNG_SUFFIXES.some((s) => path.endsWith(s))) {
+    return { fetchUrl: RECEIPT_V3_LOGO_PNG_PATH, drawNameBeside: false };
+  }
+  const useIcon = SVG_LOGO_USE_ICON_ONLY_SUFFIXES.some((s) => path.endsWith(s));
+  if (useIcon) {
+    return { fetchUrl: RECEIPT_LOGO_ICON_PATH, drawNameBeside: true };
+  }
+  return { fetchUrl: companyLogoUrl, drawNameBeside: false };
+}
+
+/** Standard 14 fonts only support WinAnsi; strip/replace chars that render as tofu. */
+function sanitizeTextForStandardPdfFont(text: string): string {
+  const normalized = text.normalize("NFKC");
+  const replaced = normalized
+    .replace(/[\u2018\u2019\u2032]/g, "'")
+    .replace(/[\u201C\u201D\u2033]/g, '"')
+    .replace(/[\u2013\u2014]/g, "-")
+    .replace(/\u00A0/g, " ");
+  return [...replaced]
+    .filter((ch) => {
+      const cp = ch.codePointAt(0)!;
+      return (cp >= 0x20 && cp <= 0x7e) || (cp >= 0xa0 && cp <= 0xff);
+    })
+    .join("")
+    .trim();
+}
+
 function formatAddress(addr: { street: string; city: string; state: string; zip: string }): string {
   return `${addr.street}, ${addr.city}, ${addr.state} ${addr.zip}`;
 }
@@ -224,27 +285,60 @@ export async function generateReceiptPdf(
   // ----- Top left: Logo or company name, then address, phone, email -----
   const leftCol = MARGIN;
   if (company.logoUrl) {
-    const logo = await fetchLogoImage(doc, company.logoUrl);
+    const { fetchUrl, drawNameBeside } = receiptRasterLogoUrl(company.logoUrl);
+    const logo = await fetchLogoImage(doc, fetchUrl);
     if (logo) {
       logo.draw(page, leftCol, y);
+      if (drawNameBeside) {
+        const nameSafe = sanitizeTextForStandardPdfFont(company.name);
+        if (nameSafe) {
+          const nameX = leftCol + logo.width + 12;
+          const nameBaselineY = y - logo.height / 2 - FONT_SIZE * 0.35;
+          page.drawText(nameSafe, {
+            x: nameX,
+            y: nameBaselineY,
+            size: FONT_SIZE,
+            font: fontBold,
+            color: BLACK,
+          });
+        }
+      }
       y -= logo.height + LINE_HEIGHT;
     } else {
-      page.drawText(company.name, { x: leftCol, y, size: FONT_SIZE, font: fontBold, color: BLACK });
+      const nameSafe = sanitizeTextForStandardPdfFont(company.name);
+      if (nameSafe) {
+        page.drawText(nameSafe, {
+          x: leftCol,
+          y,
+          size: FONT_SIZE,
+          font: fontBold,
+          color: BLACK,
+        });
+      }
       y -= LINE_HEIGHT;
     }
   } else if (company.name) {
-    page.drawText(company.name, { x: leftCol, y, size: FONT_SIZE, font: fontBold, color: BLACK });
+    const nameSafe = sanitizeTextForStandardPdfFont(company.name);
+    if (nameSafe) {
+      page.drawText(nameSafe, { x: leftCol, y, size: FONT_SIZE, font: fontBold, color: BLACK });
+    }
     y -= LINE_HEIGHT;
   }
   if (company.address) {
     const addressLines = company.address.split(/\r?\n/).map((s) => s.trim()).filter(Boolean);
     for (const line of addressLines) {
-      page.drawText(line, { x: leftCol, y, size: FONT_SIZE_SMALL, font: font, color: BLACK });
+      const lineSafe = sanitizeTextForStandardPdfFont(line);
+      if (lineSafe) {
+        page.drawText(lineSafe, { x: leftCol, y, size: FONT_SIZE_SMALL, font: font, color: BLACK });
+      }
       y -= LINE_HEIGHT;
     }
   }
   if (company.phone) {
-    page.drawText(company.phone, { x: leftCol, y, size: FONT_SIZE_SMALL, font: font, color: BLACK });
+    const phoneSafe = sanitizeTextForStandardPdfFont(company.phone);
+    if (phoneSafe) {
+      page.drawText(phoneSafe, { x: leftCol, y, size: FONT_SIZE_SMALL, font: font, color: BLACK });
+    }
     y -= LINE_HEIGHT;
   }
   if (company.email) {
