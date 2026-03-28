@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { getTimeSlotById } from "@/lib/slots";
 import { getEnabledLoadOptionLabels } from "@/lib/load-options";
+import { LoadTagPrintButton } from "@/components/load-tag-print";
 
 const POLL_INTERVAL_MS = 15_000;
 
@@ -318,14 +319,22 @@ export function WashDashboard({
                   </td>
                   <td className="px-4 py-3 font-mono text-sm text-fern-800">
                     {load ? (
-                      <span title={`Load ID: ${load.loadCode ?? `${order.orderNumber}-L${load.loadNumber}`}`} className="flex flex-col gap-0.5">
-                        <span>L{load.loadNumber}/{order.numberOfLoads}</span>
-                        {getEnabledLoadOptionLabels(load).length > 0 && (
-                          <span className="text-xs text-fern-500 font-normal">
-                            {getEnabledLoadOptionLabels(load).join(", ")}
-                          </span>
-                        )}
-                      </span>
+                      <div className="flex flex-col gap-1.5 items-start">
+                        <span title={`Load ID: ${load.loadCode ?? `${order.orderNumber}-L${load.loadNumber}`}`} className="flex flex-col gap-0.5">
+                          <span>L{load.loadNumber}/{order.numberOfLoads}</span>
+                          {getEnabledLoadOptionLabels(load).length > 0 && (
+                            <span className="text-xs text-fern-500 font-normal">
+                              {getEnabledLoadOptionLabels(load).join(", ")}
+                            </span>
+                          )}
+                        </span>
+                        <LoadTagPrintButton
+                          orderNumber={order.orderNumber}
+                          loadNumber={load.loadNumber}
+                          numberOfLoads={order.numberOfLoads}
+                          className="rounded border border-fern-200 bg-white px-2 py-1 text-xs font-medium text-fern-700 hover:bg-fern-50"
+                        />
+                      </div>
                     ) : (
                       <span className="text-fern-400">—</span>
                     )}

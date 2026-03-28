@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { getTimeSlotById } from "@/lib/slots";
+import { LoadTagPrintButton } from "@/components/load-tag-print";
 
 type AddressRow = { street: string; city: string; state: string; zip: string };
 
@@ -383,33 +384,65 @@ export function DriverDashboard() {
                         : "Mark delivered"}
                   </button>
                 ) : (
-                  <div className="flex flex-col items-end gap-1 sm:flex-row sm:items-center sm:gap-2">
-                    <span className="text-xs text-fern-500">Loads</span>
-                    <div className="flex flex-wrap items-center gap-1">
-                      <span className="text-sm font-medium text-fern-800 tabular-nums min-w-[1.25rem]">
-                        {order.numberOfLoads ?? order.orderLoads?.length ?? 1}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => adjustLoads(order.id, "remove")}
-                        disabled={
-                          adjustingLoadsOrderId === order.id ||
-                          (order.numberOfLoads ?? order.orderLoads?.length ?? 1) <= 1
-                        }
-                        className="rounded border border-fern-200 bg-white px-2 py-0.5 text-sm text-fern-700 hover:bg-fern-50 disabled:opacity-40 disabled:cursor-not-allowed"
-                        aria-label="Remove one load"
-                      >
-                        −
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => adjustLoads(order.id, "add")}
-                        disabled={adjustingLoadsOrderId === order.id}
-                        className="rounded border border-fern-200 bg-white px-2 py-0.5 text-sm text-fern-700 hover:bg-fern-50 disabled:opacity-40"
-                        aria-label="Add one load"
-                      >
-                        +
-                      </button>
+                  <div className="flex flex-col items-stretch sm:items-end gap-2 w-full sm:max-w-md">
+                    <div className="flex flex-col items-end gap-1 sm:flex-row sm:items-center sm:gap-2">
+                      <span className="text-xs text-fern-500">Loads</span>
+                      <div className="flex flex-wrap items-center gap-1 justify-end">
+                        <span className="text-sm font-medium text-fern-800 tabular-nums min-w-[1.25rem]">
+                          {order.numberOfLoads ?? order.orderLoads?.length ?? 1}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => adjustLoads(order.id, "remove")}
+                          disabled={
+                            adjustingLoadsOrderId === order.id ||
+                            (order.numberOfLoads ?? order.orderLoads?.length ?? 1) <= 1
+                          }
+                          className="rounded border border-fern-200 bg-white px-2 py-0.5 text-sm text-fern-700 hover:bg-fern-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                          aria-label="Remove one load"
+                        >
+                          −
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => adjustLoads(order.id, "add")}
+                          disabled={adjustingLoadsOrderId === order.id}
+                          className="rounded border border-fern-200 bg-white px-2 py-0.5 text-sm text-fern-700 hover:bg-fern-50 disabled:opacity-40"
+                          aria-label="Add one load"
+                        >
+                          +
+                        </button>
+                      </div>
+                    </div>
+                    <div className="border-t border-fern-100 pt-2 w-full">
+                      <p className="text-xs text-fern-500 mb-1.5 text-right sm:text-right">
+                        Print tags
+                      </p>
+                      {(order.orderLoads ?? []).length === 0 ? (
+                        <p className="text-xs text-fern-500 text-right">
+                          No load rows yet. Start pickup or refresh—loads appear after pickup starts or from Wash.
+                        </p>
+                      ) : (
+                        <ul className="flex flex-wrap gap-1.5 justify-end">
+                          {[...(order.orderLoads ?? [])]
+                            .sort((a, b) => a.loadNumber - b.loadNumber)
+                            .map((l) => (
+                              <li key={l.id}>
+                                <LoadTagPrintButton
+                                  orderNumber={order.orderNumber}
+                                  loadNumber={l.loadNumber}
+                                  numberOfLoads={
+                                    order.numberOfLoads ??
+                                    order.orderLoads?.length ??
+                                    1
+                                  }
+                                  buttonLabel={`Print L${l.loadNumber}`}
+                                  className="rounded border border-fern-200 bg-white px-2 py-1 text-xs font-medium text-fern-700 hover:bg-fern-50"
+                                />
+                              </li>
+                            ))}
+                        </ul>
+                      )}
                     </div>
                   </div>
                 )}
