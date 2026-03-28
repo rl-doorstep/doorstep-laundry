@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { AppHeader } from "@/components/app-header";
+import { getBookingAvailability } from "@/lib/settings";
 import { BookForm } from "./book-form";
 
 export default async function BookPage() {
@@ -28,6 +29,8 @@ export default async function BookPage() {
       ? (user.defaultLoadOptions as Record<string, boolean>)
       : null;
 
+  const bookingAvailability = await getBookingAvailability();
+
   return (
     <div className="min-h-screen bg-fern-50">
       <AppHeader />
@@ -40,10 +43,18 @@ export default async function BookPage() {
             <p className="text-fern-600 mb-4">
               Add an address when you continue, or use an existing one from your account.
             </p>
-            <BookForm addresses={[]} defaultLoadOptions={defaultLoadOptions} />
+            <BookForm
+              addresses={[]}
+              defaultLoadOptions={defaultLoadOptions}
+              bookingAvailability={bookingAvailability}
+            />
           </div>
         ) : (
-          <BookForm addresses={addresses} defaultLoadOptions={defaultLoadOptions} />
+          <BookForm
+            addresses={addresses}
+            defaultLoadOptions={defaultLoadOptions}
+            bookingAvailability={bookingAvailability}
+          />
         )}
       </main>
     </div>

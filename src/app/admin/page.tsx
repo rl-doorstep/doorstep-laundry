@@ -9,6 +9,7 @@ import { AdminDriverLocations } from "./admin-driver-locations";
 import { AdminPricePerPound } from "./admin-price-per-pound";
 import { AdminGrtPercent } from "./admin-grt-percent";
 import { AdminCompanyInfo } from "./admin-company-info";
+import { AdminBookingAvailability } from "./admin-booking-availability";
 import { AdminDebugSection } from "./admin-debug-section";
 
 export default async function AdminPage() {
@@ -79,6 +80,16 @@ export default async function AdminPage() {
             New Mexico Gross Receipts Tax percentage, added on top of the base price per pound. Receipts show subtotal (base), NMGRT, and total. Default 8.39%.
           </p>
           <AdminGrtPercent />
+        </section>
+
+        <section>
+          <h2 className="text-lg font-semibold text-fern-900 mb-2">
+            Booking — days &amp; time slots
+          </h2>
+          <p className="text-sm text-fern-600 mb-6">
+            Use the grid: each column is a day, each row is a time window. Checked cells are shown to customers for both pickup and delivery.
+          </p>
+          <AdminBookingAvailability />
         </section>
 
         <section>

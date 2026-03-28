@@ -1,4 +1,9 @@
 import { prisma } from "./db";
+import {
+  BOOKING_AVAILABILITY_KEY,
+  parseBookingAvailabilityJson,
+  type BookingAvailability,
+} from "./booking-availability";
 
 const GRT_PERCENT_KEY = "grt_percent";
 const DEFAULT_GRT_PERCENT = 8.39;
@@ -74,4 +79,14 @@ export async function getMaxServiceDistanceMiles(): Promise<number> {
   if (!row?.value?.trim()) return 0;
   const value = parseFloat(row.value);
   return Number.isFinite(value) && value > 0 ? value : 0;
+}
+
+/**
+ * Server-side only. Days and time windows offered on the customer book page.
+ */
+export async function getBookingAvailability(): Promise<BookingAvailability> {
+  const row = await prisma.setting.findUnique({
+    where: { key: BOOKING_AVAILABILITY_KEY },
+  });
+  return parseBookingAvailabilityJson(row?.value);
 }

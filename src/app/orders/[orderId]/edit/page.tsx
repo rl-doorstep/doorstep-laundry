@@ -3,6 +3,7 @@ import Link from "next/link";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { getBookingAvailability } from "@/lib/settings";
 import { AppHeader } from "@/components/app-header";
 import { BookForm, type BookFormInitialOrder } from "@/app/book/book-form";
 import type { LoadOptionsInput } from "@/lib/load-options";
@@ -18,7 +19,7 @@ export default async function OrderEditPage({
   const userId = (session.user as { id: string }).id;
   const { orderId } = await params;
 
-  const [order, userAddresses] = await Promise.all([
+  const [order, userAddresses, bookingAvailability] = await Promise.all([
     prisma.order.findUnique({
       where: { id: orderId },
       include: {
@@ -31,6 +32,7 @@ export default async function OrderEditPage({
       where: { userId },
       orderBy: [{ isDefault: "desc" }, { createdAt: "asc" }],
     }),
+    getBookingAvailability(),
   ]);
 
   if (!order) notFound();
@@ -96,6 +98,7 @@ export default async function OrderEditPage({
           addresses={addresses}
           editOrderId={orderId}
           initialOrder={initialOrder}
+          bookingAvailability={bookingAvailability}
         />
       </main>
     </div>

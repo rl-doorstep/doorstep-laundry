@@ -8,6 +8,16 @@ import type { LoadOptionsInput } from "@/lib/load-options";
 import { LOAD_OPTION_KEYS, LOAD_OPTION_LABELS } from "@/lib/load-options";
 import { useGoogleMapsScript } from "@/hooks/use-google-maps";
 import { AddressAutocomplete } from "@/components/address-autocomplete";
+import type { BookingAvailability } from "@/lib/booking-availability";
+import {
+  firstAllowedTimeSlotId,
+  findNextValidDeliveryDate,
+  findNextValidPickupDate,
+  isAnySlotEnabledOnDay,
+  isDeliveryDateUnavailable,
+  isPickupDateUnavailable,
+  isSlotEnabledForDay,
+} from "@/lib/booking-availability";
 
 const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -30,6 +40,7 @@ export function BookForm({
   editOrderId,
   initialOrder,
   defaultLoadOptions,
+  bookingAvailability,
 }: {
   addresses: Address[];
   defaultTotalCents?: number;
@@ -37,6 +48,8 @@ export function BookForm({
   initialOrder?: BookFormInitialOrder;
   /** Customer default load options (for new orders); applied to each load when creating. */
   defaultLoadOptions?: LoadOptionsInput | null;
+  /** Admin-configured days and morning/evening windows for pickup & delivery. */
+  bookingAvailability: BookingAvailability;
 }) {
   const router = useRouter();
   const timeSlots = getTimeSlots();
@@ -138,6 +151,7 @@ export function BookForm({
 
   const pickupDateStr = pickupDate.toISOString().slice(0, 10);
   const deliveryDateStr = deliveryDate.toISOString().slice(0, 10);
+  const bookingDaysKey = `${bookingAvailability.morningByDay.join(",")}|${bookingAvailability.eveningByDay.join(",")}`;
 
   const today = useMemo(() => {
     const d = new Date();
@@ -160,13 +174,25 @@ export function BookForm({
     pickupDate.getDate() === now.getDate();
   const currentHourLocal = now.getHours() + now.getMinutes() / 60;
 
+  const pickupDow = pickupDate.getDay();
+  const deliveryDow = deliveryDate.getDay();
+
   function isPickupSlotDisabled(slot: TimeSlot): boolean {
+    if (!isSlotEnabledForDay(slot.id, pickupDow, bookingAvailability)) return true;
     if (!isPickupToday) return false;
     const cutoffHour = slot.startHour - 1;
     return currentHourLocal >= cutoffHour;
   }
 
-  const hasValidSlotForToday = timeSlots.some((slot) => currentHourLocal < slot.startHour - 1);
+  function isDeliverySlotDisabled(slot: TimeSlot): boolean {
+    return !isSlotEnabledForDay(slot.id, deliveryDow, bookingAvailability);
+  }
+
+  const hasValidSlotForToday = timeSlots.some(
+    (slot) =>
+      isSlotEnabledForDay(slot.id, today.getDay(), bookingAvailability) &&
+      currentHourLocal < slot.startHour - 1
+  );
 
   // Keep delivery at least 24h after pickup (e.g. when pickup date changes)
   useEffect(() => {
@@ -176,18 +202,52 @@ export function BookForm({
     }
   }, [pickupDateStr, deliveryDate, earliestDeliveryDate]);
 
-  // If today has no valid pickup slots, bump pickup to tomorrow
+  // Clamp pickup to next admin-allowed day (and not “today” when no slot left)
   useEffect(() => {
-    const isPickupToday =
-      pickupDate.getFullYear() === today.getFullYear() &&
-      pickupDate.getMonth() === today.getMonth() &&
-      pickupDate.getDate() === today.getDate();
-    if (isPickupToday && !hasValidSlotForToday) {
-      const tomorrow = new Date(today);
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      queueMicrotask(() => setPickupDate(tomorrow));
+    const now = new Date();
+    if (isPickupDateUnavailable(pickupDate, now, bookingAvailability, timeSlots)) {
+      const next = findNextValidPickupDate(pickupDate, now, bookingAvailability, timeSlots);
+      const cur = new Date(pickupDate);
+      cur.setHours(0, 0, 0, 0);
+      if (cur.getTime() !== next.getTime()) {
+        queueMicrotask(() => setPickupDate(next));
+      }
     }
-  }, [hasValidSlotForToday, pickupDateStr, pickupDate, today]);
+  }, [pickupDateStr, pickupDate, bookingDaysKey, timeSlots, bookingAvailability]);
+
+  // Clamp delivery to allowed days on/after earliest day
+  useEffect(() => {
+    const now = new Date();
+    if (isDeliveryDateUnavailable(deliveryDate, earliestDeliveryDate, now, bookingAvailability)) {
+      const next = findNextValidDeliveryDate(
+        deliveryDate,
+        earliestDeliveryDate,
+        now,
+        bookingAvailability
+      );
+      const cur = new Date(deliveryDate);
+      cur.setHours(0, 0, 0, 0);
+      if (cur.getTime() !== next.getTime()) {
+        queueMicrotask(() => setDeliveryDate(next));
+      }
+    }
+  }, [deliveryDateStr, deliveryDate, earliestDeliveryDate, bookingDaysKey, bookingAvailability]);
+
+  useEffect(() => {
+    const dow = pickupDate.getDay();
+    if (!isSlotEnabledForDay(pickupTimeSlot, dow, bookingAvailability)) {
+      const id = firstAllowedTimeSlotId(bookingAvailability, timeSlots, dow);
+      queueMicrotask(() => setPickupTimeSlot(id));
+    }
+  }, [pickupTimeSlot, pickupDateStr, bookingDaysKey, bookingAvailability, timeSlots]);
+
+  useEffect(() => {
+    const dow = deliveryDate.getDay();
+    if (!isSlotEnabledForDay(deliveryTimeSlot, dow, bookingAvailability)) {
+      const id = firstAllowedTimeSlotId(bookingAvailability, timeSlots, dow);
+      queueMicrotask(() => setDeliveryTimeSlot(id));
+    }
+  }, [deliveryTimeSlot, deliveryDateStr, bookingDaysKey, bookingAvailability, timeSlots]);
 
   const dayPickerDates = Array.from({ length: 7 }, (_, i) => {
     const d = new Date(today);
@@ -203,8 +263,25 @@ export function BookForm({
   }
 
   function handleStep1Continue() {
+    const now = new Date();
     if (deliveryDate < earliestDeliveryDate) {
       setError("Delivery must be at least 24 hours after pickup (next day or later).");
+      return;
+    }
+    if (isPickupDateUnavailable(pickupDate, now, bookingAvailability, timeSlots)) {
+      setError("That pickup day or time isn’t available. Choose another date or window.");
+      return;
+    }
+    if (isDeliveryDateUnavailable(deliveryDate, earliestDeliveryDate, now, bookingAvailability)) {
+      setError("That delivery day isn’t available. Choose another date.");
+      return;
+    }
+    if (!isSlotEnabledForDay(pickupTimeSlot, pickupDate.getDay(), bookingAvailability)) {
+      setError("Choose an available pickup time.");
+      return;
+    }
+    if (!isSlotEnabledForDay(deliveryTimeSlot, deliveryDate.getDay(), bookingAvailability)) {
+      setError("Choose an available delivery time.");
       return;
     }
     const selectedPickupSlot = timeSlots.find((s) => s.id === pickupTimeSlot);
@@ -520,7 +597,8 @@ export function BookForm({
               const isPast = d < today;
               const isToday = d.getTime() === today.getTime();
               const todayUnavailable = isToday && !hasValidSlotForToday;
-              const disabled = isPast || todayUnavailable;
+              const dayClosed = !isAnySlotEnabledOnDay(d.getDay(), bookingAvailability);
+              const disabled = isPast || todayUnavailable || dayClosed;
               return (
                 <button
                   key={d.toISOString().slice(0, 10)}
@@ -554,7 +632,7 @@ export function BookForm({
         <div className="mb-6">
           <p className="font-semibold text-fern-900 mb-2">Pickup time</p>
           <p className="text-sm text-fern-500 mb-2">
-            Slots within 1 hour of their start are disabled for today.
+            Unavailable windows are set in admin. On the pickup day, slots within 1 hour of their start are also disabled.
           </p>
           <div className="grid grid-cols-2 gap-2">
             {timeSlots.map((slot) => {
@@ -591,16 +669,18 @@ export function BookForm({
               const isSelected = d.getTime() === deliveryDate.getTime();
               const isPast = d < today;
               const beforeEarliest = d < earliestDeliveryDate;
+              const dayClosed = !isAnySlotEnabledOnDay(d.getDay(), bookingAvailability);
+              const disabled = isPast || beforeEarliest || dayClosed;
               return (
                 <button
                   key={d.toISOString().slice(0, 10)}
                   type="button"
-                  onClick={() => !isPast && !beforeEarliest && setDeliveryDate(new Date(d))}
-                  disabled={isPast || beforeEarliest}
+                  onClick={() => !disabled && setDeliveryDate(new Date(d))}
+                  disabled={disabled}
                   className={`min-w-[4rem] rounded-lg border-2 py-2 px-3 text-sm font-medium transition-colors ${
                     isSelected
                       ? "border-fern-500 bg-fern-500 text-white"
-                      : isPast || beforeEarliest
+                      : disabled
                         ? "border-fern-100 bg-fern-50 text-fern-400 cursor-not-allowed"
                         : "border-fern-200 bg-white text-fern-800 hover:border-fern-300"
                   }`}
@@ -616,20 +696,26 @@ export function BookForm({
         <div className="mb-6">
           <p className="font-semibold text-fern-900 mb-2">Delivery time</p>
           <div className="grid grid-cols-2 gap-2">
-            {timeSlots.map((slot) => (
-              <button
-                key={slot.id}
-                type="button"
-                onClick={() => setDeliveryTimeSlot(slot.id)}
-                className={`rounded-xl border-2 py-2.5 px-3 text-sm font-medium transition-colors ${
-                  deliveryTimeSlot === slot.id
-                    ? "border-fern-500 bg-fern-50 text-fern-800"
-                    : "border-fern-200 bg-white text-fern-700 hover:border-fern-300"
-                }`}
-              >
-                {slot.label}
-              </button>
-            ))}
+            {timeSlots.map((slot) => {
+              const disabled = isDeliverySlotDisabled(slot);
+              return (
+                <button
+                  key={slot.id}
+                  type="button"
+                  onClick={() => !disabled && setDeliveryTimeSlot(slot.id)}
+                  disabled={disabled}
+                  className={`rounded-xl border-2 py-2.5 px-3 text-sm font-medium transition-colors ${
+                    disabled
+                      ? "border-fern-100 bg-fern-50 text-fern-400 cursor-not-allowed"
+                      : deliveryTimeSlot === slot.id
+                        ? "border-fern-500 bg-fern-50 text-fern-800"
+                        : "border-fern-200 bg-white text-fern-700 hover:border-fern-300"
+                  }`}
+                >
+                  {slot.label}
+                </button>
+              );
+            })}
           </div>
         </div>
 
