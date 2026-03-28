@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
+import { sortOrdersForWash, WASH_VISIBLE_ORDER_STATUSES } from "@/lib/wash-orders";
 import { AppHeader } from "@/components/app-header";
 import { WashDashboard } from "./wash-dashboard";
 
@@ -18,7 +19,7 @@ export default async function WashPage() {
 
   let orders = await prisma.order.findMany({
     where: {
-      status: { notIn: ["cancelled", "out_for_delivery"] },
+      status: { in: WASH_VISIBLE_ORDER_STATUSES },
       pickupDate: { gte: today, lte: endOfToday },
     },
     orderBy: { pickupDate: "asc" },
@@ -49,7 +50,7 @@ export default async function WashPage() {
   }
   orders = await prisma.order.findMany({
     where: {
-      status: { notIn: ["cancelled", "out_for_delivery"] },
+      status: { in: WASH_VISIBLE_ORDER_STATUSES },
       pickupDate: { gte: today, lte: endOfToday },
     },
     orderBy: { pickupDate: "asc" },
@@ -60,6 +61,8 @@ export default async function WashPage() {
       orderLoads: { orderBy: { loadNumber: "asc" } },
     },
   });
+
+  orders = sortOrdersForWash(orders);
 
   return (
     <div className="min-h-screen bg-fern-50">
