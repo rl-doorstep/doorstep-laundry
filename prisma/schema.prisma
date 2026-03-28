@@ -52,19 +52,34 @@ model User {
   customPricePerPoundCents Int?      @map("custom_price_per_pound_cents")
   nmgrtExempt              Boolean   @default(false) @map("nmgrt_exempt")
   defaultLoadOptions        Json?     @map("default_load_options")
+  emailVerifiedAt          DateTime? @map("email_verified_at")
   createdAt                DateTime  @default(now()) @map("created_at")
   updatedAt                DateTime  @updatedAt @map("updated_at")
 
-  addresses           Address[]
-  orders              Order[]   @relation("CustomerOrders")
-  staffAssignments    StaffAssignment[]
-  driverLocations     DriverLocation[]
-  driverRuns          DriverRun[]
-  orderStatusChanges  OrderStatusHistory[]
-  passwordResetTokens PasswordResetToken[]
+  addresses                 Address[]
+  orders                    Order[]   @relation("CustomerOrders")
+  staffAssignments          StaffAssignment[]
+  driverLocations           DriverLocation[]
+  driverRuns                DriverRun[]
+  orderStatusChanges        OrderStatusHistory[]
+  passwordResetTokens       PasswordResetToken[]
+  emailVerificationTokens   EmailVerificationToken[]
 }
 
 model PasswordResetToken {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String   @map("user_id")
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([token])
+  @@index([expiresAt])
+}
+
+model EmailVerificationToken {
   id        String   @id @default(cuid())
   token     String   @unique
   userId    String   @map("user_id")
