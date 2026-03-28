@@ -631,9 +631,6 @@ export function BookForm({
         {/* Pickup time */}
         <div className="mb-6">
           <p className="font-semibold text-fern-900 mb-2">Pickup time</p>
-          <p className="text-sm text-fern-500 mb-2">
-            Unavailable windows are set in admin. On the pickup day, slots within 1 hour of their start are also disabled.
-          </p>
           <div className="grid grid-cols-2 gap-2">
             {timeSlots.map((slot) => {
               const disabled = isPickupSlotDisabled(slot);
