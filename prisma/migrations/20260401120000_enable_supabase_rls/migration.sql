@@ -1,0 +1,18 @@
+-- Enable Row Level Security for Supabase Data API (PostgREST).
+-- No policies: anon/authenticated JWT access is denied; Prisma (postgres role) bypasses RLS.
+-- Add policies later only if you use supabase-js against these tables.
+
+ALTER TABLE "_prisma_migrations" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "Address" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "DriverLocation" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "DriverRun" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "EmailVerificationToken" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "LoadLocation" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "Order" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "OrderLoad" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "OrderSequence" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "OrderStatusHistory" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "PasswordResetToken" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "Setting" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "StaffAssignment" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "User" ENABLE ROW LEVEL SECURITY;
