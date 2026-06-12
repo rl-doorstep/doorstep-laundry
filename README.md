@@ -45,6 +45,16 @@ Next.js app for a doorstep laundry pickup and delivery service. Customers can si
 
    Open [http://localhost:3000](http://localhost:3000). Sign up as a customer or sign in as staff.
 
+5. **Stripe webhooks (dev)**
+
+   In a separate terminal, forward Stripe events to your local server:
+
+   ```bash
+   stripe listen --forward-to localhost:3000/api/webhooks/stripe
+   ```
+
+   Copy the `whsec_...` secret it prints and set it as `STRIPE_WEBHOOK_SECRET` in your `.env`.
+
 ## Scripts
 
 - `npm run dev` – development server
