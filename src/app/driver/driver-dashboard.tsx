@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { getTimeSlotById } from "@/lib/slots";
-import { LoadTagPrintButton } from "@/components/load-tag-print";
+import { LabelPrintButton } from "@/components/label-print-button";
 
 type AddressRow = { street: string; city: string; state: string; zip: string };
 
@@ -428,7 +428,7 @@ export function DriverDashboard() {
                             .sort((a, b) => a.loadNumber - b.loadNumber)
                             .map((l) => (
                               <li key={l.id}>
-                                <LoadTagPrintButton
+                                <LabelPrintButton
                                   orderNumber={order.orderNumber}
                                   loadNumber={l.loadNumber}
                                   numberOfLoads={
