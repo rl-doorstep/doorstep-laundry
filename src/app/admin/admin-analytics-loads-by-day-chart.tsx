@@ -48,8 +48,6 @@ export function AdminAnalyticsLoadsByDayChart() {
   const [to,   setTo]   = useState(todayStr);
 
   useEffect(() => {
-    setLoading(true);
-    setError("");
     const params = new URLSearchParams();
     if (from) params.set("from", from);
     if (to)   params.set("to",   to);
@@ -64,6 +62,7 @@ export function AdminAnalyticsLoadsByDayChart() {
           return { day, morning: am?.loadCount ?? 0, evening: pm?.loadCount ?? 0 };
         });
         setData(rows);
+        setError("");
         setLoading(false);
       })
       .catch(() => { setError("Failed to load data."); setLoading(false); });

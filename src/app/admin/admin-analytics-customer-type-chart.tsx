@@ -54,8 +54,6 @@ export function AdminAnalyticsCustomerTypeChart() {
   const [to, setTo] = useState(todayStr);
 
   useEffect(() => {
-    setLoading(true);
-    setError("");
     const params = new URLSearchParams();
     if (from) params.set("from", from);
     if (to)   params.set("to",   to);
@@ -71,6 +69,7 @@ export function AdminAnalyticsCustomerTypeChart() {
           loadCount: byType.get(t)?.loadCount ?? 0,
         }));
         setData(rows);
+        setError("");
         setLoading(false);
       })
       .catch(() => {
