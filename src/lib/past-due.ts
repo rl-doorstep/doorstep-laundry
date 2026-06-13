@@ -1,5 +1,6 @@
 import { prisma } from "./db";
 import { getPastDueGracePeriodDays } from "./settings";
+import { OrderStatus } from "@prisma/client";
 
 export type PastDueOrder = {
   id: string;
@@ -8,11 +9,11 @@ export type PastDueOrder = {
   deliveryDate: Date;
 };
 
-const PAST_DUE_STATUSES = [
-  "waiting_for_payment",
-  "ready_for_delivery",
-  "out_for_delivery",
-  "delivered",
+const PAST_DUE_STATUSES: OrderStatus[] = [
+  OrderStatus.waiting_for_payment,
+  OrderStatus.ready_for_delivery,
+  OrderStatus.out_for_delivery,
+  OrderStatus.delivered,
 ];
 
 /**
