@@ -12,6 +12,7 @@ import { PayButton } from "./pay-button";
 import { ResendPaymentButton } from "./resend-payment-button";
 import { ReceiptDownloadButton } from "@/components/receipt-download-button";
 import { OrderPricingAdmin } from "./order-pricing-admin";
+import { UseCreditButton } from "./use-credit-button";
 
 const statusLabel: Record<string, string> = {
   scheduled: "Scheduled",
@@ -57,6 +58,8 @@ export default async function OrderDetailPage({
   if (!canView) redirect("/dashboard");
   const creditedLoads = role === "customer" ? (customer?.creditedLoads ?? 0) : 0;
 
+  const creditedLoadCount = order.orderLoads?.filter((l) => l.creditedLoad).length ?? 0;
+
   let displayTotalCents = order.totalCents;
   if (order.status === "waiting_for_payment" && order.orderLoads?.length) {
     const { getEffectivePricing, computeOrderTotalWithTax } = await import("@/lib/order-total");
@@ -71,13 +74,14 @@ export default async function OrderDetailPage({
       order.customer,
       defaultPriceCents
     );
+    const billableLoads = order.orderLoads.filter((l) => !l.creditedLoad);
     const { totalCents } = computeOrderTotalWithTax(
-      order.orderLoads,
+      billableLoads.length > 0 ? billableLoads : order.orderLoads,
       pricePerPoundCents,
       grtPercent,
       nmgrtExempt
     );
-    displayTotalCents = totalCents;
+    displayTotalCents = billableLoads.length > 0 ? totalCents : 0;
   }
 
   return (
@@ -100,6 +104,12 @@ export default async function OrderDetailPage({
           <div className="flex justify-between items-start mb-4">
             <span className="text-fern-500">Status</span>
             <div className="flex items-center gap-2 flex-wrap">
+              {role === "customer" &&
+                creditedLoads > 0 &&
+                ["picked_up", "waiting_for_payment"].includes(order.status) &&
+                order.orderLoads?.some((l) => !l.creditedLoad) && (
+                  <UseCreditButton orderId={order.id} />
+              )}
               {order.status === "waiting_for_payment" && !order.stripePaymentId && (
                 <>
                   <PayButton orderId={order.id} variant="icon" />
@@ -184,6 +194,7 @@ export default async function OrderDetailPage({
                     {order.orderLoads.map((load: {
                       loadNumber: number;
                       weightLbs?: number | null;
+                      creditedLoad?: boolean;
                       hotWater?: boolean;
                       bleach?: boolean;
                       hypoallergenic?: boolean;
@@ -193,14 +204,21 @@ export default async function OrderDetailPage({
                     }) => {
                       const opts = getEnabledLoadOptionLabels(load);
                       return (
-                        <li key={load.loadNumber}>
-                          Load {load.loadNumber}
-                          {order.status === "waiting_for_payment" && (
-                            <>: {(load.weightLbs ?? 0).toFixed(1)} lbs</>
-                          )}
-                          {opts.length > 0 && (
-                            <span className="text-fern-600">
-                              {" "}({opts.join(", ")})
+                        <li key={load.loadNumber} className="flex items-center gap-2">
+                          <span>
+                            Load {load.loadNumber}
+                            {order.status === "waiting_for_payment" && (
+                              <>: {(load.weightLbs ?? 0).toFixed(1)} lbs</>
+                            )}
+                            {opts.length > 0 && (
+                              <span className="text-fern-600">
+                                {" "}({opts.join(", ")})
+                              </span>
+                            )}
+                          </span>
+                          {load.creditedLoad && (
+                            <span className="rounded-full bg-green-100 text-green-700 text-xs font-medium px-2 py-0.5">
+                              Free
                             </span>
                           )}
                         </li>
@@ -214,6 +232,14 @@ export default async function OrderDetailPage({
               <div>
                 <dt className="text-fern-500">Transaction number</dt>
                 <dd className="text-fern-900 mt-0.5 font-mono">{order.orderNumber}</dd>
+              </div>
+            )}
+            {creditedLoadCount > 0 && (
+              <div>
+                <dt className="text-fern-500">Load credits applied</dt>
+                <dd className="text-green-700 mt-0.5 font-medium">
+                  {creditedLoadCount} free {creditedLoadCount === 1 ? "load" : "loads"}
+                </dd>
               </div>
             )}
             <div>
