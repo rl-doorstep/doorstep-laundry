@@ -12,6 +12,7 @@ import { AdminBookingAvailability } from "./admin-booking-availability";
 import { AdminPastDueGracePeriod } from "./admin-past-due-grace-period";
 import { DebugTools } from "@/app/debug/debug-tools";
 import { AdminAnalyticsCustomerTypeChart } from "./admin-analytics-customer-type-chart";
+import { AdminAnalyticsRevenueByMonthChart } from "./admin-analytics-revenue-by-month-chart";
 
 type Tab = "operations" | "analytics" | "debug";
 
@@ -138,6 +139,7 @@ export function AdminTabs() {
       {activeTab === "analytics" && (
         <div className="space-y-8">
           <AdminAnalyticsCustomerTypeChart />
+          <AdminAnalyticsRevenueByMonthChart />
         </div>
       )}
 
