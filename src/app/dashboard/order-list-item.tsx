@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useState } from "react";
 import { getTimeSlotById } from "@/lib/slots";
 import { DeleteDraftOrderButton } from "@/components/delete-draft-order-button";
 import { PayButton } from "@/app/orders/[orderId]/pay-button";
@@ -29,14 +30,39 @@ export type OrderListItemOrder = {
   deliveryDate: Date | string;
   pickupTimeSlot: string | null;
   deliveryTimeSlot: string | null;
-  orderLoads?: { weightLbs: number | null }[];
+  orderLoads?: { weightLbs: number | null; creditedLoad?: boolean }[];
 };
 
-export function OrderListItem({ order }: { order: OrderListItemOrder }) {
+export function OrderListItem({
+  order,
+  creditedLoads = 0,
+}: {
+  order: OrderListItemOrder;
+  creditedLoads?: number;
+}) {
   const router = useRouter();
+  const [applyingCredit, setApplyingCredit] = useState(false);
   const isScheduled = order.status === "scheduled";
   const showPay = order.status === "waiting_for_payment" && !order.stripePaymentId;
   const showReceipt = Boolean(order.stripePaymentId);
+  const creditEligible = ["picked_up", "waiting_for_payment"].includes(order.status);
+  const hasUncreditedLoads = order.orderLoads?.some((l) => !l.creditedLoad) ?? true;
+  const showUseCredit = creditedLoads > 0 && creditEligible && hasUncreditedLoads;
+
+  async function handleUseCredit() {
+    setApplyingCredit(true);
+    try {
+      const res = await fetch(`/api/orders/${order.id}/apply-credit`, { method: "POST" });
+      if (res.ok) {
+        router.refresh();
+      } else {
+        const data = await res.json().catch(() => ({}));
+        console.error("Failed to apply credit:", data.error);
+      }
+    } finally {
+      setApplyingCredit(false);
+    }
+  }
 
   return (
     <li className="flex gap-2 items-stretch">
@@ -91,6 +117,20 @@ export function OrderListItem({ order }: { order: OrderListItemOrder }) {
       )}
       {showReceipt && (
         <ReceiptDownloadButton orderId={order.id} variant="icon" />
+      )}
+      {showUseCredit && (
+        <button
+          type="button"
+          onClick={handleUseCredit}
+          disabled={applyingCredit}
+          aria-label="Use a free load credit"
+          title="Use a free load credit"
+          className="shrink-0 self-stretch rounded-xl border border-green-300 bg-green-50 px-3 text-green-700 hover:bg-green-100 transition-colors disabled:opacity-50 flex items-center justify-center"
+        >
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v13m0-13V6a4 4 0 00-4-4H6m6 6a4 4 0 014-4h2m-6 0v0m0 13H7a2 2 0 01-2-2V9a2 2 0 012-2h10a2 2 0 012 2v10a2 2 0 01-2 2h-5z" />
+          </svg>
+        </button>
       )}
       {isScheduled && (
         <DeleteDraftOrderButton

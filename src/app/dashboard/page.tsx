@@ -21,7 +21,7 @@ export default async function DashboardPage() {
       orderBy: { createdAt: "desc" },
       take: 50,
       include: {
-        orderLoads: { orderBy: { loadNumber: "asc" }, select: { weightLbs: true } },
+        orderLoads: { orderBy: { loadNumber: "asc" }, select: { weightLbs: true, creditedLoad: true } },
       },
     }),
     prisma.user.findUnique({ where: { id: userId }, select: { creditedLoads: true } }),
@@ -51,7 +51,7 @@ export default async function DashboardPage() {
             </Link>
           </div>
         ) : (
-          <DashboardOrderList orders={orderList} />
+          <DashboardOrderList orders={orderList} creditedLoads={creditedLoads} />
         )}
       </main>
     </div>
