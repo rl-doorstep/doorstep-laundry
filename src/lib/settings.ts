@@ -5,6 +5,10 @@ import {
   type BookingAvailability,
 } from "./booking-availability";
 
+const NEXT_MORNING_PREMIUM_KEY = "next_morning_premium_cents";
+const DEFAULT_NEXT_MORNING_PREMIUM_CENTS = 200;
+const SAME_DAY_PREMIUM_KEY = "same_day_premium_cents";
+const DEFAULT_SAME_DAY_PREMIUM_CENTS = 300;
 const GRT_PERCENT_KEY = "grt_percent";
 const DEFAULT_GRT_PERCENT = 8.39;
 const PRICE_PER_POUND_KEY = "price_per_pound_cents";
@@ -42,6 +46,30 @@ export async function getPricePerPoundCents(): Promise<number> {
   if (!row) return DEFAULT_PRICE_PER_POUND_CENTS;
   const value = parseInt(row.value, 10);
   return Number.isFinite(value) && value >= 0 ? value : DEFAULT_PRICE_PER_POUND_CENTS;
+}
+
+/**
+ * Server-side only. Returns the next-morning premium surcharge in cents (evening pickup → next morning delivery).
+ */
+export async function getNextMorningPremiumCents(): Promise<number> {
+  const row = await prisma.setting.findUnique({
+    where: { key: NEXT_MORNING_PREMIUM_KEY },
+  });
+  if (!row) return DEFAULT_NEXT_MORNING_PREMIUM_CENTS;
+  const value = parseInt(row.value, 10);
+  return Number.isFinite(value) && value >= 0 ? value : DEFAULT_NEXT_MORNING_PREMIUM_CENTS;
+}
+
+/**
+ * Server-side only. Returns the same-day premium surcharge in cents (morning pickup → same-day evening delivery).
+ */
+export async function getSameDayPremiumCents(): Promise<number> {
+  const row = await prisma.setting.findUnique({
+    where: { key: SAME_DAY_PREMIUM_KEY },
+  });
+  if (!row) return DEFAULT_SAME_DAY_PREMIUM_CENTS;
+  const value = parseInt(row.value, 10);
+  return Number.isFinite(value) && value >= 0 ? value : DEFAULT_SAME_DAY_PREMIUM_CENTS;
 }
 
 /**

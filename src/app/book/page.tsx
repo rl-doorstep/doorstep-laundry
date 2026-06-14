@@ -4,7 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 import { AppHeader } from "@/components/app-header";
 import { CreditedLoadsBanner } from "@/components/credited-loads-banner";
-import { getBookingAvailability } from "@/lib/settings";
+import { getBookingAvailability, getNextMorningPremiumCents, getSameDayPremiumCents } from "@/lib/settings";
 import { BookForm } from "./book-form";
 
 export default async function BookPage() {
@@ -31,7 +31,11 @@ export default async function BookPage() {
       : null;
 
   const creditedLoads = user?.creditedLoads ?? 0;
-  const bookingAvailability = await getBookingAvailability();
+  const [bookingAvailability, nextMorningPremiumCents, sameDayPremiumCents] = await Promise.all([
+    getBookingAvailability(),
+    getNextMorningPremiumCents(),
+    getSameDayPremiumCents(),
+  ]);
 
   return (
     <div className="min-h-screen bg-fern-50">
@@ -53,6 +57,8 @@ export default async function BookPage() {
           addresses={addresses}
           defaultLoadOptions={defaultLoadOptions}
           bookingAvailability={bookingAvailability}
+          nextMorningPremiumCents={nextMorningPremiumCents}
+          sameDayPremiumCents={sameDayPremiumCents}
         />
       </main>
     </div>

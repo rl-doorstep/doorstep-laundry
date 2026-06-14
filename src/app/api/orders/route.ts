@@ -180,6 +180,7 @@ export async function POST(request: Request) {
       totalCents,
       loadOptions,
       bulkyItems: bulkyItemsPayload,
+      premiumSurchargePerPoundCents: premiumSurchargeCents,
     } = body as {
       pickupAddressId?: string;
       deliveryAddressId?: string;
@@ -192,10 +193,15 @@ export async function POST(request: Request) {
       totalCents?: number;
       loadOptions?: LoadOptionsInput[];
       bulkyItems?: BulkyItems[];
+      premiumSurchargePerPoundCents?: number;
     };
     const loads = numberOfLoads != null && numberOfLoads >= 1 ? numberOfLoads : 1;
     // Total computed after weigh-in (post-weigh payment); use 0 until then
     const computedTotalCents = totalCents != null && totalCents >= 0 ? totalCents : 0;
+    const computedSurchargeCents =
+      premiumSurchargeCents != null && Number.isFinite(premiumSurchargeCents) && premiumSurchargeCents >= 0
+        ? Math.round(premiumSurchargeCents)
+        : 0;
     if (
       !pickupAddressId ||
       !deliveryAddressId ||
@@ -256,6 +262,7 @@ export async function POST(request: Request) {
         notes: notes ?? null,
         numberOfLoads: loads,
         totalCents: computedTotalCents,
+        premiumSurchargePerPoundCents: computedSurchargeCents,
         status: "scheduled",
       },
       include: {

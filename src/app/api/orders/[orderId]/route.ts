@@ -87,6 +87,7 @@ export async function PATCH(
       numberOfLoads,
       loadOptions,
       bulkyItems: bulkyItemsPayload,
+      premiumSurchargePerPoundCents: premiumSurchargeCents,
     } = body as {
       pickupAddressId?: string;
       deliveryAddressId?: string;
@@ -98,10 +99,15 @@ export async function PATCH(
       numberOfLoads?: number;
       loadOptions?: LoadOptionsInput[];
       bulkyItems?: BulkyItems[];
+      premiumSurchargePerPoundCents?: number;
     };
     const loads = numberOfLoads != null && numberOfLoads >= 1 ? numberOfLoads : order.numberOfLoads;
     // totalCents set at weigh-in (waiting_for_payment); leave existing until then
     const totalCents = order.totalCents;
+    const computedSurchargeCents =
+      premiumSurchargeCents != null && Number.isFinite(premiumSurchargeCents) && premiumSurchargeCents >= 0
+        ? Math.round(premiumSurchargeCents)
+        : order.premiumSurchargePerPoundCents;
 
     if (
       !pickupAddressId ||
@@ -155,6 +161,7 @@ export async function PATCH(
         notes: notes ?? null,
         numberOfLoads: loads,
         totalCents,
+        premiumSurchargePerPoundCents: computedSurchargeCents,
       },
     });
 
