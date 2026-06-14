@@ -6,11 +6,13 @@ import { prisma } from "@/lib/db";
 import { getTimeSlotById } from "@/lib/slots";
 import { getEnabledLoadOptionLabels } from "@/lib/load-options";
 import { AppHeader } from "@/components/app-header";
+import { CreditedLoadsBanner } from "@/components/credited-loads-banner";
 import { DeleteDraftOrderButton } from "@/components/delete-draft-order-button";
 import { PayButton } from "./pay-button";
 import { ResendPaymentButton } from "./resend-payment-button";
 import { ReceiptDownloadButton } from "@/components/receipt-download-button";
 import { OrderPricingAdmin } from "./order-pricing-admin";
+import { UseCreditButton } from "./use-credit-button";
 
 const statusLabel: Record<string, string> = {
   scheduled: "Scheduled",
@@ -34,23 +36,29 @@ export default async function OrderDetailPage({
   const userId = (session.user as { id: string }).id;
   const { orderId } = await params;
 
-  const order = await prisma.order.findUnique({
-    where: { id: orderId },
-    include: {
-      pickupAddress: true,
-      deliveryAddress: true,
-      orderLoads: { orderBy: { loadNumber: "asc" } },
-      customer: { select: { customPricePerPoundCents: true, nmgrtExempt: true } },
-      statusHistory: {
-        orderBy: { createdAt: "desc" },
-        include: { changedBy: { select: { name: true, email: true } } },
+  const [order, customer] = await Promise.all([
+    prisma.order.findUnique({
+      where: { id: orderId },
+      include: {
+        pickupAddress: true,
+        deliveryAddress: true,
+        orderLoads: { orderBy: { loadNumber: "asc" } },
+        customer: { select: { customPricePerPoundCents: true, nmgrtExempt: true } },
+        statusHistory: {
+          orderBy: { createdAt: "desc" },
+          include: { changedBy: { select: { name: true, email: true } } },
+        },
       },
-    },
-  });
+    }),
+    prisma.user.findUnique({ where: { id: userId }, select: { creditedLoads: true, role: true } }),
+  ]);
   if (!order) notFound();
   const role = (session.user as { role?: string }).role;
   const canView = order.customerId === userId || role === "staff" || role === "admin";
   if (!canView) redirect("/dashboard");
+  const creditedLoads = role === "customer" ? (customer?.creditedLoads ?? 0) : 0;
+
+  const creditedLoadCount = order.orderLoads?.filter((l) => l.creditedLoad).length ?? 0;
 
   let displayTotalCents = order.totalCents;
   if (order.status === "waiting_for_payment" && order.orderLoads?.length) {
@@ -66,18 +74,20 @@ export default async function OrderDetailPage({
       order.customer,
       defaultPriceCents
     );
+    const billableLoads = order.orderLoads.filter((l) => !l.creditedLoad);
     const { totalCents } = computeOrderTotalWithTax(
-      order.orderLoads,
+      billableLoads.length > 0 ? billableLoads : order.orderLoads,
       pricePerPoundCents,
       grtPercent,
       nmgrtExempt
     );
-    displayTotalCents = totalCents;
+    displayTotalCents = billableLoads.length > 0 ? totalCents : 0;
   }
 
   return (
     <div className="min-h-screen bg-fern-50">
       <AppHeader />
+      <CreditedLoadsBanner creditedLoads={creditedLoads} />
       <main className="mx-auto max-w-4xl px-4 py-8 space-y-6">
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-xl font-semibold text-fern-900 font-mono">
@@ -94,6 +104,12 @@ export default async function OrderDetailPage({
           <div className="flex justify-between items-start mb-4">
             <span className="text-fern-500">Status</span>
             <div className="flex items-center gap-2 flex-wrap">
+              {role === "customer" &&
+                creditedLoads > 0 &&
+                ["picked_up", "waiting_for_payment"].includes(order.status) &&
+                order.orderLoads?.some((l) => !l.creditedLoad) && (
+                  <UseCreditButton orderId={order.id} />
+              )}
               {order.status === "waiting_for_payment" && !order.stripePaymentId && (
                 <>
                   <PayButton orderId={order.id} variant="icon" />
@@ -178,6 +194,7 @@ export default async function OrderDetailPage({
                     {order.orderLoads.map((load: {
                       loadNumber: number;
                       weightLbs?: number | null;
+                      creditedLoad?: boolean;
                       hotWater?: boolean;
                       bleach?: boolean;
                       hypoallergenic?: boolean;
@@ -187,14 +204,21 @@ export default async function OrderDetailPage({
                     }) => {
                       const opts = getEnabledLoadOptionLabels(load);
                       return (
-                        <li key={load.loadNumber}>
-                          Load {load.loadNumber}
-                          {order.status === "waiting_for_payment" && (
-                            <>: {(load.weightLbs ?? 0).toFixed(1)} lbs</>
-                          )}
-                          {opts.length > 0 && (
-                            <span className="text-fern-600">
-                              {" "}({opts.join(", ")})
+                        <li key={load.loadNumber} className="flex items-center gap-2">
+                          <span>
+                            Load {load.loadNumber}
+                            {order.status === "waiting_for_payment" && (
+                              <>: {(load.weightLbs ?? 0).toFixed(1)} lbs</>
+                            )}
+                            {opts.length > 0 && (
+                              <span className="text-fern-600">
+                                {" "}({opts.join(", ")})
+                              </span>
+                            )}
+                          </span>
+                          {load.creditedLoad && (
+                            <span className="rounded-full bg-green-100 text-green-700 text-xs font-medium px-2 py-0.5">
+                              Free
                             </span>
                           )}
                         </li>
@@ -208,6 +232,14 @@ export default async function OrderDetailPage({
               <div>
                 <dt className="text-fern-500">Transaction number</dt>
                 <dd className="text-fern-900 mt-0.5 font-mono">{order.orderNumber}</dd>
+              </div>
+            )}
+            {creditedLoadCount > 0 && (
+              <div>
+                <dt className="text-fern-500">Load credits applied</dt>
+                <dd className="text-green-700 mt-0.5 font-medium">
+                  {creditedLoadCount} free {creditedLoadCount === 1 ? "load" : "loads"}
+                </dd>
               </div>
             )}
             <div>

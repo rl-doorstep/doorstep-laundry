@@ -1,6 +1,10 @@
 /**
  * Single source of truth for order status transitions (manual API) and
  * load-driven order sync rules. Used by API routes and unit tests.
+ *
+ * Note: payment is decoupled from delivery. Loads transition from "cleaned"
+ * (folded, awaiting weigh-in) directly to "ready_for_delivery" when weighed.
+ * The order follows once all loads reach "ready_for_delivery".
  */
 
 export type OrderStatus =
@@ -19,7 +23,7 @@ export const VALID_ORDER_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
   scheduled: ["picked_up", "cancelled"],
   picked_up: ["ready_for_wash", "in_progress", "cancelled"],
   ready_for_wash: ["in_progress", "cancelled"],
-  in_progress: ["ready_for_delivery", "out_for_delivery", "cancelled"],
+  in_progress: ["waiting_for_payment", "ready_for_delivery", "out_for_delivery", "cancelled"],
   waiting_for_payment: ["ready_for_delivery", "cancelled"],
   ready_for_delivery: ["out_for_delivery", "cancelled"],
   out_for_delivery: ["delivered"],
@@ -65,19 +69,9 @@ export function getOrderStatusFromLoads(
     loads.some((l) =>
       ["incoming", "ready_for_wash", "washing", "drying", "folding"].includes(l.status)
     );
-  const allCleanedWithWeight =
-    loads.length > 0 &&
-    loads.every(
-      (l) => l.status === "cleaned" && l.weightLbs != null && l.weightLbs > 0
-    );
   const allReadyForDelivery = loads.every((l) => l.status === "ready_for_delivery");
 
   if (currentOrderStatus === "waiting_for_payment") return null;
-  const canGoToPayment =
-    (currentOrderStatus === "in_progress" || currentOrderStatus === "ready_for_wash") &&
-    allCleanedWithWeight &&
-    canSet;
-  if (canGoToPayment) return "waiting_for_payment";
   if (allReadyForDelivery && canSet) return "ready_for_delivery";
   if (currentOrderStatus === "ready_for_wash" && anyWashing && canSet) return "in_progress";
   if (currentOrderStatus === "picked_up") {

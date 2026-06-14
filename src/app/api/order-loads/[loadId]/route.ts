@@ -73,6 +73,10 @@ export async function PATCH(
   if (body.weightLbs !== undefined) {
     const w = typeof body.weightLbs === "number" && body.weightLbs >= 0 ? body.weightLbs : null;
     data.weightLbs = w;
+    // Weighing a "cleaned" (folded) load means it's ready for delivery
+    if (w != null && w > 0 && load.status === "cleaned" && data.status == null) {
+      data.status = "ready_for_delivery";
+    }
   }
 
   if (Object.keys(data).length === 0) {
@@ -107,15 +111,6 @@ export async function PATCH(
         changedById: (session.user as { id: string }).id,
       },
     });
-
-    if (newOrderStatus === "waiting_for_payment") {
-      try {
-        await handleWaitingForPayment(orderId, session.user as { id: string });
-      } catch (e) {
-        console.error("[order-loads] Payment email failed:", e);
-        if (e instanceof Error) console.error("[order-loads] Payment email error message:", e.message);
-      }
-    }
   }
 
   return NextResponse.json(updated);
@@ -123,120 +118,9 @@ export async function PATCH(
 
 function getNoteForOrderStatusChange(status: string): string {
   const notes: Record<string, string> = {
-    ready_for_delivery: "All loads folded (ready for delivery)",
-    waiting_for_payment: "All loads cleaned and weighed; payment link sent",
+    ready_for_delivery: "All loads weighed and ready for delivery",
     ready_for_wash: "All loads have shelf location",
     in_progress: "Wash started (load status updated)",
   };
   return notes[status] ?? "Order status updated";
-}
-
-async function handleWaitingForPayment(
-  orderId: string,
-  _user: { id: string } // eslint-disable-line @typescript-eslint/no-unused-vars
-): Promise<void> {
-  const { prisma } = await import("@/lib/db");
-  const order = await prisma.order.findUnique({
-    where: { id: orderId },
-    include: {
-      orderLoads: true,
-      customer: {
-        select: { email: true, phone: true, customPricePerPoundCents: true, nmgrtExempt: true },
-      },
-    },
-  });
-  if (!order || order.status !== "waiting_for_payment") {
-    if (!order) console.warn("[handleWaitingForPayment] Order not found:", orderId);
-    else if (order.status !== "waiting_for_payment") console.warn("[handleWaitingForPayment] Order not waiting_for_payment:", order.orderNumber, order.status);
-    return;
-  }
-  const loads = order.orderLoads;
-  const [setting, grtPercent] = await Promise.all([
-    prisma.setting.findUnique({ where: { key: "price_per_pound_cents" } }),
-    (await import("@/lib/settings")).getGrtPercent(),
-  ]);
-  const defaultPriceCents = setting ? parseInt(String(setting.value), 10) || 150 : 150;
-  const { getEffectivePricing, computeOrderTotalWithTax } = await import("@/lib/order-total");
-  const { pricePerPoundCents, nmgrtExempt } = getEffectivePricing(
-    order,
-    order.customer,
-    defaultPriceCents
-  );
-  const { subtotalCents, taxCents, totalCents } = computeOrderTotalWithTax(
-    loads,
-    pricePerPoundCents,
-    grtPercent,
-    nmgrtExempt
-  );
-  if (totalCents <= 0) {
-    console.warn("[handleWaitingForPayment] totalCents <= 0, skipping notification:", order.orderNumber);
-    return;
-  }
-  if (!order.customer.email) {
-    console.warn("[handleWaitingForPayment] No customer email, payment email will not be sent:", order.orderNumber);
-  }
-  await prisma.order.update({
-    where: { id: orderId },
-    data: { totalCents },
-  });
-  const baseUrl = process.env.NEXTAUTH_URL ?? "http://localhost:3000";
-  let paymentUrl = `${baseUrl}/orders/${orderId}`;
-  const { buildWashAndBulkyStripeLineItems } = await import(
-    "@/lib/checkout-line-items"
-  );
-  const lineItems = buildWashAndBulkyStripeLineItems(
-    {
-      orderNumber: order.orderNumber,
-      pickupDate: order.pickupDate,
-      deliveryDate: order.deliveryDate,
-    },
-    loads,
-    pricePerPoundCents
-  );
-  if (lineItems.length === 0) {
-    console.warn(
-      "[handleWaitingForPayment] No Stripe line items (no weight/bulky):",
-      order.orderNumber
-    );
-  }
-  if (!nmgrtExempt && taxCents > 0) {
-    lineItems.push({
-      price_data: {
-        currency: "usd",
-        product_data: {
-          name: `NMGRT (${grtPercent}%)`,
-          description: "New Mexico Gross Receipts Tax",
-        },
-        unit_amount: taxCents,
-      },
-      quantity: 1,
-    });
-  }
-  try {
-    const { getStripe } = await import("@/lib/stripe");
-    const stripe = getStripe();
-    const session = await stripe.checkout.sessions.create({
-      mode: "payment",
-      payment_method_types: ["card"],
-      line_items: lineItems,
-      success_url: `${baseUrl}/orders/${orderId}?paid=1`,
-      cancel_url: `${baseUrl}/orders/${orderId}`,
-      metadata: { orderId, order_number: order.orderNumber },
-    });
-    if (session.url) paymentUrl = session.url;
-  } catch (e) {
-    console.error("[handleWaitingForPayment] Stripe checkout session:", e);
-  }
-  const totalLbs = loads.reduce((s: number, l: { weightLbs?: number | null }) => s + (Number(l.weightLbs) || 0), 0);
-  const { sendOrderNotification } = await import("@/lib/notify");
-  const notifyResult = await sendOrderNotification(orderId, "ready_for_payment", {
-    orderNumber: order.orderNumber,
-    totalCents,
-    totalLbs,
-    perLoadLbs: loads.map((l: { weightLbs?: number | null }) => Number(l.weightLbs) || 0),
-    paymentUrl,
-  });
-  if (!notifyResult.email) {
-    console.warn("[handleWaitingForPayment] Payment email not sent for", order.orderNumber, "sms:", notifyResult.sms);
-  }
 }

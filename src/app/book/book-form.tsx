@@ -258,7 +258,7 @@ export function BookForm({
       const id = firstAllowedTimeSlotId(bookingAvailability, timeSlots, dow);
       queueMicrotask(() => setPickupTimeSlot(id));
     }
-  }, [pickupTimeSlot, pickupDateStr, bookingDaysKey, bookingAvailability, timeSlots]);
+  }, [pickupTimeSlot, pickupDate, pickupDateStr, bookingDaysKey, bookingAvailability, timeSlots]);
 
   useEffect(() => {
     const dow = deliveryDate.getDay();
@@ -266,7 +266,7 @@ export function BookForm({
       const id = firstAllowedTimeSlotId(bookingAvailability, timeSlots, dow);
       queueMicrotask(() => setDeliveryTimeSlot(id));
     }
-  }, [deliveryTimeSlot, deliveryDateStr, bookingDaysKey, bookingAvailability, timeSlots]);
+  }, [deliveryTimeSlot, deliveryDate, deliveryDateStr, bookingDaysKey, bookingAvailability, timeSlots]);
 
   const dayPickerDates = Array.from({ length: 7 }, (_, i) => {
     const d = new Date(today);

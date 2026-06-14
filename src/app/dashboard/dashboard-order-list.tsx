@@ -29,8 +29,10 @@ function sortOrdersByStatus(orders: OrderListItemOrder[]): OrderListItemOrder[] 
 
 export function DashboardOrderList({
   orders,
+  creditedLoads = 0,
 }: {
   orders: OrderListItemOrder[];
+  creditedLoads?: number;
 }) {
   const [showAll, setShowAll] = useState(false);
 
@@ -70,7 +72,7 @@ export function DashboardOrderList({
       ) : (
         <ul className="space-y-3">
           {displayed.map((order) => (
-            <OrderListItem key={order.id} order={order} />
+            <OrderListItem key={order.id} order={order} creditedLoads={creditedLoads} />
           ))}
         </ul>
       )}
