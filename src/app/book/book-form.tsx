@@ -35,12 +35,26 @@ export type BookFormInitialOrder = {
   loadOptions?: LoadOptionsInput[];
 };
 
+function detectPremium(
+  pickupDate: Date,
+  pickupSlot: string,
+  deliveryDate: Date,
+  deliverySlot: string
+): "standard" | "next_morning" | "same_day" {
+  const sameDay = pickupDate.getTime() === deliveryDate.getTime();
+  if (sameDay && pickupSlot === "morning" && deliverySlot === "evening") return "same_day";
+  if (!sameDay && pickupSlot === "evening" && deliverySlot === "morning") return "next_morning";
+  return "standard";
+}
+
 export function BookForm({
   addresses,
   editOrderId,
   initialOrder,
   defaultLoadOptions,
   bookingAvailability,
+  nextMorningPremiumCents = 200,
+  sameDayPremiumCents = 300,
 }: {
   addresses: Address[];
   defaultTotalCents?: number;
@@ -50,6 +64,8 @@ export function BookForm({
   defaultLoadOptions?: LoadOptionsInput | null;
   /** Admin-configured days and morning/evening windows for pickup & delivery. */
   bookingAvailability: BookingAvailability;
+  nextMorningPremiumCents?: number;
+  sameDayPremiumCents?: number;
 }) {
   const router = useRouter();
   const timeSlots = getTimeSlots();
@@ -178,13 +194,24 @@ export function BookForm({
     return d;
   }, []); // stable for effect deps (session-scoped)
 
-  // Earliest delivery: at least 24 hrs after pickup (next day or later)
+  // Same-day delivery allowed only when pickup is morning; evening pickup requires next-day minimum.
   const earliestDeliveryDate = useMemo(() => {
     const d = new Date(pickupDate);
-    d.setDate(d.getDate() + 1);
+    if (pickupTimeSlot !== "morning") d.setDate(d.getDate() + 1);
     d.setHours(0, 0, 0, 0);
     return d;
-  }, [pickupDate]);
+  }, [pickupDate, pickupTimeSlot]);
+
+  const detectedPremium = useMemo(
+    () => detectPremium(pickupDate, pickupTimeSlot, deliveryDate, deliveryTimeSlot),
+    [pickupDate, pickupTimeSlot, deliveryDate, deliveryTimeSlot]
+  );
+  const premiumSurchargePerPoundCents =
+    detectedPremium === "same_day"
+      ? sameDayPremiumCents
+      : detectedPremium === "next_morning"
+        ? nextMorningPremiumCents
+        : 0;
 
   const now = new Date();
   const isPickupToday =
@@ -204,7 +231,10 @@ export function BookForm({
   }
 
   function isDeliverySlotDisabled(slot: TimeSlot): boolean {
-    return !isSlotEnabledForDay(slot.id, deliveryDow, bookingAvailability);
+    if (!isSlotEnabledForDay(slot.id, deliveryDow, bookingAvailability)) return true;
+    // Same-day delivery: only evening slot is valid
+    if (deliveryDate.getTime() === pickupDate.getTime() && slot.id !== "evening") return true;
+    return false;
   }
 
   const hasValidSlotForToday = timeSlots.some(
@@ -267,6 +297,13 @@ export function BookForm({
       queueMicrotask(() => setDeliveryTimeSlot(id));
     }
   }, [deliveryTimeSlot, deliveryDate, deliveryDateStr, bookingDaysKey, bookingAvailability, timeSlots]);
+
+  // When same-day delivery is selected, force delivery slot to evening
+  useEffect(() => {
+    if (deliveryDate.getTime() === pickupDate.getTime() && deliveryTimeSlot !== "evening") {
+      queueMicrotask(() => setDeliveryTimeSlot("evening"));
+    }
+  }, [deliveryDate, pickupDate, deliveryTimeSlot]);
 
   const dayPickerDates = Array.from({ length: 7 }, (_, i) => {
     const d = new Date(today);
@@ -434,6 +471,7 @@ export function BookForm({
       notes: notes || undefined,
       numberOfLoads: loadOptions.length,
       loadOptions,
+      premiumSurchargePerPoundCents,
     };
     const url = editOrderId ? `/api/orders/${editOrderId}` : "/api/orders";
     const method = editOrderId ? "PATCH" : "POST";
@@ -652,7 +690,7 @@ export function BookForm({
                     const newPickup = new Date(d);
                     setPickupDate(newPickup);
                     const minDelivery = new Date(newPickup);
-                    minDelivery.setDate(minDelivery.getDate() + 1);
+                    if (pickupTimeSlot !== "morning") minDelivery.setDate(minDelivery.getDate() + 1);
                     minDelivery.setHours(0, 0, 0, 0);
                     if (deliveryDate < minDelivery) setDeliveryDate(minDelivery);
                   }}
@@ -703,7 +741,10 @@ export function BookForm({
         <div className="mb-6">
           <p className="font-semibold text-fern-900 mb-2">Delivery date</p>
           <p className="text-sm text-fern-500 mb-2">
-            At least 24 hours after pickup (next day or later). {deliveryDate.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
+            {pickupTimeSlot === "morning"
+              ? "Same-day evening delivery or next day (and later) are available."
+              : "Next day or later (evening pickup requires next-day minimum)."}{" "}
+            {deliveryDate.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
           </p>
           <div className="flex flex-wrap gap-2">
             {dayPickerDates.map((d) => {
@@ -977,6 +1018,19 @@ export function BookForm({
                 Save as entered
               </button>
             </div>
+          </div>
+        )}
+
+        {detectedPremium !== "standard" && (
+          <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+            <p className="font-semibold mb-1">
+              {detectedPremium === "same_day" ? "Same-day service" : "Next-morning service"} selected
+            </p>
+            <p>
+              {detectedPremium === "same_day"
+                ? `A surcharge of +$${(sameDayPremiumCents / 100).toFixed(2)}/lb will be added to your order rate for same-day evening delivery.`
+                : `A surcharge of +$${(nextMorningPremiumCents / 100).toFixed(2)}/lb will be added to your order rate for next-morning delivery after an evening pickup.`}
+            </p>
           </div>
         )}
 

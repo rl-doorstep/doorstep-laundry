@@ -16,6 +16,10 @@ import {
 
 const PRICE_PER_POUND_KEY = "price_per_pound_cents";
 const DEFAULT_PRICE_PER_POUND_CENTS = 150;
+const NEXT_MORNING_PREMIUM_KEY = "next_morning_premium_cents";
+const DEFAULT_NEXT_MORNING_PREMIUM_CENTS = 200;
+const SAME_DAY_PREMIUM_KEY = "same_day_premium_cents";
+const DEFAULT_SAME_DAY_PREMIUM_CENTS = 300;
 const GRT_PERCENT_KEY = "grt_percent";
 const DEFAULT_GRT_PERCENT = 8.39;
 
@@ -43,8 +47,10 @@ export async function GET() {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const [priceRow, grtRow, companyRows, maxDistRow, bookingRow, pastDueRow] = await Promise.all([
+    const [priceRow, nextMorningRow, sameDayRow, grtRow, companyRows, maxDistRow, bookingRow, pastDueRow] = await Promise.all([
       prisma.setting.findUnique({ where: { key: PRICE_PER_POUND_KEY } }),
+      prisma.setting.findUnique({ where: { key: NEXT_MORNING_PREMIUM_KEY } }),
+      prisma.setting.findUnique({ where: { key: SAME_DAY_PREMIUM_KEY } }),
       prisma.setting.findUnique({ where: { key: GRT_PERCENT_KEY } }),
       prisma.setting.findMany({ where: { key: { in: Object.values(COMPANY_KEYS) } } }),
       prisma.setting.findUnique({ where: { key: MAX_SERVICE_DISTANCE_MILES_KEY } }),
@@ -54,6 +60,12 @@ export async function GET() {
     const pricePerPoundCents = priceRow
       ? parseInt(priceRow.value, 10) || DEFAULT_PRICE_PER_POUND_CENTS
       : DEFAULT_PRICE_PER_POUND_CENTS;
+    const nextMorningPremiumCents = nextMorningRow
+      ? parseInt(nextMorningRow.value, 10) || DEFAULT_NEXT_MORNING_PREMIUM_CENTS
+      : DEFAULT_NEXT_MORNING_PREMIUM_CENTS;
+    const sameDayPremiumCents = sameDayRow
+      ? parseInt(sameDayRow.value, 10) || DEFAULT_SAME_DAY_PREMIUM_CENTS
+      : DEFAULT_SAME_DAY_PREMIUM_CENTS;
     const grtPercent = grtRow
       ? parseFloat(grtRow.value) || DEFAULT_GRT_PERCENT
       : DEFAULT_GRT_PERCENT;
@@ -74,6 +86,8 @@ export async function GET() {
       : DEFAULT_PAST_DUE_GRACE_PERIOD_DAYS;
     return NextResponse.json({
       pricePerPoundCents,
+      nextMorningPremiumCents,
+      sameDayPremiumCents,
       grtPercent,
       pastDueGracePeriodDays,
       maxServiceDistanceMiles:
@@ -116,6 +130,8 @@ export async function PATCH(request: Request) {
 
   let body: {
     pricePerPoundCents?: number;
+    nextMorningPremiumCents?: number;
+    sameDayPremiumCents?: number;
     grtPercent?: number;
     pastDueGracePeriodDays?: number;
     companyName?: string;
@@ -138,6 +154,18 @@ export async function PATCH(request: Request) {
     const cents = Math.round(body.pricePerPoundCents);
     await upsertSetting(PRICE_PER_POUND_KEY, String(cents), "setting-price-per-pound");
     result.pricePerPoundCents = cents;
+  }
+
+  if (typeof body.nextMorningPremiumCents === "number" && body.nextMorningPremiumCents >= 0) {
+    const cents = Math.round(body.nextMorningPremiumCents);
+    await upsertSetting(NEXT_MORNING_PREMIUM_KEY, String(cents), "setting-next-morning-premium");
+    result.nextMorningPremiumCents = cents;
+  }
+
+  if (typeof body.sameDayPremiumCents === "number" && body.sameDayPremiumCents >= 0) {
+    const cents = Math.round(body.sameDayPremiumCents);
+    await upsertSetting(SAME_DAY_PREMIUM_KEY, String(cents), "setting-same-day-premium");
+    result.sameDayPremiumCents = cents;
   }
 
   if (typeof body.grtPercent === "number" && body.grtPercent >= 0 && body.grtPercent <= 100) {

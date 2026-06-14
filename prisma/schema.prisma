@@ -133,8 +133,9 @@ model Order {
   notes              String?
   numberOfLoads           Int         @default(1) @map("number_of_loads")
   totalCents              Int         @map("total_cents")
-  orderPricePerPoundCents Int?        @map("order_price_per_pound_cents")
-  nmgrtExempt             Boolean?    @map("nmgrt_exempt")
+  orderPricePerPoundCents         Int?        @map("order_price_per_pound_cents")
+  premiumSurchargePerPoundCents   Int         @default(0) @map("premium_surcharge_per_pound_cents")
+  nmgrtExempt                     Boolean?    @map("nmgrt_exempt")
   stripePaymentId         String?     @map("stripe_payment_id")
   paymentWaived           Boolean     @default(false) @map("payment_waived")
   createdAt          DateTime    @default(now()) @map("created_at")

@@ -6,6 +6,7 @@ import { AdminCustomerSearch } from "./admin-customer-search";
 import { AdminLoadLocations } from "./admin-load-locations";
 import { AdminDriverLocations } from "./admin-driver-locations";
 import { AdminPricePerPound } from "./admin-price-per-pound";
+import { AdminPremiumPrices } from "./admin-premium-prices";
 import { AdminGrtPercent } from "./admin-grt-percent";
 import { AdminCompanyInfo } from "./admin-company-info";
 import { AdminBookingAvailability } from "./admin-booking-availability";
@@ -93,10 +94,17 @@ export function AdminTabs() {
             <h2 className="text-lg font-semibold text-fern-900 mb-2">
               Price per pound
             </h2>
-            <p className="text-sm text-fern-600 mb-6">
+            <p className="text-sm text-fern-600 mb-4">
               Base price per pound (before tax) when orders enter &quot;Waiting for payment&quot; (after loads are cleaned and weighed). NMGRT is added on top of this rate. Default $1.50/lb.
             </p>
             <AdminPricePerPound />
+            <div className="mt-8 border-t border-fern-100 pt-6">
+              <h3 className="text-base font-semibold text-fern-900 mb-2">Premium service surcharges</h3>
+              <p className="text-sm text-fern-600 mb-4">
+                Per-pound surcharges added on top of the base rate for expedited turnaround options. <strong>Next-morning</strong>: evening pickup, returned next morning. <strong>Same-day</strong>: morning pickup, returned same evening. These amounts are shown to customers on the pricing page and at booking.
+              </p>
+              <AdminPremiumPrices />
+            </div>
           </section>
 
           <section>

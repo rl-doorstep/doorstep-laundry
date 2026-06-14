@@ -4,7 +4,7 @@ import Image from "next/image";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { AppHeader } from "@/components/app-header";
-import { getPricePerPoundCents } from "@/lib/settings";
+import { getPricePerPoundCents, getNextMorningPremiumCents, getSameDayPremiumCents, getCompanyInfo } from "@/lib/settings";
 import {
   BULKY_ITEM_KEYS,
   BULKY_ITEM_LABELS,
@@ -21,8 +21,17 @@ export const metadata: Metadata = {
 
 export default async function PricingPage() {
   const session = await getServerSession(authOptions);
-  const pricePerPoundCents = await getPricePerPoundCents();
+  const [pricePerPoundCents, nextMorningPremiumCents, sameDayPremiumCents, companyInfo] = await Promise.all([
+    getPricePerPoundCents(),
+    getNextMorningPremiumCents(),
+    getSameDayPremiumCents(),
+    getCompanyInfo(),
+  ]);
   const perLb = (pricePerPoundCents / 100).toFixed(2);
+  const nextMorningTotal = ((pricePerPoundCents + nextMorningPremiumCents) / 100).toFixed(2);
+  const sameDayTotal = ((pricePerPoundCents + sameDayPremiumCents) / 100).toFixed(2);
+  const nextMorningExtra = (nextMorningPremiumCents / 100).toFixed(2);
+  const sameDayExtra = (sameDayPremiumCents / 100).toFixed(2);
 
   return (
     <div className="min-h-screen bg-fern-50">
@@ -108,6 +117,48 @@ export default async function PricingPage() {
         </section>
 
         <section className="mt-8 rounded-2xl border border-fern-200/80 bg-white p-6 sm:p-8 shadow-sm">
+          <h2 className="text-xl font-semibold text-fern-900">Turnaround &amp; delivery options</h2>
+          <p className="mt-2 text-fern-600 leading-relaxed">
+            Schedule your pickup and delivery to fit your timeline. Faster turnarounds carry a small per-pound surcharge on top of the base rate.
+          </p>
+          <ul className="mt-6 divide-y divide-fern-100 border border-fern-100 rounded-xl overflow-hidden">
+            <li className="bg-fern-50/40 px-4 py-4">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className="font-medium text-fern-900">Standard — 24 hrs</p>
+                  <p className="mt-1 text-sm text-fern-600">
+                    Schedule a morning pickup and your laundry can be returned as early as the next morning — typically around 24 hours.
+                  </p>
+                </div>
+                <span className="shrink-0 text-fern-800 font-semibold tabular-nums">${perLb}/lb</span>
+              </div>
+            </li>
+            <li className="bg-fern-50/40 px-4 py-4">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className="font-medium text-fern-900">Evening pickup → next morning</p>
+                  <p className="mt-1 text-sm text-fern-600">
+                    Schedule an evening pickup and have your laundry returned the following morning. A +${nextMorningExtra}/lb surcharge applies for this faster overnight turnaround.
+                  </p>
+                </div>
+                <span className="shrink-0 text-fern-800 font-semibold tabular-nums">${nextMorningTotal}/lb</span>
+              </div>
+            </li>
+            <li className="bg-fern-50/40 px-4 py-4">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className="font-medium text-fern-900">Same-day service</p>
+                  <p className="mt-1 text-sm text-fern-600">
+                    Schedule a morning pickup and get your laundry back the same evening. A +${sameDayExtra}/lb surcharge applies for same-day service.
+                  </p>
+                </div>
+                <span className="shrink-0 text-fern-800 font-semibold tabular-nums">${sameDayTotal}/lb</span>
+              </div>
+            </li>
+          </ul>
+        </section>
+
+        <section className="mt-8 rounded-2xl border border-fern-200/80 bg-white p-6 sm:p-8 shadow-sm">
           <h2 className="text-xl font-semibold text-fern-900">Bulky items</h2>
           <p className="mt-2 text-sm text-fern-600 leading-relaxed">
             Bedding sets and comforters are priced separately from your per-pound laundry.
@@ -136,6 +187,27 @@ export default async function PricingPage() {
               </li>
             ))}
           </ul>
+        </section>
+
+        <section className="mt-8 rounded-2xl border border-fern-200/80 bg-white p-6 sm:p-8 shadow-sm">
+          <h2 className="text-xl font-semibold text-fern-900">Sanitation cycle</h2>
+          <p className="mt-2 text-fern-600 leading-relaxed">
+            Need a guaranteed clean? Our sanitation cycle follows a precise temperature profile and a specific chemical recipe to meet elevated hygiene standards — ideal for households with sensitivities, infants, or anyone who needs extra assurance.
+          </p>
+          <p className="mt-3 text-fern-600 leading-relaxed">
+            Because sanitation requirements vary, pricing is customized.{" "}
+            {companyInfo.email ? (
+              <a
+                href={`mailto:${companyInfo.email}`}
+                className="text-fern-700 font-medium hover:text-fern-900 underline underline-offset-2"
+              >
+                Contact us directly
+              </a>
+            ) : (
+              <span className="text-fern-700 font-medium">Contact us directly</span>
+            )}{" "}
+            for a quote.
+          </p>
         </section>
 
         <p className="mt-10 text-center text-sm text-fern-500">
