@@ -61,7 +61,7 @@ export async function POST(
     order.customer,
     defaultPriceCents
   );
-  const { subtotalCents, taxCents, totalCents } = computeOrderTotalWithTax(
+  const { taxCents, totalCents } = computeOrderTotalWithTax(
     order.orderLoads,
     pricePerPoundCents,
     grtPercent,

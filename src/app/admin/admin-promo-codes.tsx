@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useEffect } from "react";
 
 type PromoCode = {
   id: string;
@@ -32,8 +32,7 @@ export function AdminPromoCodes() {
   // Copied state for clipboard feedback
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
-  const loadCodes = useCallback(() => {
-    setLoading(true);
+  useEffect(() => {
     fetch("/api/admin/promo-codes")
       .then((r) => r.json())
       .then((data) => {
@@ -42,10 +41,6 @@ export function AdminPromoCodes() {
       })
       .catch(() => setLoading(false));
   }, []);
-
-  useEffect(() => {
-    loadCodes();
-  }, [loadCodes]);
 
   async function generateCodes() {
     const count = parseInt(genCount, 10);
