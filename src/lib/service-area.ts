@@ -1,19 +1,13 @@
 import { getCompanyInfo, getMaxServiceDistanceMiles } from "@/lib/settings";
+import { smartyVerifyAddress } from "@/lib/smarty";
 
 type LatLng = { lat: number; lng: number };
-
-type GeocodeResponse = {
-  results?: Array<{
-    geometry?: { location?: { lat: number; lng: number } };
-  }>;
-  status?: string;
-};
 
 let facilityLatLngCache: { at: number; value: LatLng | null; address: string } | null = null;
 const FACILITY_CACHE_MS = 5 * 60 * 1000;
 
 export function haversineMiles(a: LatLng, b: LatLng): number {
-  const R = 3958.7613; // Earth radius in miles (mean)
+  const R = 3958.7613;
   const dLat = ((b.lat - a.lat) * Math.PI) / 180;
   const dLng = ((b.lng - a.lng) * Math.PI) / 180;
   const lat1 = (a.lat * Math.PI) / 180;
@@ -25,37 +19,15 @@ export function haversineMiles(a: LatLng, b: LatLng): number {
   return 2 * R * Math.asin(Math.min(1, Math.sqrt(h)));
 }
 
-export async function geocodeToLatLng(fullAddress: string): Promise<LatLng | null> {
-  const key = process.env.GOOGLE_MAPS_API_KEY;
-  if (!key || !fullAddress.trim()) return null;
-  const url =
-    "https://maps.googleapis.com/maps/api/geocode/json?" +
-    new URLSearchParams({
-      address: fullAddress.trim(),
-      key,
-    }).toString();
-  try {
-    const res = await fetch(url);
-    const data = (await res.json()) as GeocodeResponse;
-    if (data.status !== "OK" || !data.results?.[0]?.geometry?.location) {
-      return null;
-    }
-    const { lat, lng } = data.results[0].geometry.location;
-    if (typeof lat !== "number" || typeof lng !== "number") return null;
-    return { lat, lng };
-  } catch (e) {
-    console.error("[service-area] geocode failed:", e);
-    return null;
-  }
-}
-
-function formatAddressLine(parts: {
+async function geocodeToLatLng(parts: {
   street: string;
   city: string;
   state: string;
   zip: string;
-}): string {
-  return [parts.street, parts.city, parts.state, parts.zip].filter(Boolean).join(", ");
+}): Promise<LatLng | null> {
+  const result = await smartyVerifyAddress(parts);
+  if (!result.valid || result.lat == null || result.lng == null) return null;
+  return { lat: result.lat, lng: result.lng };
 }
 
 async function getFacilityLatLng(facilityAddress: string): Promise<LatLng | null> {
@@ -67,9 +39,37 @@ async function getFacilityLatLng(facilityAddress: string): Promise<LatLng | null
   ) {
     return facilityLatLngCache.value;
   }
-  const value = await geocodeToLatLng(facilityAddress);
+  // Parse the raw facility address string into parts for Smarty
+  const parts = parseFacilityAddress(facilityAddress);
+  const value = parts ? await geocodeToLatLng(parts) : null;
   facilityLatLngCache = { at: now, value, address: facilityAddress };
   return value;
+}
+
+function parseFacilityAddress(
+  raw: string
+): { street: string; city: string; state: string; zip: string } | null {
+  // Expected format from company settings: "123 Main St, Las Cruces, NM 88001"
+  const trimmed = raw.trim();
+  if (!trimmed) return null;
+  // Try to extract zip from end
+  const zipMatch = trimmed.match(/\b(\d{5}(?:-\d{4})?)\s*$/);
+  const zip = zipMatch ? zipMatch[1] : "";
+  const withoutZip = zip ? trimmed.slice(0, trimmed.lastIndexOf(zip)).replace(/,?\s*$/, "") : trimmed;
+  // Split remainder by comma
+  const parts = withoutZip.split(",").map((s) => s.trim()).filter(Boolean);
+  if (parts.length >= 3) {
+    return { street: parts[0], city: parts[1], state: parts[2], zip };
+  }
+  if (parts.length === 2) {
+    // Could be "123 Main St, Las Cruces NM" — try splitting city from state
+    const cityState = parts[1].split(/\s+/);
+    const state = cityState.length > 1 ? cityState[cityState.length - 1] : "";
+    const city = cityState.slice(0, -1).join(" ");
+    return { street: parts[0], city, state, zip };
+  }
+  // Fallback: treat whole thing as street, let Smarty figure it out
+  return { street: trimmed, city: "", state: "", zip };
 }
 
 export type ServiceAreaResult = { ok: true } | { ok: false; error: string };
@@ -95,7 +95,7 @@ export async function checkAddressWithinServiceArea(parts: {
     return { ok: true };
   }
 
-  if (!process.env.GOOGLE_MAPS_API_KEY) {
+  if (!process.env.SMARTY_AUTH_ID || !process.env.SMARTY_AUTH_TOKEN) {
     return {
       ok: false,
       error:
@@ -103,14 +103,13 @@ export async function checkAddressWithinServiceArea(parts: {
     };
   }
 
-  const customerLine = formatAddressLine(parts);
-  if (!customerLine.trim()) {
+  if (!parts.street.trim()) {
     return { ok: false, error: "Address is required." };
   }
 
   const [facility, customer] = await Promise.all([
     getFacilityLatLng(facilityAddress),
-    geocodeToLatLng(customerLine),
+    geocodeToLatLng(parts),
   ]);
 
   if (!facility) {
