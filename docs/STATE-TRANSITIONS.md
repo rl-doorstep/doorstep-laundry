@@ -59,7 +59,7 @@ Order ready_for_delivery → out_for_delivery → delivered
 | `washing` | — | In washer |
 | `drying` | — | In dryer |
 | `folded` | — | Folded |
-| `cleaned` | — | Folded and ready to weigh |
+| `cleaned` | — | Needs weight — folded but not yet weighed |
 | `ready_for_delivery` | — | Weighed; this load is done |
 | `out_for_delivery` | ✅ yes | Order dispatched; all loads mirror order |
 | `delivered` | ✅ Terminal | ✅ Terminal |
