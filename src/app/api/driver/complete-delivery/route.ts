@@ -5,8 +5,8 @@ import { prisma } from "@/lib/db";
 import { sendOrderNotification } from "@/lib/notify";
 
 /**
- * POST: Start a pickup run. Transition selected scheduled orders to picked_up
- * and set all their loads to status "picked_up".
+ * POST: Complete a delivery run. Transition selected out_for_delivery orders to delivered
+ * and cascade all their loads to delivered.
  * Body: { orderIds: string[] }
  */
 export async function POST(request: Request) {
@@ -33,60 +33,39 @@ export async function POST(request: Request) {
 
   const userId = (session.user as { id: string }).id;
 
-  const orders = await prisma.order.findMany({
-    where: { id: { in: orderIds } },
-    include: { orderLoads: true },
-  });
-
+  const orders = await prisma.order.findMany({ where: { id: { in: orderIds } } });
   if (orders.length !== orderIds.length) {
     return NextResponse.json({ error: "Some orders not found" }, { status: 404 });
   }
 
   for (const order of orders) {
-    if (order.status !== "scheduled") {
+    if (order.status !== "out_for_delivery") {
       return NextResponse.json(
-        { error: `Order ${order.orderNumber} must be scheduled (current: ${order.status}).` },
+        { error: `Order ${order.orderNumber} must be out for delivery (current: ${order.status}).` },
         { status: 400 }
       );
     }
   }
 
-  for (const order of orders) {
-    const orderId = order.id;
-    const existingLoads = order.orderLoads ?? [];
-    const needLoads = order.numberOfLoads - existingLoads.length;
-
-    if (needLoads > 0) {
-      for (let n = existingLoads.length + 1; n <= order.numberOfLoads; n++) {
-        await prisma.orderLoad.create({
-          data: {
-            orderId,
-            loadNumber: n,
-            loadCode: `${order.orderNumber}-L${n}`,
-            status: "picked_up",
-          },
-        });
-      }
-    }
-
+  for (const orderId of orderIds) {
     await prisma.order.update({
       where: { id: orderId },
-      data: { status: "picked_up" },
+      data: { status: "delivered" },
     });
     await prisma.orderStatusHistory.create({
       data: {
         orderId,
-        status: "picked_up",
-        note: "Pickup run started (driver)",
+        status: "delivered",
+        note: "Delivered (driver)",
         changedById: userId,
       },
     });
     await prisma.orderLoad.updateMany({
       where: { orderId },
-      data: { status: "picked_up" },
+      data: { status: "delivered" },
     });
-    await sendOrderNotification(orderId, "picked_up").catch((e) =>
-      console.error("Notify picked_up:", e)
+    await sendOrderNotification(orderId, "delivered").catch((e) =>
+      console.error("Notify delivered:", e)
     );
   }
 

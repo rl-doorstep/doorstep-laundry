@@ -13,9 +13,10 @@
     "db:migrate": "prisma migrate dev",
     "db:migrate:deploy": "node -r dotenv/config ./node_modules/.bin/prisma migrate deploy",
     "db:migrate:resolve-rolled-back": "node -r dotenv/config ./node_modules/.bin/prisma migrate resolve --rolled-back",
-    "db:seed": "prisma db seed",
     "db:push": "prisma db push",
-    "db:set-role": "tsx scripts/set-user-role.ts"
+    "db:set-role": "tsx scripts/set-user-role.ts",
+    "db:seed": "tsx scripts/seed.ts --mode dev",
+    "db:seed:test": "tsx scripts/seed.ts --mode test"
   },
   "dependencies": {
     "@prisma/client": "^6.19.2",

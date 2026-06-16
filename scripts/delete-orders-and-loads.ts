@@ -9,13 +9,11 @@ import "dotenv/config";
 import { prisma } from "../src/lib/db";
 
 async function main() {
-  const deletedAssignments = await prisma.staffAssignment.deleteMany({});
   const deletedHistory = await prisma.orderStatusHistory.deleteMany({});
   const deletedLoads = await prisma.orderLoad.deleteMany({});
   const deletedOrders = await prisma.order.deleteMany({});
 
   console.log("Deleted:", {
-    staffAssignments: deletedAssignments.count,
     orderStatusHistory: deletedHistory.count,
     orderLoads: deletedLoads.count,
     orders: deletedOrders.count,

@@ -12,16 +12,17 @@ export default async function WashPage() {
   const role = (session.user as { role: string }).role;
   if (role !== "staff" && role !== "admin") redirect("/dashboard");
 
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const endOfToday = new Date(today);
+  const endOfToday = new Date();
   endOfToday.setHours(23, 59, 59, 999);
 
+  // "Due today" initial view: delivery date is today or already past due.
+  const dueTodayWhere = {
+    status: { in: WASH_VISIBLE_ORDER_STATUSES },
+    deliveryDate: { lte: endOfToday },
+  };
+
   let orders = await prisma.order.findMany({
-    where: {
-      status: { in: WASH_VISIBLE_ORDER_STATUSES },
-      pickupDate: { gte: today, lte: endOfToday },
-    },
+    where: dueTodayWhere,
     orderBy: { pickupDate: "asc" },
     include: {
       customer: { select: { id: true, name: true, email: true, phone: true } },
@@ -41,7 +42,7 @@ export default async function WashPage() {
               orderId: order.id,
               loadNumber: n,
               loadCode: `${order.orderNumber}-L${n}`,
-              status: "ready_for_pickup",
+              status: "scheduled",
             },
           });
         }
@@ -49,10 +50,7 @@ export default async function WashPage() {
     }
   }
   orders = await prisma.order.findMany({
-    where: {
-      status: { in: WASH_VISIBLE_ORDER_STATUSES },
-      pickupDate: { gte: today, lte: endOfToday },
-    },
+    where: dueTodayWhere,
     orderBy: { pickupDate: "asc" },
     include: {
       customer: { select: { id: true, name: true, email: true, phone: true } },

@@ -13,24 +13,27 @@ const STATUS_LABEL: Record<string, string> = {
   picked_up: "Picked up",
   ready_for_wash: "Ready for wash",
   in_progress: "In progress",
-  waiting_for_payment: "Waiting for payment",
   ready_for_delivery: "Ready for delivery",
   delivered: "Delivered",
   cancelled: "Cancelled",
 };
 
 const LOAD_STATUS_LABEL: Record<string, string> = {
-  ready_for_pickup: "Ready for pickup",
-  incoming: "Incoming",
+  scheduled: "Scheduled",
+  picked_up: "Picked up",
   ready_for_wash: "Ready for wash",
   washing: "Washing",
   drying: "Drying",
   folding: "Folding",
-  cleaned: "Folded (awaiting weigh-in)",
+  cleaned: "Needs weight",
   ready_for_delivery: "Ready for delivery",
   out_for_delivery: "Out for delivery",
   delivered: "Delivered",
 };
+
+const WASH_SELECTABLE_STATUSES = Object.entries(LOAD_STATUS_LABEL).filter(
+  ([v]) => !["scheduled", "picked_up", "out_for_delivery", "delivered"].includes(v)
+);
 
 type OrderLoadRow = {
   id: string;
@@ -354,7 +357,7 @@ export function WashDashboard({
                             disabled={updatingLoadId === load.id}
                             className={inputClass}
                           >
-                            {Object.entries(LOAD_STATUS_LABEL).map(([v, l]) => (
+                            {WASH_SELECTABLE_STATUSES.map(([v, l]) => (
                               <option key={v} value={v}>
                                 {l}
                               </option>

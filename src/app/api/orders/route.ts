@@ -35,6 +35,7 @@ export async function GET(request: Request) {
     const forWash = ["1", "true"].includes(searchParams.get("forWash") ?? "");
     const where: {
       pickupDate?: { gte: Date; lte: Date };
+      deliveryDate?: { lte: Date };
       status?: OrderStatus | { notIn: OrderStatus[] } | { in: OrderStatus[] };
       AND?: Array<
         | { status: OrderStatus }
@@ -43,9 +44,13 @@ export async function GET(request: Request) {
       >;
     } = {};
     const filter = searchParams.get("filter");
-    const useDueToday = filter === "due_today" || (pickupDate && filter !== "all");
-    if (useDueToday || pickupDate) {
-      const d = pickupDate ? new Date(pickupDate) : new Date();
+    if (filter === "due_today") {
+      // Show orders due today AND any that are already past due (overdue).
+      const end = new Date();
+      end.setHours(23, 59, 59, 999);
+      where.deliveryDate = { lte: end };
+    } else if (pickupDate && filter !== "all") {
+      const d = new Date(pickupDate);
       const start = new Date(d);
       start.setHours(0, 0, 0, 0);
       const end = new Date(d);
@@ -95,7 +100,7 @@ export async function GET(request: Request) {
               orderId,
               loadNumber: n,
               loadCode: `${order.orderNumber}-L${n}`,
-              status: "ready_for_pickup",
+              status: "scheduled",
             },
           });
         }
@@ -279,7 +284,7 @@ export async function POST(request: Request) {
           orderId: order.id,
           loadNumber: n,
           loadCode: `${order.orderNumber}-L${n}`,
-          status: "ready_for_pickup",
+          status: "scheduled",
           ...opts,
           bulkyItems:
             Object.keys(bulkyNorm).length > 0
