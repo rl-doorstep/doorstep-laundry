@@ -275,7 +275,7 @@ export function DriverDashboard() {
   function formatOrderDate(dateStr: string | undefined) {
     if (!dateStr) return "—";
     const d = new Date(dateStr);
-    return Number.isNaN(d.getTime()) ? "—" : d.toLocaleDateString();
+    return Number.isNaN(d.getTime()) ? "—" : d.toLocaleDateString("en-US", { timeZone: "UTC" });
   }
 
   return (

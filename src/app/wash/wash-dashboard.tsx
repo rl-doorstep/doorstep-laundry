@@ -530,7 +530,7 @@ export function WashDashboard({
                   </td>
                   <td className="px-4 py-3 text-sm text-fern-700">
                     <div>
-                      {new Date(order.deliveryDate as string).toLocaleDateString()}
+                      {new Date(order.deliveryDate as string).toLocaleDateString("en-US", { timeZone: "UTC" })}
                     </div>
                     <div className="text-fern-500 text-xs mt-0.5">
                       {order.deliveryTimeSlot

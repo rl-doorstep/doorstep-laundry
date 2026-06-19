@@ -150,7 +150,7 @@ export default async function OrderDetailPage({
             <div>
               <dt className="text-fern-500">Pickup</dt>
               <dd className="text-fern-900 mt-0.5">
-                {new Date(order.pickupDate).toLocaleDateString()}
+                {new Date(order.pickupDate).toLocaleDateString("en-US", { timeZone: "UTC" })}
                 {order.pickupTimeSlot && (
                   <span className="text-fern-600">
                     {" "}({getTimeSlotById(order.pickupTimeSlot)?.label ?? order.pickupTimeSlot})
@@ -164,7 +164,7 @@ export default async function OrderDetailPage({
             <div>
               <dt className="text-fern-500">Delivery</dt>
               <dd className="text-fern-900 mt-0.5">
-                {new Date(order.deliveryDate).toLocaleDateString()}
+                {new Date(order.deliveryDate).toLocaleDateString("en-US", { timeZone: "UTC" })}
                 {order.deliveryTimeSlot && (
                   <span className="text-fern-600">
                     {" "}({getTimeSlotById(order.deliveryTimeSlot)?.label ?? order.deliveryTimeSlot})

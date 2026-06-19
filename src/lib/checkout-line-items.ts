@@ -29,7 +29,7 @@ type OrderDates = {
 };
 
 function formatOrderContext(o: OrderDates): string {
-  return `Order ${o.orderNumber} · Pickup ${new Date(o.pickupDate).toLocaleDateString()}, delivery ${new Date(o.deliveryDate).toLocaleDateString()}`;
+  return `Order ${o.orderNumber} · Pickup ${new Date(o.pickupDate).toLocaleDateString("en-US", { timeZone: "UTC" })}, delivery ${new Date(o.deliveryDate).toLocaleDateString("en-US", { timeZone: "UTC" })}`;
 }
 
 /**

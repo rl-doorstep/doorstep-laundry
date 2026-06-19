@@ -831,8 +831,8 @@ export function BookForm({
         </button>
       </div>
       <div className="rounded-lg bg-fern-50 border border-fern-200 p-3 mb-6 text-sm text-fern-700">
-        <strong>Pickup:</strong> {pickupDate.toLocaleDateString()} ({getTimeSlots().find((s) => s.id === pickupTimeSlot)?.label}) &nbsp;|&nbsp;{" "}
-        <strong>Delivery:</strong> {deliveryDate.toLocaleDateString()} ({getTimeSlots().find((s) => s.id === deliveryTimeSlot)?.label}) &nbsp;|&nbsp; {numberOfLoads} load{numberOfLoads !== 1 ? "s" : ""}
+        <strong>Pickup:</strong> {pickupDate.toLocaleDateString("en-US", { timeZone: "UTC" })} ({getTimeSlots().find((s) => s.id === pickupTimeSlot)?.label}) &nbsp;|&nbsp;{" "}
+        <strong>Delivery:</strong> {deliveryDate.toLocaleDateString("en-US", { timeZone: "UTC" })} ({getTimeSlots().find((s) => s.id === deliveryTimeSlot)?.label}) &nbsp;|&nbsp; {numberOfLoads} load{numberOfLoads !== 1 ? "s" : ""}
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
