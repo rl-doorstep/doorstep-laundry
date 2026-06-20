@@ -9,7 +9,7 @@
     "lint": "eslint",
     "test": "vitest run",
     "test:watch": "vitest",
-    "postinstall": "prisma generate && patch-package",
+    "postinstall": "prisma generate && (patch-package || true)",
     "db:migrate": "prisma migrate dev",
     "db:migrate:deploy": "node -r dotenv/config ./node_modules/.bin/prisma migrate deploy",
     "db:migrate:resolve-rolled-back": "node -r dotenv/config ./node_modules/.bin/prisma migrate resolve --rolled-back",
