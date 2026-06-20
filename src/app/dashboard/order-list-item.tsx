@@ -76,10 +76,10 @@ export function OrderListItem({
               {order.orderNumber}
             </span>
             <p className="text-sm text-fern-500 mt-1">
-              Pickup {new Date(order.pickupDate).toLocaleDateString()}
+              Pickup {new Date(order.pickupDate).toLocaleDateString("en-US", { timeZone: "UTC" })}
               {order.pickupTimeSlot && ` ${getTimeSlotById(order.pickupTimeSlot)?.label ?? order.pickupTimeSlot}`}
               {" · Delivery "}
-              {new Date(order.deliveryDate).toLocaleDateString()}
+              {new Date(order.deliveryDate).toLocaleDateString("en-US", { timeZone: "UTC" })}
               {order.deliveryTimeSlot && ` ${getTimeSlotById(order.deliveryTimeSlot)?.label ?? order.deliveryTimeSlot}`}
             </p>
             {order.paymentStatus === "ready_for_payment" && (order.totalCents != null || (order.orderLoads?.length ?? 0) > 0) && (

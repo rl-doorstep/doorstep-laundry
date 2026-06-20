@@ -410,9 +410,9 @@ export function OrdersTable({
                           : "—"}
                       </div>
                       <div className="text-fern-500 text-xs mt-0.5">
-                        {new Date(order.pickupDate as string).toLocaleDateString()}{" "}
+                        {new Date(order.pickupDate as string).toLocaleDateString("en-US", { timeZone: "UTC" })}{" "}
                         /{" "}
-                        {new Date(order.deliveryDate as string).toLocaleDateString()}
+                        {new Date(order.deliveryDate as string).toLocaleDateString("en-US", { timeZone: "UTC" })}
                       </div>
                     </td>
                     <td className="px-4 py-3 text-fern-500">
@@ -438,7 +438,7 @@ export function OrdersTable({
                               <div>
                                 <span className="text-fern-500">Pickup</span>
                                 <p className="text-fern-900 mt-0.5">
-                                  {new Date(detail.pickupDate as string).toLocaleDateString()}
+                                  {new Date(detail.pickupDate as string).toLocaleDateString("en-US", { timeZone: "UTC" })}
                                   {detail.pickupTimeSlot && (
                                     <span className="text-fern-600">
                                       {" "}({getTimeSlotById(detail.pickupTimeSlot)?.label ?? detail.pickupTimeSlot})
@@ -454,7 +454,7 @@ export function OrdersTable({
                               <div>
                                 <span className="text-fern-500">Delivery</span>
                                 <p className="text-fern-900 mt-0.5">
-                                  {new Date(detail.deliveryDate as string).toLocaleDateString()}
+                                  {new Date(detail.deliveryDate as string).toLocaleDateString("en-US", { timeZone: "UTC" })}
                                   {detail.deliveryTimeSlot && (
                                     <span className="text-fern-600">
                                       {" "}({getTimeSlotById(detail.deliveryTimeSlot)?.label ?? detail.deliveryTimeSlot})
