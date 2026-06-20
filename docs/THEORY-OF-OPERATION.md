@@ -45,8 +45,8 @@ Time slots are either **morning (8–10 AM)** or **evening (4–7 PM)**. Slot av
 
 The API blocks booking creation if:
 - The customer has any **past-due (unpaid) orders** — returns HTTP 402 and sends a reminder email with payment links for each unpaid order
+  - The customer gets routed to a payment page
 - The pickup or delivery address is **outside the service area**
-- The customer already has 100+ orders on record
 
 ### What the system creates
 
