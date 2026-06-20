@@ -9,14 +9,17 @@
     "lint": "eslint",
     "test": "vitest run",
     "test:watch": "vitest",
-    "postinstall": "prisma generate",
+    "postinstall": "prisma generate && (patch-package || true)",
     "db:migrate": "prisma migrate dev",
     "db:migrate:deploy": "node -r dotenv/config ./node_modules/.bin/prisma migrate deploy",
     "db:migrate:resolve-rolled-back": "node -r dotenv/config ./node_modules/.bin/prisma migrate resolve --rolled-back",
     "db:push": "prisma db push",
     "db:set-role": "tsx scripts/set-user-role.ts",
     "db:seed": "tsx scripts/seed.ts --mode dev",
-    "db:seed:test": "tsx scripts/seed.ts --mode test"
+    "db:seed:test": "tsx scripts/seed.ts --mode test",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:report": "playwright show-report"
   },
   "dependencies": {
     "@prisma/client": "^6.19.2",
@@ -35,6 +38,7 @@
     "twilio": "^5.12.2"
   },
   "devDependencies": {
+    "@playwright/test": "^1.61.0",
     "@tailwindcss/postcss": "^4",
     "@types/bcryptjs": "^2.4.6",
     "@types/node": "^20",
@@ -46,6 +50,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.1.6",
     "jsdom": "^28.1.0",
+    "patch-package": "^8.0.1",
     "tailwindcss": "^4",
     "tsx": "^4.21.0",
     "typescript": "^5",
