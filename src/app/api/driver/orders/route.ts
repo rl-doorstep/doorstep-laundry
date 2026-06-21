@@ -31,20 +31,30 @@ export async function GET(request: Request) {
     customer: { select: { id: true, name: true, email: true, phone: true } },
     pickupAddress: true,
     deliveryAddress: true,
-    orderLoads: { orderBy: { loadNumber: "asc" } },
+    orderLoads: {
+      select: { id: true, loadNumber: true, status: true, location: true },
+      orderBy: { loadNumber: "asc" as const },
+    },
   } as const;
 
   const now = new Date();
 
-  // Pickups: scheduled orders
+  // Facility dropoffs: picked_up orders awaiting location assignment before wash
+  const facilityOrders = await prisma.order.findMany({
+    where: { status: "picked_up" },
+    include,
+    orderBy: { pickupDate: "asc" },
+  });
+
+  // Pickups: scheduled orders + out_for_pickup orders (driver en route)
   const scheduledOrders = await prisma.order.findMany({
-    where: { status: "scheduled" },
+    where: { status: { in: ["scheduled", "out_for_pickup"] } },
     include,
     orderBy: { pickupDate: "asc" },
   });
   const pickups = windowNow
     ? scheduledOrders.filter((o) =>
-        isInTimeWindow(o.pickupDate, o.pickupTimeSlot, now)
+        o.status === "out_for_pickup" || isInTimeWindow(o.pickupDate, o.pickupTimeSlot, now)
       )
     : scheduledOrders;
 
@@ -103,5 +113,5 @@ export async function GET(request: Request) {
       ]
     : readyFiltered;
 
-  return NextResponse.json({ pickups, deliveries: deliveriesOrdered });
+  return NextResponse.json({ pickups, facility: facilityOrders, deliveries: deliveriesOrdered });
 }

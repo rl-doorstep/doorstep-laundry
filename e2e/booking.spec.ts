@@ -36,10 +36,9 @@ test.describe("Book a pickup", () => {
     ).toBeVisible();
   });
 
-  test("Step 2 shows date and time fields after continuing from step 1", async ({ page }) => {
+  test("date and time fields are visible on the booking form", async ({ page }) => {
     await page.goto("/book");
-    await page.getByRole("button", { name: /continue to address/i }).click();
-    await expect(page.getByText("Pickup date")).toBeVisible({ timeout: 5_000 });
+    await expect(page.getByText("Pickup date")).toBeVisible();
     await expect(page.getByText("Delivery date")).toBeVisible();
   });
 });

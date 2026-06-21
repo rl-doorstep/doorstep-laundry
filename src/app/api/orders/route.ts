@@ -147,16 +147,7 @@ export async function POST(request: Request) {
   }
   const customerId = (session.user as { id: string }).id;
   if (role === "customer") {
-    const [orders, pastDueOrders] = await Promise.all([
-      prisma.order.findMany({ where: { customerId }, select: { id: true } }),
-      getPastDueOrders(customerId),
-    ]);
-    if (orders.length >= 100) {
-      return NextResponse.json(
-        { error: "Order limit reached" },
-        { status: 400 }
-      );
-    }
+    const pastDueOrders = await getPastDueOrders(customerId);
     if (pastDueOrders.length > 0) {
       sendPastDueReminderEmail(customerId, pastDueOrders).catch((e) =>
         console.error("[orders POST] sendPastDueReminderEmail:", e)
