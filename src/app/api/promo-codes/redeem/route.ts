@@ -23,23 +23,14 @@ export async function POST(request: Request) {
 
   const code = body.code.trim().toUpperCase();
 
-  const promoCode = await prisma.promoCode.findUnique({
-    where: { code },
-    include: { redemptions: { where: { userId } } },
-  });
+  const promoCode = await prisma.promoCode.findUnique({ where: { code } });
 
   if (!promoCode) {
     return NextResponse.json({ error: "Invalid promo code" }, { status: 404 });
   }
 
-  if (promoCode.redemptions.length > 0) {
-    return NextResponse.json({ error: "You have already used this code" }, { status: 409 });
-  }
-
   const updated = await prisma.$transaction(async (tx) => {
-    await tx.promoCodeRedemption.create({
-      data: { promoCodeId: promoCode.id, userId },
-    });
+    await tx.promoCode.delete({ where: { id: promoCode.id } });
     return tx.user.update({
       where: { id: userId },
       data: { creditedLoads: { increment: promoCode.numberOfLoads } },

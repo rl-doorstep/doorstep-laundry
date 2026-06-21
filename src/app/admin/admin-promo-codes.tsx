@@ -6,7 +6,6 @@ type PromoCode = {
   id: string;
   code: string;
   numberOfLoads: number;
-  redemptionCount: number;
   createdAt: string;
 };
 
@@ -131,8 +130,9 @@ export function AdminPromoCodes() {
         <div className="rounded-xl border border-fern-200 bg-fern-50 p-4 space-y-3 max-w-sm">
           <h3 className="text-sm font-semibold text-fern-800">Generate promo codes</h3>
           <div>
-            <label className="block text-sm text-fern-700 mb-1">Number of codes to create</label>
+            <label htmlFor="gen-count" className="block text-sm text-fern-700 mb-1">Number of codes to create</label>
             <input
+              id="gen-count"
               type="number"
               min={1}
               max={500}
@@ -142,8 +142,9 @@ export function AdminPromoCodes() {
             />
           </div>
           <div>
-            <label className="block text-sm text-fern-700 mb-1">Free loads per code</label>
+            <label htmlFor="gen-loads" className="block text-sm text-fern-700 mb-1">Free loads per code</label>
             <input
+              id="gen-loads"
               type="number"
               min={1}
               value={genLoads}
@@ -173,7 +174,6 @@ export function AdminPromoCodes() {
               <tr className="border-b border-fern-100 bg-fern-50">
                 <th className="text-left px-4 py-2.5 font-medium text-fern-700">Code</th>
                 <th className="text-left px-4 py-2.5 font-medium text-fern-700">Free loads</th>
-                <th className="text-left px-4 py-2.5 font-medium text-fern-700">Redeemed</th>
                 <th className="text-left px-4 py-2.5 font-medium text-fern-700">Actions</th>
               </tr>
             </thead>
@@ -195,7 +195,6 @@ export function AdminPromoCodes() {
                       c.numberOfLoads
                     )}
                   </td>
-                  <td className="px-4 py-2.5 text-fern-500">{c.redemptionCount}</td>
                   <td className="px-4 py-2.5">
                     <div className="flex items-center gap-2">
                       {editingId === c.id ? (

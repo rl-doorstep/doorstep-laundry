@@ -4,8 +4,12 @@ let _client: PrismaClient | null = null;
 
 function getClient() {
   if (!_client) {
+    // Always connect to DATABASE_URL — the same DB as the running dev server.
+    // DATABASE_URL_TEST is only used when playwright starts a *fresh* server (CI),
+    // but locally reuseExistingServer picks up the already-running dev server which
+    // uses DATABASE_URL, so we must seed the same database.
     _client = new PrismaClient({
-      datasources: { db: { url: process.env.DATABASE_URL_TEST ?? process.env.DATABASE_URL } },
+      datasources: { db: { url: process.env.DATABASE_URL } },
     });
   }
   return _client;
@@ -17,6 +21,18 @@ export async function getTestOrderBySeq(seq: number) {
   const prefix = `ORDER-${today.getFullYear()}${pad(today.getMonth() + 1)}${pad(today.getDate())}`;
   const orderNumber = `${prefix}-${String(seq).padStart(4, "0")}`;
   return getClient().order.findFirst({ where: { orderNumber } });
+}
+
+export async function createPromoCode(code: string, numberOfLoads: number) {
+  return getClient().promoCode.create({ data: { code, numberOfLoads } });
+}
+
+export async function deletePromoCode(code: string) {
+  return getClient().promoCode.deleteMany({ where: { code } });
+}
+
+export async function resetUserCreditedLoads(email: string) {
+  return getClient().user.updateMany({ where: { email }, data: { creditedLoads: 0 } });
 }
 
 export async function disconnect() {
