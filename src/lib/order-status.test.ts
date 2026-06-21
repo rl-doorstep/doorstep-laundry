@@ -6,8 +6,9 @@ import { describe, it, expect } from "vitest";
 import { VALID_ORDER_TRANSITIONS } from "./order-transitions";
 
 describe("order status transitions (shared module)", () => {
-  it("scheduled can go to picked_up or cancelled", () => {
-    expect(VALID_ORDER_TRANSITIONS.scheduled).toContain("picked_up");
+  it("scheduled can go to out_for_pickup or cancelled (not directly to picked_up)", () => {
+    expect(VALID_ORDER_TRANSITIONS.scheduled).toContain("out_for_pickup");
+    expect(VALID_ORDER_TRANSITIONS.scheduled).not.toContain("picked_up");
     expect(VALID_ORDER_TRANSITIONS.scheduled).toContain("cancelled");
   });
 

@@ -28,7 +28,6 @@ export async function POST(
   }
 
   const { orderId } = await params;
-  const userId = (session.user as { id: string }).id;
 
   let bulkyForNewLoad: BulkyItems | undefined;
   try {

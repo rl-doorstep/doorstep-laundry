@@ -7,8 +7,9 @@ import {
 } from "./order-transitions";
 
 describe("order status transitions", () => {
-  it("scheduled can go to picked_up or cancelled", () => {
-    expect(VALID_ORDER_TRANSITIONS.scheduled).toContain("picked_up");
+  it("scheduled can go to out_for_pickup or cancelled (not directly to picked_up)", () => {
+    expect(VALID_ORDER_TRANSITIONS.scheduled).toContain("out_for_pickup");
+    expect(VALID_ORDER_TRANSITIONS.scheduled).not.toContain("picked_up");
     expect(VALID_ORDER_TRANSITIONS.scheduled).toContain("cancelled");
   });
 
@@ -50,12 +51,20 @@ describe("order status transitions", () => {
 });
 
 describe("getOrderStatusFromLoads", () => {
-  it("picked_up → ready_for_wash is manual, not load-driven; getOrderStatusFromLoads returns null", () => {
+  it("picked_up with some loads missing location → null (not all placed yet)", () => {
     const loads: LoadRow[] = [
-      { status: "scheduled", location: "A1", weightLbs: null },
-      { status: "picked_up", location: "A2", weightLbs: null },
+      { status: "picked_up", location: "Shelf A1", weightLbs: null },
+      { status: "picked_up", location: null, weightLbs: null },
     ];
     expect(getOrderStatusFromLoads("picked_up", loads)).toBeNull();
+  });
+
+  it("picked_up with all loads assigned a location → ready_for_wash (auto-transition)", () => {
+    const loads: LoadRow[] = [
+      { status: "picked_up", location: "Shelf A1", weightLbs: null },
+      { status: "picked_up", location: "Shelf A2", weightLbs: null },
+    ];
+    expect(getOrderStatusFromLoads("picked_up", loads)).toBe("ready_for_wash");
   });
 
   it("ready_for_wash + one load washing → in_progress", () => {

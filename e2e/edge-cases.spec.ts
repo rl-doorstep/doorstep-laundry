@@ -81,7 +81,7 @@ test.describe("Order state guards (customer)", () => {
 
   test("customer cannot view another user's order (seeded customer2 order)", async ({ page }) => {
     // order 9003 belongs to customer2; customer1's session should get 404 or redirect
-    const res = await page.goto("/orders/nonexistent-order-id-xyz");
+    await page.goto("/orders/nonexistent-order-id-xyz");
     // Should not 200 into another user's order — expect redirect or 404
     const notFound = page.getByText(/not found|404|doesn't exist/i);
     const redirectedAway = !page.url().includes("/orders/nonexistent");
