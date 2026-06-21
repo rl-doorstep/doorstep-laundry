@@ -20,13 +20,8 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   void request;
-  const codes = await prisma.promoCode.findMany({
-    orderBy: { createdAt: "desc" },
-    include: { _count: { select: { redemptions: true } } },
-  });
-  return NextResponse.json(
-    codes.map(({ _count, ...c }) => ({ ...c, redemptionCount: _count.redemptions }))
-  );
+  const codes = await prisma.promoCode.findMany({ orderBy: { createdAt: "desc" } });
+  return NextResponse.json(codes);
 }
 
 /** POST: Generate promo codes (admin only). Body: { count: number, numberOfLoads: number } */
@@ -61,7 +56,7 @@ export async function POST(request: Request) {
       const promo = await prisma.promoCode.create({
         data: { code, numberOfLoads },
       });
-      created.push({ ...promo, redemptionCount: 0 });
+      created.push(promo);
     } catch {
       // unique constraint violation — retry with a new code
     }

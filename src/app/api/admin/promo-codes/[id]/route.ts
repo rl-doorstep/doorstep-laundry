@@ -28,13 +28,8 @@ export async function PATCH(
     return NextResponse.json({ error: "numberOfLoads must be ≥ 1" }, { status: 400 });
 
   try {
-    const updated = await prisma.promoCode.update({
-      where: { id },
-      data: { numberOfLoads },
-      include: { _count: { select: { redemptions: true } } },
-    });
-    const { _count, ...rest } = updated;
-    return NextResponse.json({ ...rest, redemptionCount: _count.redemptions });
+    const updated = await prisma.promoCode.update({ where: { id }, data: { numberOfLoads } });
+    return NextResponse.json(updated);
   } catch {
     return NextResponse.json({ error: "Promo code not found" }, { status: 404 });
   }
