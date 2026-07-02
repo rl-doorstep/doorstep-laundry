@@ -4,15 +4,16 @@ import { prisma } from "@/lib/db";
 
 export async function PATCH(
   request: Request,
-  { params }: { params: { jobId: string } }
+  { params }: { params: Promise<{ jobId: string }> }
 ) {
   const session = await getDriverSession(request);
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const { jobId } = await params;
   await prisma.printJob.update({
-    where: { id: params.jobId },
+    where: { id: jobId },
     data: { status: "done" },
   });
 
