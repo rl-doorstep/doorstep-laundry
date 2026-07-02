@@ -1,5 +1,4 @@
 import { prisma } from "./db";
-import Twilio from "twilio";
 import { Resend } from "resend";
 import { getGrtPercent, getCompanyInfo, getPricePerPoundCents } from "./settings";
 import { toE164 } from "./phone";
@@ -245,6 +244,7 @@ export async function sendOrderNotification(
           email: true,
           name: true,
           phone: true,
+          smsConsentAt: true,
           ...(event === "payment_received"
             ? { customPricePerPoundCents: true, nmgrtExempt: true }
             : {}),
@@ -291,38 +291,39 @@ export async function sendOrderNotification(
     console.warn("[notify] RESEND_FROM_EMAIL not set; using fallback (may fail if domain not verified in Resend)");
   }
 
-  const twilioSid = process.env.TWILIO_ACCOUNT_SID;
-  const twilioToken = process.env.TWILIO_AUTH_TOKEN;
-  const twilioMessagingServiceSid = process.env.TWILIO_MESSAGING_SERVICE_SID;
-  const twilioFrom = process.env.TWILIO_PHONE_NUMBER;
+  const quoApiKey = process.env.QUO_API_KEY;
+  const quoFrom = process.env.QUO_PHONE_NUMBER;
+  const quoUserId = process.env.QUO_USER_ID;
   const canSendSms =
-    twilioSid &&
-    twilioToken &&
-    (twilioMessagingServiceSid || twilioFrom) &&
-    order.customer.phone;
+    quoApiKey &&
+    quoFrom &&
+    order.customer.phone &&
+    order.customer.smsConsentAt !== null;
   if (canSendSms) {
     const toPhoneE164 = toE164(order.customer.phone!);
     if (!toPhoneE164) {
       console.warn("[notify] Customer phone not in valid format for SMS:", order.orderNumber);
     } else {
       try {
-        const client = Twilio(twilioSid, twilioToken);
-        await client.messages.create(
-          twilioMessagingServiceSid
-            ? {
-                body: `[${order.orderNumber}] ${smsText}`,
-                messagingServiceSid: twilioMessagingServiceSid,
-                to: toPhoneE164,
-              }
-            : {
-                body: `[${order.orderNumber}] ${smsText}`,
-                from: twilioFrom!,
-                to: toPhoneE164,
-              }
-        );
-        result.sms = true;
+        const quoPayload: Record<string, unknown> = {
+          content: `[${order.orderNumber}] ${smsText}`,
+          from: quoFrom,
+          to: [toPhoneE164],
+        };
+        if (quoUserId) quoPayload.userId = quoUserId;
+        const quoRes = await fetch("https://api.quo.com/v1/messages", {
+          method: "POST",
+          headers: { Authorization: quoApiKey, "Content-Type": "application/json" },
+          body: JSON.stringify(quoPayload),
+        });
+        if (!quoRes.ok) {
+          const errData = await quoRes.json().catch(() => ({}));
+          console.error("[notify] Quo SMS error:", quoRes.status, errData);
+        } else {
+          result.sms = true;
+        }
       } catch (e) {
-        console.error("Twilio SMS error:", e);
+        console.error("[notify] Quo SMS error:", e);
       }
     }
   }
