@@ -10,6 +10,7 @@ test.describe("Admin debug – label printer", () => {
   });
 
   test("send test print creates a job and shows the job ID", async ({ page }) => {
+    test.skip(!process.env.HARDWARE_TESTS, "skipped: creates a real print job — run with HARDWARE_TESTS=1");
     await page.goto("/admin");
     await page.getByRole("button", { name: "Debug" }).click();
 
